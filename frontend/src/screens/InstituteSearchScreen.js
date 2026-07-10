@@ -33,7 +33,8 @@ const EXAMS = ['JEE', 'NEET', 'UPSC', 'CAT', 'GATE', 'CLAT', 'NDA', 'CDS', 'SSC'
 const GRADES = ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
 
 export default function InstituteSearchScreen({ navigation, route }) {
-  const { avatar, userType } = route.params; // 'College Student', 'School Student', 'Coaching & Competitive Exams'
+  const { userType } = route.params;
+  const avatar = 'student1'; // Default since avatar selection was removed
   
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);

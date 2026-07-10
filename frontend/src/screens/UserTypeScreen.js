@@ -134,7 +134,7 @@ export default function UserTypeScreen({ navigation, route }) {
 
   const handleContinue = () => {
     if (!selected) return;
-    navigation.navigate('InstituteSearch', { avatar, userType: selected });
+    navigation.navigate('InstituteSearch', { userType: selected });
   };
 
   return (
