@@ -117,7 +117,7 @@ const TypeCard = ({ item, index, selected, onSelect }) => {
 
 export default function UserTypeScreen({ navigation, route }) {
   const [selected, setSelected] = useState(null);
-  const { avatar } = route.params;
+  const avatar = 'student1'; // Default fallback since we removed avatar selection
 
   const headerOpacity = useSharedValue(0);
   const headerTranslateY = useSharedValue(30);

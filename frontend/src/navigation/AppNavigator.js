@@ -11,7 +11,7 @@ import { auth, db } from '../../firebaseConfig';
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
-import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
+// import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
 import UserTypeScreen from '../screens/UserTypeScreen';
 import InstituteSearchScreen from '../screens/InstituteSearchScreen';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -51,7 +51,6 @@ const OnboardingStack = () => (
       animationDuration: 350,
     }}
   >
-    <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
     <Stack.Screen name="UserType" component={UserTypeScreen} />
     <Stack.Screen name="InstituteSearch" component={InstituteSearchScreen} />
     <Stack.Screen name="CalendarUpload" component={CalendarUploadScreen} />

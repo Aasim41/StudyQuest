@@ -58,8 +58,8 @@ export default function InstituteSearchScreen({ navigation, route }) {
     transform: [{ translateY: headerTranslateY.value }],
   }));
 
-  const isCollege = userType === 'College Student';
-  const isSchool = userType === 'School Student';
+  const isCollege = userType === 'college';
+  const isSchool = userType === 'school';
 
   // Debounced search (College only)
   useEffect(() => {
