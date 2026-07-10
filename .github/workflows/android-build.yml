@@ -35,7 +35,9 @@ jobs:
 
       - name: Build Android APK
         working-directory: ./frontend/android
-        run: ./gradlew assembleRelease
+        env:
+          NODE_OPTIONS: --max_old_space_size=6144
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
