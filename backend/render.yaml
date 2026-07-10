@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: studyquest-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    # Make sure you upload your .env values manually in the Render dashboard
