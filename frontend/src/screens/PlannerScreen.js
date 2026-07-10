@@ -261,19 +261,6 @@ export default function PlannerScreen() {
         <View style={styles.progressBarBg}>
           <Animated.View 
             style={[styles.progressBarFill, { width: `${progressPercent}%` }]} 
-          />
-        </View>
-      </View>
-          </View>
-          <View style={styles.progressCircle}>
-            <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
-          </View>
-        </View>
-
-        {/* Progress Bar */}
-        <View style={styles.progressBarBg}>
-          <Animated.View 
-            style={[styles.progressBarFill, { width: `${progressPercent}%` }]} 
             layout={withSpring}
           />
         </View>
