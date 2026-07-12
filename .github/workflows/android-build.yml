@@ -45,11 +45,15 @@ jobs:
 
       - name: Upload Log if Failed
         if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-error-log
+          path: frontend/android/build.log
+
+      - name: Show Error Summary
+        if: failure()
         working-directory: ./frontend/android
-        run: |
-          echo "Build failed. Uploading log to pastebin..."
-          curl -F 'file=@build.log' https://0x0.st
-          exit 1
+        run: tail -n 250 build.log
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
