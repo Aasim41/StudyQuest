@@ -45,6 +45,8 @@ GoogleSignin.configure({
   webClientId: '780918043284-qpdr7guvs2g5smil4fpis4isik7uh9qe.apps.googleusercontent.com', // User provided client ID
 });
 
+import API_BASE from '../config/apiConfig';
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,6 +54,11 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [focusedField, setFocusedField] = useState(null);
+
+  // Wake up Render backend
+  useEffect(() => {
+    fetch(`${API_BASE}/api/health`).catch(() => {});
+  }, []);
 
   // Animation values
   const logoScale = useSharedValue(0);

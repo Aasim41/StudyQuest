@@ -60,7 +60,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
         syllabus: syllabusData
       };
 
-      const res = await fetch(`${API_BASE}/api/schedule/merge`, {
+      const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
