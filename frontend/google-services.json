@@ -16,6 +16,14 @@
         {
           "client_id": "780918043284-qpdr7guvs2g5smil4fpis4isik7uh9qe.apps.googleusercontent.com",
           "client_type": 3
+        },
+        {
+          "client_id": "780918043284-placeholderandroid.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studyquest.app",
+            "certificate_hash": "DA39A3EE5E6B4B0D3255BFEF95601890AFD80709"
+          }
         }
       ],
       "api_key": [
