@@ -51,13 +51,23 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [focusedField, setFocusedField] = useState(null);
 
   // Wake up Render backend
   useEffect(() => {
-    fetch(`${API_BASE}/api/health`).catch(() => {});
+    const wakeServer = async () => {
+      try {
+        await fetch(`${API_BASE}/api/health`);
+        setServerReady(true);
+      } catch (err) {
+        // Retry after 5 seconds if it fails
+        setTimeout(wakeServer, 5000);
+      }
+    };
+    wakeServer();
   }, []);
 
   // Animation values
@@ -304,10 +314,11 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
 
               {/* Login Button */}
-              <GradientButton
-                title="Log In"
+              <GradientButton 
+                title={!serverReady ? "Waking Server..." : "Login to Quest"}
                 onPress={handleLogin}
                 loading={loading}
+                disabled={!serverReady || loading}
                 colors={COLORS.gradientAccent}
                 style={styles.loginButton}
               />

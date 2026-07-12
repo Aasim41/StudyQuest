@@ -7,6 +7,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
 import { auth, db } from '../../firebaseConfig';
+import API_BASE from '../config/apiConfig';
 
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -106,6 +107,9 @@ export default function AppNavigator() {
 
   useEffect(() => {
     let unsubsribeSnapshot = null;
+
+    // Wake up Render server globally on app boot
+    fetch(`${API_BASE}/api/health`).catch(() => {});
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
