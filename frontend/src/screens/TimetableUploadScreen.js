@@ -38,9 +38,6 @@ export default function TimetableUploadScreen({ navigation }) {
       const res = await fetch(`${API_BASE}/api/parse/timetable`, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
       });
 
       const data = await res.json();

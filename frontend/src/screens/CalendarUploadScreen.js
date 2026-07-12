@@ -38,9 +38,6 @@ export default function CalendarUploadScreen({ navigation }) {
       const res = await fetch(`${API_BASE}/api/parse/calendar`, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
       });
 
       const data = await res.json();
