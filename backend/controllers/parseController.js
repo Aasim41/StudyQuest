@@ -42,8 +42,8 @@ async function parseTimetable(req, res) {
     const fileBuffer = fs.readFileSync(file.path);
     const mimeType = file.mimetype;
 
-    // 2. Upload to Firebase Storage permanently
-    const fileUrl = await uploadToFirebaseStorage(file, adminApp, 'timetables');
+    // 2. Bypass Firebase Storage upload since we only need the parsed data
+    const fileUrl = "skipped";
 
     // 3. Clean up local temp file
     fs.unlinkSync(file.path);
@@ -120,7 +120,7 @@ async function parseCalendar(req, res) {
 
     const fileBuffer = fs.readFileSync(file.path);
     const mimeType = file.mimetype;
-    const fileUrl = await uploadToFirebaseStorage(file, adminApp, 'timetables');
+    const fileUrl = "skipped";
     fs.unlinkSync(file.path);
 
     const prompt = `
@@ -180,7 +180,7 @@ async function parseSyllabus(req, res) {
 
     const fileBuffer = fs.readFileSync(file.path);
     const mimeType = file.mimetype;
-    const fileUrl = await uploadToFirebaseStorage(file, adminApp, 'syllabus');
+    const fileUrl = "skipped";
     fs.unlinkSync(file.path);
 
     const prompt = `
