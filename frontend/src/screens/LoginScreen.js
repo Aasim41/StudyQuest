@@ -42,7 +42,7 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 // Initialize Google Sign-In with Web Client ID from Firebase
 GoogleSignin.configure({
-  webClientId: '442937861011-mqh7plpadssg6jloh7q9u8n1rs76pr1o.apps.googleusercontent.com', // User provided client ID
+  webClientId: '780918043284-qpdr7guvs2g5smil4fpis4isik7uh9qe.apps.googleusercontent.com', // User provided client ID
 });
 
 export default function LoginScreen({ navigation }) {
