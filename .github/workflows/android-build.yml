@@ -33,11 +33,23 @@ jobs:
         working-directory: ./frontend
         run: npx expo prebuild -p android --clean
 
+      - name: Fix Gradle Memory
+        working-directory: ./frontend
+        run: echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> android/gradle.properties
+
       - name: Build Android APK
         working-directory: ./frontend/android
         env:
           NODE_OPTIONS: --max_old_space_size=6144
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace > build.log 2>&1
+
+      - name: Upload Log if Failed
+        if: failure()
+        working-directory: ./frontend/android
+        run: |
+          echo "Build failed. Uploading log to pastebin..."
+          curl -F 'file=@build.log' https://0x0.st
+          exit 1
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
