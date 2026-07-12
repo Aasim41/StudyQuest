@@ -114,7 +114,9 @@ export default function InstituteSearchScreen({ navigation, route }) {
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        // Do NOT await setDoc! Firestore is offline-first. Awaiting it will cause the UI to hang if the websocket fails.
+        // It will save to local cache instantly and sync to the cloud in the background.
+        setDoc(doc(db, 'users', user.uid), {
           displayName: user.displayName || '',
           email: user.email,
           avatar,
@@ -125,10 +127,10 @@ export default function InstituteSearchScreen({ navigation, route }) {
           streak: 0,
           // onboardingComplete NOT set here yet!
           createdAt: new Date().toISOString(),
-        });
+        }).catch(err => console.warn('Background save error:', err));
       }
       
-      // Navigate to next step
+      // Navigate immediately
       if (isCollege) {
         navigation.navigate('CalendarUpload');
       } else {
@@ -147,7 +149,7 @@ export default function InstituteSearchScreen({ navigation, route }) {
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        setDoc(doc(db, 'users', user.uid), {
           displayName: user.displayName || '',
           email: user.email,
           avatar,
@@ -157,7 +159,7 @@ export default function InstituteSearchScreen({ navigation, route }) {
           level: 1,
           streak: 0,
           createdAt: new Date().toISOString(),
-        });
+        }).catch(err => console.warn('Background save error:', err));
       }
       if (isCollege) {
         navigation.navigate('CalendarUpload');
