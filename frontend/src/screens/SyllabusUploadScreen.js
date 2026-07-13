@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
 import API_BASE from '../config/apiConfig';
@@ -28,19 +29,18 @@ export default function SyllabusUploadScreen({ navigation }) {
       setLoading(true);
       setUploadStatus('Scanning syllabus...');
 
-      const formData = new FormData();
-      formData.append('file', {
-        uri: file.uri,
-        name: file.name,
-        type: file.mimeType || 'application/octet-stream',
-      });
+      const uploadResult = await FileSystem.uploadAsync(
+        `${API_BASE}/api/parse/syllabus`,
+        file.uri,
+        {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          fieldName: 'file',
+          mimeType: file.mimeType || 'application/octet-stream',
+        }
+      );
 
-      const res = await fetch(`${API_BASE}/api/parse/syllabus`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
+      const data = JSON.parse(uploadResult.body);
       if (data.success) {
         navigation.navigate('SyllabusCorrection', { parsedSyllabus: data.syllabus });
       } else {
