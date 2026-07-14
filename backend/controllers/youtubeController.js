@@ -39,7 +39,10 @@ async function summarizeVideo(req, res) {
     const fullTranscript = transcriptItems.map(item => item.text).join(' ');
 
     // 2. Guardrail & Summarize using Groq
-    const groq = req.app.locals.groq;
+    const groq = req.app.locals.groqClients && req.app.locals.groqClients.length > 0 ? req.app.locals.groqClients[0] : null;
+    if (!groq) {
+      return res.status(500).json({ success: false, error: 'Groq client not configured' });
+    }
     const prompt = `
 You are an expert AI Study Tutor. 
 Your task is to summarize the following YouTube video transcript.

@@ -9,7 +9,10 @@ const mergeSchedule = async (req, res) => {
       });
     }
 
-    const groq = req.app.locals.groq;
+    const groq = req.app.locals.groqClients && req.app.locals.groqClients.length > 0 ? req.app.locals.groqClients[0] : null;
+    if (!groq) {
+      return res.status(500).json({ success: false, error: 'Groq client not configured' });
+    }
 
     const prompt = `
 You are an expert academic planner. You have been provided with three JSON arrays:

@@ -15,7 +15,10 @@ async function generateSchedule(req, res) {
       });
     }
 
-    const groq = req.app.locals.groq;
+    const groq = req.app.locals.groqClients && req.app.locals.groqClients.length > 0 ? req.app.locals.groqClients[0] : null;
+    if (!groq) {
+      return res.status(500).json({ success: false, error: 'Groq client not configured' });
+    }
 
     // Construct the prompt for Groq
     const prompt = `
