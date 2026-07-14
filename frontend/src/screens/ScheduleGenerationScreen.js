@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, interpolate } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -14,6 +14,7 @@ const { width, height } = Dimensions.get('window');
 export default function ScheduleGenerationScreen({ navigation }) {
   const [status, setStatus] = useState('Gathering your data...');
   const [error, setError] = useState(null);
+  const [showForceContinue, setShowForceContinue] = useState(false);
 
   const pulse = useSharedValue(0);
 
@@ -24,7 +25,13 @@ export default function ScheduleGenerationScreen({ navigation }) {
       true
     );
 
+    const timer = setTimeout(() => {
+      setShowForceContinue(true);
+    }, 7000); // Show bypass button after 7 seconds just in case
+
     generateSchedule();
+
+    return () => clearTimeout(timer);
   }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -69,27 +76,32 @@ export default function ScheduleGenerationScreen({ navigation }) {
       
       if (result.success) {
         setStatus('Finalizing setup...');
-        // Save to local device explicitly as a backup
+        
+        // Save to DB immediately without waiting for AsyncStorage
         try {
-          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-          await AsyncStorage.setItem(`@studyquest_backup_${user.uid}`, JSON.stringify({
+          await setDoc(doc(db, 'users', user.uid), {
             studyPlan: result.studyPlan || [],
-            timetable: timetableData,
-            calendar: calendarData,
-            syllabus: syllabusData,
-            timestamp: new Date().toISOString()
-          }));
-        } catch (e) {
-          console.warn('Backup save failed', e);
+            onboardingComplete: true
+          }, { merge: true });
+          
+          // Force navigate to Dashboard just in case the listener is slow
+          if (navigation && navigation.replace) {
+            navigation.replace('Dashboard');
+          }
+        } catch (dbErr) {
+          console.warn('Finalizing setup setDoc error:', dbErr);
+          throw new Error('Failed to save your schedule to the database.');
         }
 
-        // Save study plan and mark onboarding complete without awaiting to prevent hang
-        setDoc(doc(db, 'users', user.uid), {
-          studyPlan: result.studyPlan || [],
-          onboardingComplete: true
-        }, { merge: true }).catch(err => console.warn('Finalizing setup setDoc error:', err));
-        
-        // AppNavigator's onSnapshot listener will catch the onboardingComplete=true and switch stacks!
+        // Fire and forget backup
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          AsyncStorage.setItem(`@studyquest_backup_${user.uid}`, JSON.stringify({
+            studyPlan: result.studyPlan || [],
+            timestamp: new Date().toISOString()
+          })).catch(() => {});
+        } catch (e) {}
+
       } else {
         throw new Error(result.error || 'Failed to generate schedule');
       }
@@ -125,6 +137,23 @@ export default function ScheduleGenerationScreen({ navigation }) {
           {!error && (
             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: SPACING.xl }} />
           )}
+
+          {showForceContinue && (
+            <Animated.View entering={FadeInDown.delay(500)}>
+              <TouchableOpacity 
+                style={styles.forceButton}
+                onPress={() => {
+                  const user = auth.currentUser;
+                  if (user) {
+                    setDoc(doc(db, 'users', user.uid), { onboardingComplete: true }, { merge: true });
+                  }
+                  if (navigation && navigation.replace) navigation.replace('Dashboard');
+                }}
+              >
+                <Text style={styles.forceButtonText}>Force Continue ⏭️</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </Animated.View>
       </View>
     </View>
@@ -138,4 +167,6 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 50 },
   title: { fontSize: FONT_SIZES.hero, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.sm, textAlign: 'center' },
   subtitle: { fontSize: FONT_SIZES.bodyLarge, color: COLORS.textSecondary, textAlign: 'center' },
+  forceButton: { marginTop: SPACING.xxl, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)' },
+  forceButtonText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: 'bold' }
 });
