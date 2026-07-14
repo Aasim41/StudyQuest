@@ -63,6 +63,31 @@ export default function SyllabusCorrectionScreen({ navigation, route }) {
     setSyllabus(prev => prev.filter(item => item.id !== id));
   };
 
+  const [newChapters, setNewChapters] = useState({});
+
+  const handleAddChapter = (subjectId) => {
+    const chapterName = newChapters[subjectId]?.trim();
+    if (!chapterName) return;
+    setSyllabus(prev => prev.map(item => {
+      if (item.id === subjectId) {
+        return { ...item, chapters: [...(item.chapters || []), chapterName] };
+      }
+      return item;
+    }));
+    setNewChapters(prev => ({ ...prev, [subjectId]: '' }));
+  };
+
+  const handleRemoveChapter = (subjectId, chapterIndex) => {
+    setSyllabus(prev => prev.map(item => {
+      if (item.id === subjectId) {
+        const newChaps = [...(item.chapters || [])];
+        newChaps.splice(chapterIndex, 1);
+        return { ...item, chapters: newChaps };
+      }
+      return item;
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -153,12 +178,32 @@ export default function SyllabusCorrectionScreen({ navigation, route }) {
                   </View>
 
                   {/* Chapters and Exam (School/Coaching specific) */}
-                  {item.chapters && item.chapters.length > 0 && (
-                    <View style={styles.chaptersContainer}>
-                      <Text style={styles.chaptersLabel}>Chapters {item.exam ? `(${item.exam})` : ''}:</Text>
-                      <Text style={styles.chaptersText}>{item.chapters.join(', ')}</Text>
+                  <View style={styles.chaptersContainer}>
+                    <Text style={styles.chaptersLabel}>Chapters {item.exam ? `(${item.exam})` : ''}:</Text>
+                    <View style={styles.chapterPillsContainer}>
+                      {(item.chapters || []).map((chap, idx) => (
+                        <View key={idx} style={styles.chapterPill}>
+                          <Text style={styles.chapterPillText}>{chap}</Text>
+                          <TouchableOpacity onPress={() => handleRemoveChapter(item.id, idx)} style={{ marginLeft: 6 }}>
+                            <Text style={styles.chapterDeleteIcon}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
                     </View>
-                  )}
+                    <View style={styles.addChapterRow}>
+                      <TextInput 
+                        style={styles.addChapterInput}
+                        value={newChapters[item.id] || ''}
+                        onChangeText={(text) => setNewChapters(prev => ({ ...prev, [item.id]: text }))}
+                        placeholder="Add chapter..."
+                        placeholderTextColor={COLORS.textMuted}
+                        onSubmitEditing={() => handleAddChapter(item.id)}
+                      />
+                      <TouchableOpacity style={styles.addChapterBtn} onPress={() => handleAddChapter(item.id)}>
+                        <Text style={styles.addChapterBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </GlassCard>
               </Animated.View>
             );
@@ -201,9 +246,16 @@ const styles = StyleSheet.create({
   deleteBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   addBtn: { alignSelf: 'center', marginTop: SPACING.md, padding: SPACING.md },
   addBtnText: { color: COLORS.primary, fontSize: FONT_SIZES.body, fontWeight: '700' },
-  chaptersContainer: { marginTop: SPACING.sm, paddingHorizontal: SPACING.xs },
-  chaptersLabel: { fontSize: FONT_SIZES.caption, color: COLORS.textSecondary, fontWeight: '600', marginBottom: 2 },
-  chaptersText: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, lineHeight: 18 },
+  chaptersContainer: { marginTop: SPACING.md, paddingHorizontal: SPACING.xs, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: SPACING.sm },
+  chaptersLabel: { fontSize: FONT_SIZES.caption, color: COLORS.textSecondary, fontWeight: '600', marginBottom: SPACING.xs },
+  chapterPillsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.sm },
+  chapterPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: SPACING.sm, paddingVertical: 4, borderRadius: BORDER_RADIUS.pill, borderWidth: 1, borderColor: COLORS.glassBorder },
+  chapterPillText: { fontSize: FONT_SIZES.caption, color: COLORS.textPrimary },
+  chapterDeleteIcon: { fontSize: 12, color: COLORS.error || '#FF4C4C', fontWeight: 'bold', paddingHorizontal: 2 },
+  addChapterRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  addChapterInput: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', color: COLORS.textPrimary, paddingHorizontal: SPACING.sm, paddingVertical: 6, borderRadius: BORDER_RADIUS.sm, fontSize: FONT_SIZES.caption, borderWidth: 1, borderColor: COLORS.border },
+  addChapterBtn: { width: 32, height: 32, backgroundColor: COLORS.glass, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: SPACING.sm, borderWidth: 1, borderColor: COLORS.primary },
+  addChapterBtnText: { color: COLORS.primary, fontSize: 18, fontWeight: '600', marginTop: -2 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   footerGradient: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxl, paddingTop: SPACING.xl },
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -61,6 +61,41 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
     setTimetable(prev => prev.filter(item => item.id !== id));
   };
 
+  const [dayPickerVisible, setDayPickerVisible] = useState(false);
+  const [activeRowId, setActiveRowId] = useState(null);
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  const openDayPicker = (id) => {
+    setActiveRowId(id);
+    setDayPickerVisible(true);
+  };
+
+  const handleDaySelect = (day) => {
+    if (activeRowId) handleUpdate(activeRowId, 'day', day);
+    setDayPickerVisible(false);
+    setActiveRowId(null);
+  };
+
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [tempStartTime, setTempStartTime] = useState('');
+  const [tempEndTime, setTempEndTime] = useState('');
+
+  const openTimePicker = (id, currentTime) => {
+    setActiveRowId(id);
+    const parts = (currentTime || '09:00 - 10:00').split('-');
+    setTempStartTime(parts[0]?.trim() || '');
+    setTempEndTime(parts[1]?.trim() || '');
+    setTimePickerVisible(true);
+  };
+
+  const handleTimeSave = () => {
+    if (activeRowId) {
+      handleUpdate(activeRowId, 'time', `${tempStartTime} - ${tempEndTime}`);
+    }
+    setTimePickerVisible(false);
+    setActiveRowId(null);
+  };
+
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -112,16 +147,12 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
             style={styles.rowCard}
           >
             <LinearGradient colors={COLORS.gradientGlass} style={styles.rowGradient}>
-              <EditableCell 
-                style={{ flex: 0.8 }} 
-                value={item.day} 
-                onChangeText={(text) => handleUpdate(item.id, 'day', text)} 
-              />
-              <EditableCell 
-                style={{ flex: 1.2 }} 
-                value={item.time} 
-                onChangeText={(text) => handleUpdate(item.id, 'time', text)} 
-              />
+              <TouchableOpacity style={styles.pickerCell} onPress={() => openDayPicker(item.id)}>
+                <Text style={styles.inputCell}>{item.day || 'Day'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.pickerCell} onPress={() => openTimePicker(item.id, item.time)}>
+                <Text style={styles.inputCell}>{item.time || 'Time'}</Text>
+              </TouchableOpacity>
               <EditableCell 
                 style={{ flex: 1.5 }} 
                 value={item.subject} 
@@ -154,6 +185,51 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
           style={styles.saveBtn}
         />
       </Animated.View>
+
+      {/* Day Picker Modal */}
+      <Modal visible={dayPickerVisible} transparent animationType="fade" onRequestClose={() => setDayPickerVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Day</Text>
+            <View style={styles.daysContainer}>
+              {DAYS.map(d => (
+                <TouchableOpacity key={d} style={styles.dayBtn} onPress={() => handleDaySelect(d)}>
+                  <Text style={styles.dayBtnText}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setDayPickerVisible(false)}>
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal visible={timePickerVisible} transparent animationType="fade" onRequestClose={() => setTimePickerVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Time</Text>
+            <View style={styles.timeInputsRow}>
+              <View style={styles.timeInputBox}>
+                <Text style={styles.timeLabel}>Start</Text>
+                <TextInput style={styles.timeInput} value={tempStartTime} onChangeText={setTempStartTime} placeholder="09:00" placeholderTextColor={COLORS.textMuted} />
+              </View>
+              <Text style={styles.timeSeparator}>-</Text>
+              <View style={styles.timeInputBox}>
+                <Text style={styles.timeLabel}>End</Text>
+                <TextInput style={styles.timeInput} value={tempEndTime} onChangeText={setTempEndTime} placeholder="10:00" placeholderTextColor={COLORS.textMuted} />
+              </View>
+            </View>
+            <TouchableOpacity style={styles.modalSaveBtn} onPress={handleTimeSave}>
+              <Text style={styles.modalSaveText}>Save Time</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setTimePickerVisible(false)}>
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -253,16 +329,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: SPACING.xl,
-    paddingBottom: SPACING.xxl,
-    backgroundColor: COLORS.background, // Or a gradient for fade effect
-  },
-  saveBtn: {
-    width: '100%',
-  },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.xl, paddingBottom: SPACING.xxl, backgroundColor: COLORS.background },
+  saveBtn: { width: '100%' },
+  pickerCell: { flex: 1, paddingVertical: SPACING.sm, justifyContent: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
+  modalContent: { width: '100%', backgroundColor: '#1E1E2D', borderRadius: BORDER_RADIUS.xl, padding: SPACING.xl, ...SHADOWS.glow },
+  modalTitle: { fontSize: FONT_SIZES.title, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.lg, textAlign: 'center' },
+  daysContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACING.md },
+  dayBtn: { backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, borderRadius: BORDER_RADIUS.sm, borderWidth: 1, borderColor: COLORS.glassBorder },
+  dayBtnText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: '600' },
+  timeInputsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.lg },
+  timeInputBox: { alignItems: 'center' },
+  timeLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, marginBottom: SPACING.xs },
+  timeInput: { backgroundColor: 'rgba(255,255,255,0.05)', color: COLORS.textPrimary, fontSize: FONT_SIZES.title, fontWeight: 'bold', padding: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border, textAlign: 'center', width: 100 },
+  timeSeparator: { color: COLORS.textMuted, fontSize: FONT_SIZES.title, fontWeight: 'bold', marginHorizontal: SPACING.md, marginTop: 20 },
+  modalSaveBtn: { backgroundColor: COLORS.primary, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, alignItems: 'center', marginBottom: SPACING.sm },
+  modalSaveText: { color: '#FFF', fontSize: FONT_SIZES.bodyLarge, fontWeight: '700' },
+  modalCloseBtn: { alignItems: 'center', padding: SPACING.sm },
+  modalCloseText: { color: COLORS.textMuted, fontSize: FONT_SIZES.body, fontWeight: '600' },
 });

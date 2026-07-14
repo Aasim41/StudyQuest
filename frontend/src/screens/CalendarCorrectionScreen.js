@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,7 @@ import { GradientButton, FloatingParticle } from '../components/ui';
 import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Calendar } from 'react-native-calendars';
 
 const { width, height } = Dimensions.get('window');
 
@@ -50,6 +51,22 @@ export default function CalendarCorrectionScreen({ navigation, route }) {
 
   const handleDeleteRow = (id) => {
     setCalendar(prev => prev.filter(item => item.id !== id));
+  };
+
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [activeDateId, setActiveDateId] = useState(null);
+
+  const openDatePicker = (id) => {
+    setActiveDateId(id);
+    setDatePickerVisible(true);
+  };
+
+  const handleDateSelect = (day) => {
+    if (activeDateId) {
+      handleUpdate(activeDateId, 'date', day.dateString);
+    }
+    setDatePickerVisible(false);
+    setActiveDateId(null);
   };
 
   const [saving, setSaving] = useState(false);
@@ -104,12 +121,11 @@ export default function CalendarCorrectionScreen({ navigation, route }) {
               style={styles.rowCard}
             >
               <LinearGradient colors={COLORS.gradientGlass} style={styles.rowGradient}>
-                <EditableCell 
-                  style={{ flex: 1 }} 
-                  value={item.date} 
-                  onChangeText={(text) => handleUpdate(item.id, 'date', text)} 
-                  placeholder="YYYY-MM-DD"
-                />
+                <TouchableOpacity style={styles.dateCell} onPress={() => openDatePicker(item.id)}>
+                  <Text style={[styles.inputCell, { color: item.date ? COLORS.textPrimary : COLORS.textMuted }]}>
+                    {item.date || 'YYYY-MM-DD'}
+                  </Text>
+                </TouchableOpacity>
                 <EditableCell 
                   style={{ flex: 1.5 }} 
                   value={item.title} 
@@ -145,6 +161,36 @@ export default function CalendarCorrectionScreen({ navigation, route }) {
           style={styles.saveBtn}
         />
       </Animated.View>
+
+      <Modal
+        visible={datePickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Calendar
+              onDayPress={handleDateSelect}
+              theme={{
+                backgroundColor: '#1E1E2D',
+                calendarBackground: '#1E1E2D',
+                textSectionTitleColor: COLORS.textMuted,
+                selectedDayBackgroundColor: COLORS.primary,
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: COLORS.accent,
+                dayTextColor: COLORS.textPrimary,
+                textDisabledColor: COLORS.border,
+                monthTextColor: COLORS.textPrimary,
+                arrowColor: COLORS.primary,
+              }}
+            />
+            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setDatePickerVisible(false)}>
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -168,4 +214,9 @@ const styles = StyleSheet.create({
   emptyText: { color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xxl, fontSize: FONT_SIZES.body },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: SPACING.xl, paddingBottom: SPACING.xxl, backgroundColor: COLORS.background },
   saveBtn: { width: '100%' },
+  dateCell: { flex: 1, paddingVertical: SPACING.sm, justifyContent: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
+  modalContent: { width: '100%', backgroundColor: '#1E1E2D', borderRadius: BORDER_RADIUS.xl, overflow: 'hidden', paddingBottom: SPACING.md, ...SHADOWS.glow },
+  modalCloseBtn: { alignSelf: 'center', marginTop: SPACING.md, padding: SPACING.md },
+  modalCloseText: { color: COLORS.textMuted, fontSize: FONT_SIZES.body, fontWeight: '600' },
 });
