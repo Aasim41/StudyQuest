@@ -72,6 +72,9 @@ async function callVisionModelWithFallback(prompt, imageParts, req) {
     } catch (err) {
       console.warn(`[API] Groq Key ${i + 1} failed:`, err.message);
       if (!err.message.includes('429') && !err.message.includes('rate_limit')) {
+         if (err.message.includes('invalid image data')) {
+             throw new Error("Our backup AI does not support PDF files. Please take a screenshot and upload the image, or tap 'Fill Manually'.");
+         }
          throw err;
       }
     }
