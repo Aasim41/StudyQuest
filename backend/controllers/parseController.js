@@ -193,23 +193,52 @@ async function parseSyllabus(req, res) {
     const genai = req.app.locals.genai;
     const fileUrl = "skipped";
 
-    const prompt = `
-You are a highly advanced OCR and data extraction AI for a student planner application. Extract the syllabus information from this document with PIN-POINT ACCURACY.
+    const userType = req.body.userType || 'unknown';
+    const institute = req.body.institute || {};
+
+    let prompt = `You are a highly advanced OCR and data extraction AI for a student planner application. Extract the syllabus information from this document with PIN-POINT ACCURACY.
+`;
+
+    if (userType === 'college') {
+      prompt += `
+CONTEXT: This is a college syllabus for a student in ${institute.semester || 'an unknown semester'}.
 
 Rules:
 1. Identify every subject/course listed.
 2. Extract credit hours/units if mentioned. If not mentioned, estimate based on typical university standards (3 for theory, 1-2 for lab).
 3. Calculate weightage as a percentage: (subject_credits / total_credits_sum) * 100, rounded to 1 decimal.
-4. Assign a confidence score (0.0 to 1.0) to each entry.
-5. Return STRICTLY as a JSON array.
+4. Mention the exact Semester "${institute.semester || ''}" in the "semester" field for every subject.
+5. Assign a confidence score (0.0 to 1.0) to each entry.
+6. Return STRICTLY as a JSON array.
 
 Each object MUST have:
 - "id": unique string
 - "subject": subject/course name
 - "credits": number of credits
-- "weightage": computed percentage (will be recalculated by frontend too)
+- "weightage": computed percentage
+- "semester": "${institute.semester || ''}"
 - "confidence": 0.0 to 1.0
 `;
+    } else {
+      prompt += `
+CONTEXT: This is a syllabus for a ${userType} student in ${institute.extra || 'an unknown class'}.
+
+Rules:
+1. Identify every subject listed.
+2. For EACH subject, extract ALL the Chapters/Topics listed in the syllabus.
+3. Identify the target Exam name (e.g. JEE, NEET, Class 10 Boards) if mentioned or inferred.
+4. Assign a confidence score (0.0 to 1.0) to each entry.
+5. Return STRICTLY as a JSON array.
+
+Each object MUST have:
+- "id": unique string
+- "subject": subject name
+- "chapters": an array of strings (e.g. ["Kinematics", "Laws of Motion"])
+- "exam": the name of the exam
+- "credits": set to 3 by default
+- "confidence": 0.0 to 1.0
+`;
+    }
 
     const response = await genai.models.generateContent({
       model: 'gemini-2.5-flash',
