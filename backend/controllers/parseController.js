@@ -30,23 +30,23 @@ async function uploadToFirebaseStorage(file, adminApp, folder = 'timetables') {
  */
 async function parseTimetable(req, res) {
   try {
-    if (!req.file) {
+    let fileBuffer, mimeType;
+    if (req.body && req.body.fileData) {
+      fileBuffer = Buffer.from(req.body.fileData, 'base64');
+      mimeType = req.body.mimeType || 'application/octet-stream';
+    } else if (req.file) {
+      fileBuffer = fs.readFileSync(req.file.path);
+      mimeType = req.file.mimetype;
+      fs.unlinkSync(req.file.path);
+    } else {
       return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
 
-    const file = req.file;
     const adminApp = req.app.locals.firebaseAdmin;
     const genai = req.app.locals.genai;
 
-    // 1. Read file to buffer for Gemini Vision
-    const fileBuffer = fs.readFileSync(file.path);
-    const mimeType = file.mimetype;
-
-    // 2. Bypass Firebase Storage upload since we only need the parsed data
+    // Bypass Firebase Storage upload since we only need the parsed data
     const fileUrl = "skipped";
-
-    // 3. Clean up local temp file
-    fs.unlinkSync(file.path);
 
     // 4. Call Gemini Vision to extract timetable
     const prompt = `
@@ -112,16 +112,21 @@ Each object MUST have the following schema EXACTLY:
  */
 async function parseCalendar(req, res) {
   try {
-    if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+    let fileBuffer, mimeType;
+    if (req.body && req.body.fileData) {
+      fileBuffer = Buffer.from(req.body.fileData, 'base64');
+      mimeType = req.body.mimeType || 'application/octet-stream';
+    } else if (req.file) {
+      fileBuffer = fs.readFileSync(req.file.path);
+      mimeType = req.file.mimetype;
+      fs.unlinkSync(req.file.path);
+    } else {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
 
-    const file = req.file;
     const adminApp = req.app.locals.firebaseAdmin;
     const genai = req.app.locals.genai;
-
-    const fileBuffer = fs.readFileSync(file.path);
-    const mimeType = file.mimetype;
     const fileUrl = "skipped";
-    fs.unlinkSync(file.path);
 
     const prompt = `
 You are a highly advanced OCR and data extraction AI for a student planner application. Your job is to extract the academic calendar from the provided document with PIN-POINT ACCURACY.
@@ -172,16 +177,21 @@ Each object MUST have the following schema EXACTLY:
  */
 async function parseSyllabus(req, res) {
   try {
-    if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+    let fileBuffer, mimeType;
+    if (req.body && req.body.fileData) {
+      fileBuffer = Buffer.from(req.body.fileData, 'base64');
+      mimeType = req.body.mimeType || 'application/octet-stream';
+    } else if (req.file) {
+      fileBuffer = fs.readFileSync(req.file.path);
+      mimeType = req.file.mimetype;
+      fs.unlinkSync(req.file.path);
+    } else {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
 
-    const file = req.file;
     const adminApp = req.app.locals.firebaseAdmin;
     const genai = req.app.locals.genai;
-
-    const fileBuffer = fs.readFileSync(file.path);
-    const mimeType = file.mimetype;
     const fileUrl = "skipped";
-    fs.unlinkSync(file.path);
 
     const prompt = `
 You are a highly advanced OCR and data extraction AI for a student planner application. Extract the syllabus information from this document with PIN-POINT ACCURACY.
