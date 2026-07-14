@@ -23,11 +23,13 @@ const adminApp = admin.initializeApp({
 
 // ─── Groq SDK ───────────────────────────────────────────────────────────────
 const Groq = require('groq-sdk');
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groqKeys = (process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+const groqClients = groqKeys.map(key => new Groq({ apiKey: key }));
 
 // ─── Gemini API ─────────────────────────────────────────────────────────────
 const { GoogleGenAI } = require('@google/genai');
-const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const geminiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+const geminiClients = geminiKeys.map(key => new GoogleGenAI({ apiKey: key }));
 
 // ─── Express App ────────────────────────────────────────────────────────────
 const app = express();
@@ -78,8 +80,8 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // ─── Attach shared clients to app.locals for route access ───────────────────
 app.locals.firebaseAdmin = admin;
-app.locals.groq = groq;
-app.locals.genai = genai;
+app.locals.groqClients = groqClients;
+app.locals.geminiClients = geminiClients;
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 const healthRoutes = require('./routes/health');
@@ -127,8 +129,8 @@ app.listen(PORT, () => {
   console.log(`  Port:        ${PORT}`);
   console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`  Firebase:    Initialized`);
-  console.log(`  Groq:        ${process.env.GROQ_API_KEY ? 'Configured' : 'Missing API Key'}`);
-  console.log(`  Gemini:      ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing API Key'}`);
+  console.log(`  Groq:        ${groqClients.length} key(s) configured`);
+  console.log(`  Gemini:      ${geminiClients.length} key(s) configured`);
   console.log(`${'='.repeat(50)}\n`);
 });
 

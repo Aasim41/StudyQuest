@@ -26,6 +26,61 @@ async function uploadToFirebaseStorage(file, adminApp, folder = 'timetables') {
 }
 
 /**
+ * Tries Gemini keys in sequence. If all fail, tries Groq keys in sequence using llama-3.2-90b-vision-preview.
+ */
+async function callVisionModelWithFallback(prompt, imageParts, req) {
+  const geminiClients = req.app.locals.geminiClients || [];
+  const groqClients = req.app.locals.groqClients || [];
+  
+  // 1. Try Gemini
+  for (let i = 0; i < geminiClients.length; i++) {
+    try {
+      const response = await geminiClients[i].models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ text: prompt }, ...imageParts],
+        config: { responseMimeType: "application/json" }
+      });
+      return response.text;
+    } catch (err) {
+      console.warn(`[API] Gemini Key ${i + 1} failed:`, err.message);
+      if (!err.message.includes('429') && !err.message.includes('RESOURCE_EXHAUSTED')) {
+         throw err;
+      }
+    }
+  }
+
+  // 2. Try Groq (Llama 3.2 Vision)
+  console.warn('[API] All Gemini keys exhausted. Falling back to Groq Vision...');
+  const groqContent = [{ type: "text", text: prompt }];
+  for (const part of imageParts) {
+    if (part.inlineData) {
+      groqContent.push({
+        type: "image_url",
+        image_url: { url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}` }
+      });
+    }
+  }
+
+  for (let i = 0; i < groqClients.length; i++) {
+    try {
+      const response = await groqClients[i].chat.completions.create({
+        model: "llama-3.2-90b-vision-preview",
+        messages: [{ role: "user", content: groqContent }],
+        // We omit response_format because the prompt asks for a JSON array, not an object.
+      });
+      return response.choices[0].message.content;
+    } catch (err) {
+      console.warn(`[API] Groq Key ${i + 1} failed:`, err.message);
+      if (!err.message.includes('429') && !err.message.includes('rate_limit')) {
+         throw err;
+      }
+    }
+  }
+
+  throw new Error("429: All API keys (Gemini and Groq) have exhausted their quotas.");
+}
+
+/**
  * POST /api/parse/timetable
  */
 async function parseTimetable(req, res) {
@@ -70,18 +125,8 @@ Each object MUST have the following schema EXACTLY:
 - "confidence": a number between 0.0 and 1.0 indicating extraction confidence.
 `;
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { text: prompt },
-        ...imageParts
-      ],
-      config: {
-        responseMimeType: "application/json",
-      }
-    });
+    const parsedText = await callVisionModelWithFallback(prompt, imageParts, req);
 
-    const parsedText = response.text;
     let timetableData = [];
     try {
       timetableData = JSON.parse(parsedText);
@@ -100,7 +145,13 @@ Each object MUST have the following schema EXACTLY:
   } catch (error) {
     console.error('[PARSE TIMETABLE ERROR]', error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ success: false, error: error.message });
+    
+    let errorMessage = error.message || 'An unknown error occurred';
+    if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+      errorMessage = 'Gemini API quota exceeded. Please try again later or use the "Fill Manually" option.';
+    }
+    
+    res.status(500).json({ success: false, error: errorMessage });
   }
 }
 
@@ -144,16 +195,8 @@ Each object MUST have the following schema EXACTLY:
 - "confidence": a number between 0.0 and 1.0 indicating extraction confidence.
 `;
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { text: prompt },
-        ...imageParts
-      ],
-      config: { responseMimeType: "application/json" }
-    });
+    const parsedText = await callVisionModelWithFallback(prompt, imageParts, req);
 
-    const parsedText = response.text;
     let calendarData = [];
     try {
       calendarData = JSON.parse(parsedText);
@@ -167,7 +210,13 @@ Each object MUST have the following schema EXACTLY:
   } catch (error) {
     console.error('[PARSE CALENDAR ERROR]', error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ success: false, error: error.message });
+    
+    let errorMessage = error.message || 'An unknown error occurred';
+    if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+      errorMessage = 'Gemini API quota exceeded. Please try again later or use the "Fill Manually" option.';
+    }
+
+    res.status(500).json({ success: false, error: errorMessage });
   }
 }
 
@@ -241,16 +290,8 @@ Each object MUST have:
 `;
     }
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { text: prompt },
-        ...imageParts
-      ],
-      config: { responseMimeType: "application/json" }
-    });
+    const parsedText = await callVisionModelWithFallback(prompt, imageParts, req);
 
-    const parsedText = response.text;
     let syllabusData = [];
     try {
       syllabusData = JSON.parse(parsedText);
@@ -264,7 +305,13 @@ Each object MUST have:
   } catch (error) {
     console.error('[PARSE SYLLABUS ERROR]', error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ success: false, error: error.message });
+    
+    let errorMessage = error.message || 'An unknown error occurred';
+    if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+      errorMessage = 'Gemini API quota exceeded. Please try again later or use the "Fill Manually" option.';
+    }
+
+    res.status(500).json({ success: false, error: errorMessage });
   }
 }
 
