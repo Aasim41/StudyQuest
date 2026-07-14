@@ -9,9 +9,11 @@ const mergeSchedule = async (req, res) => {
       });
     }
 
-    const groq = req.app.locals.groqClients && req.app.locals.groqClients.length > 0 ? req.app.locals.groqClients[0] : null;
-    if (!groq) {
-      return res.status(500).json({ success: false, error: 'Groq client not configured' });
+    const geminiClients = req.app.locals.geminiClients || [];
+    const groqClients = req.app.locals.groqClients || [];
+
+    if (geminiClients.length === 0 && groqClients.length === 0) {
+      return res.status(500).json({ success: false, error: 'No AI clients configured' });
     }
 
     const prompt = `
@@ -28,7 +30,7 @@ Rules:
 3. Allocate study time proportionally to the "weightage" of each subject (from Syllabus).
 4. Apply spaced repetition: schedule review sessions before exam dates if any exist in the Calendar.
 5. Create realistic 1-2 hour study blocks.
-6. Return STRICTLY as a JSON array of objects wrapped in a "schedule" key.
+6. Return STRICTLY as a JSON object with a single "schedule" key containing an array of objects. Do NOT return markdown formatting.
 
 Each object MUST have:
 - "id": a unique string
@@ -46,14 +48,48 @@ Calendar: ${JSON.stringify(calendar)}
 Syllabus: ${JSON.stringify(syllabus)}
 `;
 
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.3-70b-versatile',
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-    });
+    let content = null;
+    let errorToReport = null;
 
-    const content = chatCompletion.choices[0]?.message?.content;
+    // 1. Try Gemini
+    for (let i = 0; i < geminiClients.length; i++) {
+      try {
+        const response = await geminiClients[i].models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{ text: prompt }],
+          config: { responseMimeType: "application/json" }
+        });
+        content = response.text;
+        break;
+      } catch (err) {
+        console.warn(`[MERGE] Gemini Key ${i + 1} failed:`, err.message);
+        errorToReport = err;
+      }
+    }
+
+    // 2. Try Groq if Gemini failed or wasn't configured
+    if (!content && groqClients.length > 0) {
+      for (let i = 0; i < groqClients.length; i++) {
+        try {
+          const chatCompletion = await groqClients[i].chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+          });
+          content = chatCompletion.choices[0]?.message?.content;
+          if (content) break;
+        } catch (err) {
+          console.warn(`[MERGE] Groq Key ${i + 1} failed:`, err.message);
+          errorToReport = err;
+        }
+      }
+    }
+
+    if (!content) {
+      throw errorToReport || new Error("All API keys exhausted or failed.");
+    }
+
     let studyPlan = [];
     try {
       const parsed = JSON.parse(content);
@@ -69,7 +105,7 @@ Syllabus: ${JSON.stringify(syllabus)}
         }
       }
     } catch (e) {
-      console.error("Failed to parse Groq response:", e);
+      console.error("Failed to parse AI response:", e);
       return res.status(500).json({ success: false, error: 'Failed to generate schedule' });
     }
 
