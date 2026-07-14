@@ -64,7 +64,7 @@ async function callVisionModelWithFallback(prompt, imageParts, req) {
   for (let i = 0; i < groqClients.length; i++) {
     try {
       const response = await groqClients[i].chat.completions.create({
-        model: "llama-3.2-11b-vision-preview",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [{ role: "user", content: groqContent }],
         // We omit response_format because the prompt asks for a JSON array, not an object.
       });
