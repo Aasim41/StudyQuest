@@ -20,26 +20,29 @@ export default function TimetableUploadScreen({ navigation }) {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         copyToCacheDirectory: true,
+        multiple: true,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) return;
 
-      const file = result.assets[0];
-      
       setLoading(true);
       setUploadStatus('Scanning timetable...');
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+      const files = [];
+      for (const file of result.assets) {
+        const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+        files.push({
+          fileData: base64,
+          mimeType: file.mimeType || 'application/octet-stream'
+        });
+      }
       
       const res = await fetch(`${API_BASE}/api/parse/timetable`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          fileData: base64,
-          mimeType: file.mimeType || 'application/octet-stream'
-        }),
+        body: JSON.stringify({ files }),
       });
 
       let data;

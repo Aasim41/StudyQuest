@@ -22,16 +22,22 @@ export default function SyllabusUploadScreen({ navigation }) {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         copyToCacheDirectory: true,
+        multiple: true,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) return;
 
-      const file = result.assets[0];
-      
       setLoading(true);
       setUploadStatus('Scanning syllabus...');
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+      const files = [];
+      for (const file of result.assets) {
+        const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+        files.push({
+          fileData: base64,
+          mimeType: file.mimeType || 'application/octet-stream'
+        });
+      }
       
       const user = auth.currentUser;
       let userData = {};
@@ -46,8 +52,7 @@ export default function SyllabusUploadScreen({ navigation }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fileData: base64,
-          mimeType: file.mimeType || 'application/octet-stream',
+          files,
           userType: userData.userType || 'unknown',
           institute: userData.institute || {}
         }),

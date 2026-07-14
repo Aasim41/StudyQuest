@@ -30,16 +30,18 @@ async function uploadToFirebaseStorage(file, adminApp, folder = 'timetables') {
  */
 async function parseTimetable(req, res) {
   try {
-    let fileBuffer, mimeType;
-    if (req.body && req.body.fileData) {
-      fileBuffer = Buffer.from(req.body.fileData, 'base64');
-      mimeType = req.body.mimeType || 'application/octet-stream';
+    const imageParts = [];
+    if (req.body && req.body.files && Array.isArray(req.body.files)) {
+      for (const file of req.body.files) {
+        imageParts.push({ inlineData: { data: file.fileData, mimeType: file.mimeType || 'application/octet-stream' } });
+      }
+    } else if (req.body && req.body.fileData) {
+      imageParts.push({ inlineData: { data: req.body.fileData, mimeType: req.body.mimeType || 'application/octet-stream' } });
     } else if (req.file) {
-      fileBuffer = fs.readFileSync(req.file.path);
-      mimeType = req.file.mimetype;
+      imageParts.push({ inlineData: { data: fs.readFileSync(req.file.path).toString('base64'), mimeType: req.file.mimetype } });
       fs.unlinkSync(req.file.path);
     } else {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
+      return res.status(400).json({ success: false, error: 'No files uploaded' });
     }
 
     const adminApp = req.app.locals.firebaseAdmin;
@@ -72,12 +74,7 @@ Each object MUST have the following schema EXACTLY:
       model: 'gemini-2.5-flash',
       contents: [
         { text: prompt },
-        {
-          inlineData: {
-            data: fileBuffer.toString('base64'),
-            mimeType: mimeType
-          }
-        }
+        ...imageParts
       ],
       config: {
         responseMimeType: "application/json",
@@ -112,16 +109,18 @@ Each object MUST have the following schema EXACTLY:
  */
 async function parseCalendar(req, res) {
   try {
-    let fileBuffer, mimeType;
-    if (req.body && req.body.fileData) {
-      fileBuffer = Buffer.from(req.body.fileData, 'base64');
-      mimeType = req.body.mimeType || 'application/octet-stream';
+    const imageParts = [];
+    if (req.body && req.body.files && Array.isArray(req.body.files)) {
+      for (const file of req.body.files) {
+        imageParts.push({ inlineData: { data: file.fileData, mimeType: file.mimeType || 'application/octet-stream' } });
+      }
+    } else if (req.body && req.body.fileData) {
+      imageParts.push({ inlineData: { data: req.body.fileData, mimeType: req.body.mimeType || 'application/octet-stream' } });
     } else if (req.file) {
-      fileBuffer = fs.readFileSync(req.file.path);
-      mimeType = req.file.mimetype;
+      imageParts.push({ inlineData: { data: fs.readFileSync(req.file.path).toString('base64'), mimeType: req.file.mimetype } });
       fs.unlinkSync(req.file.path);
     } else {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
+      return res.status(400).json({ success: false, error: 'No files uploaded' });
     }
 
     const adminApp = req.app.locals.firebaseAdmin;
@@ -149,7 +148,7 @@ Each object MUST have the following schema EXACTLY:
       model: 'gemini-2.5-flash',
       contents: [
         { text: prompt },
-        { inlineData: { data: fileBuffer.toString('base64'), mimeType: mimeType } }
+        ...imageParts
       ],
       config: { responseMimeType: "application/json" }
     });
@@ -177,16 +176,18 @@ Each object MUST have the following schema EXACTLY:
  */
 async function parseSyllabus(req, res) {
   try {
-    let fileBuffer, mimeType;
-    if (req.body && req.body.fileData) {
-      fileBuffer = Buffer.from(req.body.fileData, 'base64');
-      mimeType = req.body.mimeType || 'application/octet-stream';
+    const imageParts = [];
+    if (req.body && req.body.files && Array.isArray(req.body.files)) {
+      for (const file of req.body.files) {
+        imageParts.push({ inlineData: { data: file.fileData, mimeType: file.mimeType || 'application/octet-stream' } });
+      }
+    } else if (req.body && req.body.fileData) {
+      imageParts.push({ inlineData: { data: req.body.fileData, mimeType: req.body.mimeType || 'application/octet-stream' } });
     } else if (req.file) {
-      fileBuffer = fs.readFileSync(req.file.path);
-      mimeType = req.file.mimetype;
+      imageParts.push({ inlineData: { data: fs.readFileSync(req.file.path).toString('base64'), mimeType: req.file.mimetype } });
       fs.unlinkSync(req.file.path);
     } else {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
+      return res.status(400).json({ success: false, error: 'No files uploaded' });
     }
 
     const adminApp = req.app.locals.firebaseAdmin;
@@ -244,7 +245,7 @@ Each object MUST have:
       model: 'gemini-2.5-flash',
       contents: [
         { text: prompt },
-        { inlineData: { data: fileBuffer.toString('base64'), mimeType: mimeType } }
+        ...imageParts
       ],
       config: { responseMimeType: "application/json" }
     });
