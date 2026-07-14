@@ -67,14 +67,11 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        setDoc(doc(db, 'users', user.uid), {
           timetableData: timetable,
-        }, { merge: true });
+        }, { merge: true }).catch(err => console.warn('Error saving timetable:', err));
       }
-      // Navigate to Calendar correction if we uploaded a calendar, else ScheduleGen
-      navigation.navigate('CalendarCorrection', { 
-        parsedCalendar: parsedCalendar,
-      });
+      navigation.navigate('ScheduleGeneration');
     } catch (err) {
       console.warn('Error saving timetable:', err);
     } finally {

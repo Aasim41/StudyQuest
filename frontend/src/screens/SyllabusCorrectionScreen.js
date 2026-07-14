@@ -67,9 +67,9 @@ export default function SyllabusCorrectionScreen({ navigation, route }) {
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        setDoc(doc(db, 'users', user.uid), {
           syllabusData: processedSyllabus,
-        }, { merge: true });
+        }, { merge: true }).catch(err => console.warn('Error saving syllabus:', err));
       }
       navigation.navigate('TimetableUpload');
     } catch (err) {

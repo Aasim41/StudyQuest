@@ -58,11 +58,11 @@ export default function CalendarCorrectionScreen({ navigation, route }) {
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        setDoc(doc(db, 'users', user.uid), {
           calendarData: calendar,
-        }, { merge: true });
+        }, { merge: true }).catch(err => console.warn('Error saving calendar:', err));
       }
-      navigation.navigate('ScheduleGeneration');
+      navigation.navigate('SyllabusUpload');
     } catch (err) {
       console.warn('Error saving calendar:', err);
     } finally {
