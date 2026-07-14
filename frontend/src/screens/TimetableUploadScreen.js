@@ -29,18 +29,29 @@ export default function TimetableUploadScreen({ navigation }) {
       setLoading(true);
       setUploadStatus('Scanning timetable...');
 
-      const uploadResult = await FileSystem.uploadAsync(
-        `${API_BASE}/api/parse/timetable`,
-        file.uri,
-        {
-          httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-          fieldName: 'file',
-          mimeType: file.mimeType || 'application/octet-stream',
-        }
-      );
+      const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      const res = await fetch(`${API_BASE}/api/parse/timetable`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileData: base64,
+          mimeType: file.mimeType || 'application/octet-stream'
+        }),
+      });
 
-      const data = JSON.parse(uploadResult.body);
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        Alert.alert('Parse Error', 'Server returned invalid data. Is the server awake?');
+        setLoading(false);
+        setUploadStatus('');
+        return;
+      }
+
       if (data.success) {
         navigation.navigate('TimetableCorrection', { parsedTimetable: data.timetable });
       } else {
@@ -48,7 +59,7 @@ export default function TimetableUploadScreen({ navigation }) {
       }
     } catch (err) {
       console.warn('Upload error:', err);
-      Alert.alert('Error', 'Failed to upload document.');
+      Alert.alert('Raw Error', String(err));
     } finally {
       setLoading(false);
       setUploadStatus('');
