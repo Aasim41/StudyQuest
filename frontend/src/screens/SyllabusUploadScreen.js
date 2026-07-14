@@ -124,6 +124,9 @@ export default function SyllabusUploadScreen({ navigation }) {
       </View>
 
       <Animated.View entering={FadeInUp.delay(500).duration(600)} style={styles.footer}>
+        <TouchableOpacity style={styles.manualButton} onPress={() => navigation.navigate('SyllabusCorrection', { parsedSyllabus: [] })}>
+          <Text style={styles.manualText}>Or Fill Manually ✍️</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.skipButton} onPress={() => navigation.navigate('TimetableUpload')}>
           <Text style={styles.skipText}>Skip for now</Text>
         </TouchableOpacity>
@@ -146,7 +149,9 @@ const styles = StyleSheet.create({
   cardSubtitle: { fontSize: FONT_SIZES.body, color: COLORS.textMuted },
   loadingContainer: { alignItems: 'center', justifyContent: 'center' },
   loadingText: { color: COLORS.textPrimary, marginTop: SPACING.md, fontSize: FONT_SIZES.body, fontWeight: '600' },
-  footer: { padding: SPACING.xl, paddingBottom: SPACING.xxl * 2, alignItems: 'center' },
+  footer: { padding: SPACING.xl, paddingBottom: SPACING.xxl * 2, alignItems: 'center', width: '100%' },
+  manualButton: { padding: SPACING.md, marginBottom: SPACING.xs, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(255,255,255,0.08)', width: '80%', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  manualText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: '700' },
   skipButton: { padding: SPACING.md },
   skipText: { color: COLORS.textMuted, fontSize: FONT_SIZES.bodyLarge, fontWeight: '600' },
 });
