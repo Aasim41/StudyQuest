@@ -25,6 +25,7 @@ import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, SHADOWS, ANIMATION } from '
 import { GradientButton, FloatingParticle } from '../components/ui';
 import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
@@ -120,6 +121,9 @@ export default function InstituteSearchScreen({ navigation, route }) {
 
     setSaving(true);
     try {
+      await AsyncStorage.setItem('@onboarding_userType', userType || 'unknown');
+      await AsyncStorage.setItem('@onboarding_institute', JSON.stringify(finalInstitute || {}));
+
       const user = auth.currentUser;
       if (user) {
         // Do NOT await setDoc! Firestore is offline-first. Awaiting it will cause the UI to hang if the websocket fails.
@@ -155,6 +159,9 @@ export default function InstituteSearchScreen({ navigation, route }) {
   const handleSkip = async () => {
     setSaving(true);
     try {
+      await AsyncStorage.setItem('@onboarding_userType', userType || 'unknown');
+      await AsyncStorage.setItem('@onboarding_institute', JSON.stringify({}));
+
       const user = auth.currentUser;
       if (user) {
         setDoc(doc(db, 'users', user.uid), {

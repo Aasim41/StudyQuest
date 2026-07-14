@@ -7,8 +7,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
-import { auth, db } from '../../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
@@ -39,12 +38,10 @@ export default function SyllabusUploadScreen({ navigation }) {
         });
       }
       
-      const user = auth.currentUser;
-      let userData = {};
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) userData = userDoc.data();
-      }
+      const userTypeStr = await AsyncStorage.getItem('@onboarding_userType');
+      const instStr = await AsyncStorage.getItem('@onboarding_institute');
+      const userType = userTypeStr || 'unknown';
+      const institute = instStr ? JSON.parse(instStr) : {};
       
       const res = await fetch(`${API_BASE}/api/parse/syllabus`, {
         method: 'POST',
@@ -53,8 +50,8 @@ export default function SyllabusUploadScreen({ navigation }) {
         },
         body: JSON.stringify({
           files,
-          userType: userData.userType || 'unknown',
-          institute: userData.institute || {}
+          userType: userType,
+          institute: institute
         }),
       });
 

@@ -40,17 +40,14 @@ export default function ScheduleGenerationScreen({ navigation }) {
       }
 
       setStatus('Reading uploaded documents...');
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      let timetableData = [];
-      let calendarData = [];
-      let syllabusData = [];
-
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        timetableData = data.timetableData || [];
-        calendarData = data.calendarData || [];
-        syllabusData = data.syllabusData || [];
-      }
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const calendarStr = await AsyncStorage.getItem('@onboarding_calendar');
+      const syllabusStr = await AsyncStorage.getItem('@onboarding_syllabus');
+      const timetableStr = await AsyncStorage.getItem('@onboarding_timetable');
+      
+      const timetableData = timetableStr ? JSON.parse(timetableStr) : [];
+      const calendarData = calendarStr ? JSON.parse(calendarStr) : [];
+      const syllabusData = syllabusStr ? JSON.parse(syllabusStr) : [];
 
       setStatus('AI is crafting your perfect study plan...');
       

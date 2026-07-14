@@ -7,6 +7,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { GradientButton, FloatingParticle } from '../components/ui';
 import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -65,6 +66,7 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
   const handleSave = async () => {
     setSaving(true);
     try {
+      await AsyncStorage.setItem('@onboarding_timetable', JSON.stringify(timetable));
       const user = auth.currentUser;
       if (user) {
         setDoc(doc(db, 'users', user.uid), {
