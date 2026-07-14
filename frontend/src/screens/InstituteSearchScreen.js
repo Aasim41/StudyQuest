@@ -31,6 +31,8 @@ const { width, height } = Dimensions.get('window');
 
 const EXAMS = ['JEE', 'NEET', 'UPSC', 'CAT', 'GATE', 'CLAT', 'NDA', 'CDS', 'SSC'];
 const GRADES = ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
+const SEMESTERS = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4', 'Sem 5', 'Sem 6', 'Sem 7', 'Sem 8', 'Sem 9', 'Sem 10'];
 
 export default function InstituteSearchScreen({ navigation, route }) {
   const { userType } = route.params;
@@ -45,6 +47,10 @@ export default function InstituteSearchScreen({ navigation, route }) {
 
   // For School/Coaching
   const [extraInfo, setExtraInfo] = useState('');
+  
+  // For College
+  const [year, setYear] = useState('');
+  const [semester, setSemester] = useState('');
 
   const headerOpacity = useSharedValue(0);
   const headerTranslateY = useSharedValue(30);
@@ -95,12 +101,14 @@ export default function InstituteSearchScreen({ navigation, route }) {
     let finalInstitute = null;
 
     if (isCollege) {
-      if (!selected) return;
+      if (!selected || !year || !semester) return;
       finalInstitute = {
         id: selected.id,
         name: selected.name,
         state: selected.state,
         district: selected.district,
+        year: year,
+        semester: semester
       };
     } else {
       if (query.trim().length === 0 || extraInfo.length === 0) return;
@@ -193,7 +201,9 @@ export default function InstituteSearchScreen({ navigation, route }) {
     </Animated.View>
   ), []);
 
-  const isValid = isCollege ? !!selected : (query.trim().length > 0 && extraInfo.length > 0);
+  const isValid = isCollege 
+    ? (!!selected && year.length > 0 && semester.length > 0)
+    : (query.trim().length > 0 && extraInfo.length > 0);
 
   return (
     <View style={styles.container}>
@@ -269,7 +279,7 @@ export default function InstituteSearchScreen({ navigation, route }) {
         {/* Non-College Extra Selectors */}
         {!isCollege && (
           <Animated.View entering={FadeInDown.delay(500).springify()} style={styles.extraContainer}>
-            <Text style={styles.extraTitle}>{isSchool ? 'Select your Grade' : 'Target Exam'}</Text>
+            <Text style={styles.extraTitle}>{isSchool ? 'Select your Class' : 'Target Exam (Optional if Class selected)'}</Text>
             <View style={styles.pillContainer}>
               {(isSchool ? GRADES : EXAMS).map((item) => (
                 <TouchableOpacity
@@ -281,6 +291,53 @@ export default function InstituteSearchScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </View>
+            {!isSchool && (
+              <View style={{ marginTop: SPACING.md }}>
+                 <Text style={styles.extraTitle}>Or select Class</Text>
+                 <View style={styles.pillContainer}>
+                   {GRADES.map((item) => (
+                     <TouchableOpacity
+                       key={item}
+                       style={[styles.pill, extraInfo === item && styles.pillSelected]}
+                       onPress={() => setExtraInfo(item)}
+                     >
+                       <Text style={[styles.pillText, extraInfo === item && styles.pillTextSelected]}>{item}</Text>
+                     </TouchableOpacity>
+                   ))}
+                 </View>
+              </View>
+            )}
+          </Animated.View>
+        )}
+
+        {/* College Extra Selectors */}
+        {isCollege && selected && (
+          <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.extraContainer}>
+            <Text style={styles.extraTitle}>Year of Study</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillContainer} style={{ marginBottom: SPACING.md }}>
+              {YEARS.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.pill, year === item && styles.pillSelected]}
+                  onPress={() => setYear(item)}
+                >
+                  <Text style={[styles.pillText, year === item && styles.pillTextSelected]}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.extraTitle}>Semester</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillContainer}>
+              {SEMESTERS.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.pill, semester === item && styles.pillSelected]}
+                  onPress={() => setSemester(item)}
+                >
+                  <Text style={[styles.pillText, semester === item && styles.pillTextSelected]}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </Animated.View>
         )}
       </ScrollView>

@@ -112,41 +112,51 @@ export default function SyllabusCorrectionScreen({ navigation, route }) {
             return (
               <Animated.View key={item.id} entering={FadeInDown.delay(index * 50).springify()}>
                 <GlassCard style={[
-                  styles.rowCard,
+                  styles.rowCardContainer,
                   isLowConfidence && { borderColor: COLORS.warning, borderWidth: 1 }
                 ]}>
-                  {/* Subject */}
-                  <View style={[styles.inputContainer, { flex: 1.5 }]}>
-                    <TextInput
-                      style={styles.input}
-                      value={item.subject}
-                      onChangeText={(val) => updateField(item.id, 'subject', val)}
-                      placeholder="Subject Name"
-                      placeholderTextColor={COLORS.textMuted}
-                    />
-                    {isLowConfidence && <Text style={styles.warningIcon}>⚠️</Text>}
+                  <View style={styles.rowCard}>
+                    {/* Subject */}
+                    <View style={[styles.inputContainer, { flex: 1.5 }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={item.subject}
+                        onChangeText={(val) => updateField(item.id, 'subject', val)}
+                        placeholder="Subject Name"
+                        placeholderTextColor={COLORS.textMuted}
+                      />
+                      {isLowConfidence && <Text style={styles.warningIcon}>⚠️</Text>}
+                    </View>
+
+                    {/* Credits */}
+                    <View style={[styles.inputContainer, { flex: 0.8 }]}>
+                      <TextInput
+                        style={[styles.input, { textAlign: 'center' }]}
+                        value={String(item.credits)}
+                        onChangeText={(val) => updateField(item.id, 'credits', val)}
+                        keyboardType="numeric"
+                        maxLength={2}
+                      />
+                    </View>
+
+                    {/* Weightage (Read-only) */}
+                    <View style={[styles.inputContainer, { flex: 1, backgroundColor: 'transparent', borderWidth: 0 }]}>
+                      <Text style={styles.weightageText}>{item.weightage}%</Text>
+                    </View>
+
+                    {/* Delete */}
+                    <TouchableOpacity onPress={() => removeRow(item.id)} style={styles.deleteBtn}>
+                      <Text style={{ fontSize: 16 }}>🗑️</Text>
+                    </TouchableOpacity>
                   </View>
 
-                  {/* Credits */}
-                  <View style={[styles.inputContainer, { flex: 0.8 }]}>
-                    <TextInput
-                      style={[styles.input, { textAlign: 'center' }]}
-                      value={String(item.credits)}
-                      onChangeText={(val) => updateField(item.id, 'credits', val)}
-                      keyboardType="numeric"
-                      maxLength={2}
-                    />
-                  </View>
-
-                  {/* Weightage (Read-only) */}
-                  <View style={[styles.inputContainer, { flex: 1, backgroundColor: 'transparent', borderWidth: 0 }]}>
-                    <Text style={styles.weightageText}>{item.weightage}%</Text>
-                  </View>
-
-                  {/* Delete */}
-                  <TouchableOpacity onPress={() => removeRow(item.id)} style={styles.deleteBtn}>
-                    <Text style={{ fontSize: 16 }}>🗑️</Text>
-                  </TouchableOpacity>
+                  {/* Chapters and Exam (School/Coaching specific) */}
+                  {item.chapters && item.chapters.length > 0 && (
+                    <View style={styles.chaptersContainer}>
+                      <Text style={styles.chaptersLabel}>Chapters {item.exam ? `(${item.exam})` : ''}:</Text>
+                      <Text style={styles.chaptersText}>{item.chapters.join(', ')}</Text>
+                    </View>
+                  )}
                 </GlassCard>
               </Animated.View>
             );
@@ -180,7 +190,8 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 120 },
   gridHeader: { flexDirection: 'row', paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.glassBorder, marginBottom: SPACING.md },
   gridHeaderText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontWeight: '700', textTransform: 'uppercase' },
-  rowCard: { flexDirection: 'row', alignItems: 'center', padding: SPACING.sm, marginBottom: SPACING.sm },
+  rowCardContainer: { padding: SPACING.sm, marginBottom: SPACING.sm, flexDirection: 'column' },
+  rowCard: { flexDirection: 'row', alignItems: 'center' },
   inputContainer: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: BORDER_RADIUS.sm, borderWidth: 1, borderColor: COLORS.border, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', marginHorizontal: 2 },
   input: { flex: 1, color: COLORS.textPrimary, padding: SPACING.sm, fontSize: FONT_SIZES.body, fontWeight: '600' },
   warningIcon: { position: 'absolute', right: 8, fontSize: 12 },
@@ -188,6 +199,9 @@ const styles = StyleSheet.create({
   deleteBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   addBtn: { alignSelf: 'center', marginTop: SPACING.md, padding: SPACING.md },
   addBtnText: { color: COLORS.primary, fontSize: FONT_SIZES.body, fontWeight: '700' },
+  chaptersContainer: { marginTop: SPACING.sm, paddingHorizontal: SPACING.xs },
+  chaptersLabel: { fontSize: FONT_SIZES.caption, color: COLORS.textSecondary, fontWeight: '600', marginBottom: 2 },
+  chaptersText: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, lineHeight: 18 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   footerGradient: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxl, paddingTop: SPACING.xl },
 });

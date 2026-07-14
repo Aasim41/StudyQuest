@@ -72,11 +72,25 @@ export default function ScheduleGenerationScreen({ navigation }) {
       
       if (result.success) {
         setStatus('Finalizing setup...');
-        // Save study plan and mark onboarding complete
-        await setDoc(doc(db, 'users', user.uid), {
+        // Save to local device explicitly as a backup
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.setItem(`@studyquest_backup_${user.uid}`, JSON.stringify({
+            studyPlan: result.studyPlan || [],
+            timetable: timetableData,
+            calendar: calendarData,
+            syllabus: syllabusData,
+            timestamp: new Date().toISOString()
+          }));
+        } catch (e) {
+          console.warn('Backup save failed', e);
+        }
+
+        // Save study plan and mark onboarding complete without awaiting to prevent hang
+        setDoc(doc(db, 'users', user.uid), {
           studyPlan: result.studyPlan || [],
           onboardingComplete: true
-        }, { merge: true });
+        }, { merge: true }).catch(err => console.warn('Finalizing setup setDoc error:', err));
         
         // AppNavigator's onSnapshot listener will catch the onboardingComplete=true and switch stacks!
       } else {
@@ -89,9 +103,9 @@ export default function ScheduleGenerationScreen({ navigation }) {
       // Failsafe: just mark complete anyway so they aren't stuck
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
+        setDoc(doc(db, 'users', user.uid), {
           onboardingComplete: true
-        }, { merge: true });
+        }, { merge: true }).catch(e => console.warn(e));
       }
     }
   };

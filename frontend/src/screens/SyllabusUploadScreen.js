@@ -7,6 +7,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
+import { auth, db } from '../../firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
 import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
@@ -31,6 +33,13 @@ export default function SyllabusUploadScreen({ navigation }) {
 
       const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
       
+      const user = auth.currentUser;
+      let userData = {};
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) userData = userDoc.data();
+      }
+      
       const res = await fetch(`${API_BASE}/api/parse/syllabus`, {
         method: 'POST',
         headers: {
@@ -38,7 +47,9 @@ export default function SyllabusUploadScreen({ navigation }) {
         },
         body: JSON.stringify({
           fileData: base64,
-          mimeType: file.mimeType || 'application/octet-stream'
+          mimeType: file.mimeType || 'application/octet-stream',
+          userType: userData.userType || 'unknown',
+          institute: userData.institute || {}
         }),
       });
 
