@@ -61,6 +61,8 @@ export const UserProvider = ({ children }) => {
           nextLevelXp: data.nextLevelXp || 1000,
           streak: data.streak || 0,
           lastStudyDate: data.lastStudyDate || null,
+          userType: data.userType || null,
+          institute: data.institute || null,
         });
       }
     } catch (e) {

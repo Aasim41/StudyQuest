@@ -98,6 +98,8 @@ export default function LeaderboardScreen({ navigation }) {
     else if (rank === 3) { rankEmoji = '🥉'; borderColor = '#CD7F32'; cardColor = 'rgba(205, 127, 50, 0.1)'; }
     else { rankEmoji = `#${rank}`; }
 
+    const initialLetter = item.displayName ? item.displayName.charAt(0).toUpperCase() : 'S';
+
     return (
       <Animated.View entering={FadeInDown.delay(index * 50).springify()} layout={Layout.springify()}>
         <View style={[
@@ -108,8 +110,12 @@ export default function LeaderboardScreen({ navigation }) {
           <View style={styles.rankContainer}>
             <Text style={styles.rankText}>{rankEmoji}</Text>
           </View>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarEmoji}>{item.avatar || '🎓'}</Text>
+          <View style={[styles.avatarPlaceholder, isMe && { borderColor: COLORS.accent, borderWidth: 2 }]}>
+            {item.avatar ? (
+               <Text style={styles.avatarEmoji}>{item.avatar}</Text>
+            ) : (
+               <Text style={[styles.avatarLetter, isMe && { color: COLORS.accent }]}>{initialLetter}</Text>
+            )}
           </View>
           <View style={styles.userInfo}>
             <Text style={[styles.userName, isMe && { color: COLORS.accent }]}>
@@ -196,8 +202,9 @@ const styles = StyleSheet.create({
   },
   rankContainer: { width: 40, alignItems: 'center', justifyContent: 'center' },
   rankText: { fontSize: 20, fontWeight: '800', color: COLORS.textSecondary },
-  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
+  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
   avatarEmoji: { fontSize: 24 },
+  avatarLetter: { fontSize: 20, fontWeight: '800', color: '#FFF' },
   userInfo: { flex: 1 },
   userName: { fontSize: FONT_SIZES.body, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 2 },
   userLevel: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, fontWeight: '600' },

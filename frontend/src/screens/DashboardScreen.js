@@ -310,6 +310,24 @@ export default function DashboardScreen() {
                </View>
                <Text style={styles.profileName}>{displayName}</Text>
                <Text style={styles.profileEmail}>{auth.currentUser?.email}</Text>
+               
+               {/* Educational Details */}
+               {(userStats.userType || userStats.institute) && (
+                 <View style={styles.educationBadge}>
+                   <Text style={styles.educationText}>
+                     {userStats.userType === 'college' ? '🎓 College Student' : (userStats.userType === 'school' ? '🎒 School Student' : '📚 Learner')}
+                   </Text>
+                   {userStats.institute?.name && (
+                     <Text style={styles.instituteText}>{userStats.institute.name}</Text>
+                   )}
+                   {(userStats.institute?.degree || userStats.institute?.grade) && (
+                     <Text style={styles.degreeText}>
+                       {userStats.institute.degree || userStats.institute.grade}
+                       {userStats.institute.branch ? ` • ${userStats.institute.branch}` : ''}
+                     </Text>
+                   )}
+                 </View>
+               )}
             </View>
 
             <View style={styles.profileStatsRow}>
@@ -380,7 +398,11 @@ const styles = StyleSheet.create({
   largeAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primary, borderWidth: 3, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
   largeAvatarText: { color: '#FFF', fontSize: 36, fontWeight: '800' },
   profileName: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '700', marginBottom: 4 },
-  profileEmail: { color: COLORS.textMuted, fontSize: FONT_SIZES.body },
+  profileEmail: { color: COLORS.textMuted, fontSize: FONT_SIZES.body, marginBottom: SPACING.md },
+  educationBadge: { backgroundColor: COLORS.glass, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', width: '100%' },
+  educationText: { color: COLORS.accent, fontWeight: '700', fontSize: FONT_SIZES.body, marginBottom: 4 },
+  instituteText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.caption, textAlign: 'center', fontWeight: '600' },
+  degreeText: { color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 2 },
   profileStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: SPACING.xl },
   profileStat: { padding: SPACING.md, backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', flex: 1, marginHorizontal: 4 },
   profileStatVal: { color: COLORS.textPrimary, fontWeight: '700', fontSize: FONT_SIZES.body },
