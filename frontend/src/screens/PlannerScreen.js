@@ -8,6 +8,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '
 import { FloatingParticle } from '../components/ui';
 import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -223,6 +224,49 @@ export default function PlannerScreen() {
     }
   };
 
+  const handleRegenerate = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      setTopics([]); // Clear UI while generating
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const data = userDoc.data();
+      
+      const payload = {
+        timetable: data.timetable || [],
+        calendar: data.calendar || [],
+        syllabus: data.syllabus || []
+      };
+
+      const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await res.json();
+      if (result.success) {
+        await updateDoc(doc(db, 'users', user.uid), { studyPlan: result.studyPlan });
+        const plan = result.studyPlan.map((item, index) => ({
+          ...item,
+          completed: item.completed || false,
+          difficulty: item.difficulty || 3,
+          color: item.color || ['#FF6B35', '#4A90D9', '#2ECC71', '#A29BFE'][index % 4],
+        }));
+        setTopics(plan);
+      } else {
+        alert(result.error || 'Failed to generate schedule');
+      }
+    } catch (e) {
+      alert('Error regenerating schedule. Please try again later.');
+      console.warn(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const completedCount = topics.filter(t => t.completed).length;
   const progressPercent = topics.length > 0 ? (completedCount / topics.length) * 100 : 0;
 
@@ -309,7 +353,7 @@ export default function PlannerScreen() {
 
       {/* FAB - Replan */}
       <Animated.View entering={FadeInDown.delay(800).springify()} style={styles.fabContainer}>
-        <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={handleRegenerate}>
           <LinearGradient colors={COLORS.gradientAccent} style={styles.fabGradient}>
             <Text style={styles.fabIcon}>✨</Text>
           </LinearGradient>
