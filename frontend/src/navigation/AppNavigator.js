@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged } from 'firebase/auth';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,6 +28,7 @@ import PlannerScreen from '../screens/PlannerScreen';
 import FocusTimerScreen from '../screens/FocusTimerScreen';
 import YouTubeFeedScreen from '../screens/YouTubeFeedScreen';
 import YouTubePlayerScreen from '../screens/YouTubePlayerScreen';
+import SavedVideosScreen from '../screens/SavedVideosScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 
 const Stack = createNativeStackNavigator();
@@ -64,6 +66,44 @@ const OnboardingStack = () => (
   </Stack.Navigator>
 );
 
+const Tab = createBottomTabNavigator();
+
+const MainTabNavigator = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      headerShown: false,
+      tabBarStyle: {
+        backgroundColor: '#0A0A1A',
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.1)',
+        height: 65,
+        paddingBottom: 10,
+        paddingTop: 10,
+      },
+      tabBarActiveTintColor: COLORS.accent,
+      tabBarInactiveTintColor: COLORS.textMuted,
+      tabBarIcon: ({ color, size, focused }) => {
+        let icon = '';
+        if (route.name === 'Dashboard') icon = '🏠';
+        else if (route.name === 'Planner') icon = '📅';
+        else if (route.name === 'StudyTube') icon = '▶️';
+        else if (route.name === 'Saved') icon = '💾';
+        return <View style={focused ? {
+          shadowColor: COLORS.accent,
+          shadowOffset: {width: 0, height: 0},
+          shadowOpacity: 0.8,
+          shadowRadius: 10,
+        } : null}><Text style={{ fontSize: size }}>{icon}</Text></View>;
+      },
+    })}
+  >
+    <Tab.Screen name="Dashboard" component={DashboardScreen} />
+    <Tab.Screen name="Planner" component={PlannerScreen} />
+    <Tab.Screen name="StudyTube" component={YouTubeFeedScreen} />
+    <Tab.Screen name="Saved" component={SavedVideosScreen} />
+  </Tab.Navigator>
+);
+
 const MainStack = () => (
   <Stack.Navigator
     screenOptions={{
@@ -71,14 +111,12 @@ const MainStack = () => (
       animation: 'fade',
     }}
   >
-    <Stack.Screen name="Dashboard" component={DashboardScreen} />
-    <Stack.Screen name="Planner" component={PlannerScreen} />
+    <Stack.Screen name="MainTabs" component={MainTabNavigator} />
     <Stack.Screen 
       name="FocusTimer" 
       component={FocusTimerScreen} 
       options={{ presentation: 'fullScreenModal' }}
     />
-    <Stack.Screen name="YouTubeFeed" component={YouTubeFeedScreen} />
     <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} />
     <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
     

@@ -9,9 +9,9 @@ export const UserProvider = ({ children }) => {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Firestore stats
   const [userStats, setUserStats] = useState({ level: 1, xp: 0, nextLevelXp: 1000, streak: 0, lastStudyDate: null });
   const [studyPlan, setStudyPlan] = useState([]);
+  const [savedVideos, setSavedVideos] = useState([]);
 
   useEffect(() => {
     const init = async () => {
@@ -44,8 +44,13 @@ export const UserProvider = ({ children }) => {
       if (planStr) {
         setStudyPlan(JSON.parse(planStr));
       }
+      
+      const videosStr = await AsyncStorage.getItem('@savedVideos');
+      if (videosStr) {
+        setSavedVideos(JSON.parse(videosStr));
+      }
     } catch (e) {
-      console.warn('Failed to load local study plan', e);
+      console.warn('Failed to load local data', e);
     }
   };
 
@@ -89,6 +94,26 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const saveVideo = async (video) => {
+    const newVideos = [...savedVideos, video];
+    setSavedVideos(newVideos);
+    try {
+      await AsyncStorage.setItem('@savedVideos', JSON.stringify(newVideos));
+    } catch (e) {
+      console.warn('Failed to save video locally', e);
+    }
+  };
+
+  const removeVideo = async (videoId) => {
+    const newVideos = savedVideos.filter(v => v.videoId !== videoId);
+    setSavedVideos(newVideos);
+    try {
+      await AsyncStorage.setItem('@savedVideos', JSON.stringify(newVideos));
+    } catch (e) {
+      console.warn('Failed to remove video locally', e);
+    }
+  };
+
   return (
     <UserContext.Provider value={{
       onboardingComplete,
@@ -99,7 +124,10 @@ export const UserProvider = ({ children }) => {
       saveStatsToFirestore,
       studyPlan,
       loadLocalStudyPlan,
-      updateStudyPlan
+      updateStudyPlan,
+      savedVideos,
+      saveVideo,
+      removeVideo
     }}>
       {children}
     </UserContext.Provider>

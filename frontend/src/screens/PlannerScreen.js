@@ -37,6 +37,8 @@ const TopicCard = ({ item, index, onToggle, onEditClick }) => {
     return '#2ECC71'; 
   };
 
+  const itemColor = item.color || COLORS.primary;
+
   return (
     <Animated.View entering={FadeInDown.delay(300 + index * 100).springify()} style={styles.cardContainer}>
       <Animated.View style={animStyle}>
@@ -45,12 +47,12 @@ const TopicCard = ({ item, index, onToggle, onEditClick }) => {
           style={[
             styles.topicCard,
             item.completed && styles.topicCardCompleted,
-            { borderLeftColor: item.color, borderLeftWidth: 4, flexDirection: 'row', alignItems: 'center' }
+            { borderLeftColor: itemColor, borderLeftWidth: 4, flexDirection: 'row', alignItems: 'center' }
           ]}
         >
           <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={{ flex: 1 }}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.subjectName, { color: item.color }]}>{item.subject}</Text>
+              <Text style={[styles.subjectName, { color: itemColor }]}>{item.subject}</Text>
               <View style={styles.headerRight}>
                 <Text style={styles.timeText}>{item.time}</Text>
                 {!item.completed && (
@@ -72,14 +74,14 @@ const TopicCard = ({ item, index, onToggle, onEditClick }) => {
               onPress={() => navigation.navigate('FocusTimer', { 
                 topic: item.subject, 
                 subject: item.subject, 
-                color: item.color 
+                color: itemColor 
               })}
             >
               <Text style={styles.startFocusText}>Focus</Text>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={[styles.checkbox, item.completed && { backgroundColor: item.color, borderColor: item.color }, { marginLeft: SPACING.md }]}>
+          <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={[styles.checkbox, item.completed && { backgroundColor: itemColor, borderColor: itemColor }, { marginLeft: SPACING.md }]}>
             {item.completed && <Text style={styles.checkIcon}>✓</Text>}
           </TouchableOpacity>
         </LinearGradient>

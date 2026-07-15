@@ -15,6 +15,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
+import { useUser } from '../context/UserContext';
 import API_BASE from '../config/apiConfig';
 
 const { width } = Dimensions.get('window');
@@ -25,8 +26,16 @@ export default function YouTubeFeedScreen() {
   const [videos, setVideos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const { studyPlan } = useUser();
+
   useEffect(() => {
-    fetchFeed();
+    if (studyPlan && studyPlan.length > 0) {
+      // Pick a random subject from the study plan to personalize the feed
+      const randomSubject = studyPlan[Math.floor(Math.random() * studyPlan.length)].subject;
+      handleSearch(randomSubject);
+    } else {
+      fetchFeed();
+    }
   }, []);
 
   const fetchFeed = async () => {
@@ -44,14 +53,15 @@ export default function YouTubeFeedScreen() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery) {
+  const handleSearch = async (queryOverride) => {
+    const q = typeof queryOverride === 'string' ? queryOverride : searchQuery;
+    if (!q) {
       fetchFeed();
       return;
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(q)}`);
       const data = await response.json();
       if (data.success) {
         setVideos(data.items);

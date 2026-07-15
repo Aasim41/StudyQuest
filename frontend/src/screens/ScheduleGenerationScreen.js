@@ -40,6 +40,14 @@ export default function ScheduleGenerationScreen({ navigation }) {
     opacity: interpolate(pulse.value, [0, 1], [0.6, 1]),
   }));
 
+  const handleComplete = async () => {
+    try {
+      await completeOnboarding();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const generateSchedule = async () => {
     try {
       const user = auth.currentUser;
@@ -65,13 +73,19 @@ export default function ScheduleGenerationScreen({ navigation }) {
         syllabus: syllabusData
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
       const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       const result = await res.json();
       
@@ -79,11 +93,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
         setStatus('Finalizing setup...');
         
         await updateStudyPlan(result.studyPlan || []);
-        await completeOnboarding();
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Dashboard' }],
-        });
+        await handleComplete();
       } else {
         throw new Error(result.error || 'Failed to generate schedule');
       }
@@ -92,7 +102,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
       console.warn('Generation error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
       // Failsafe: just mark complete anyway so they aren't stuck
-      await completeOnboarding();
+      await handleComplete();
     }
   };
 
@@ -119,13 +129,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
             <Animated.View entering={FadeInDown.delay(500)}>
               <TouchableOpacity 
                 style={styles.forceButton}
-                onPress={async () => {
-                  await completeOnboarding();
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Dashboard' }],
-                  });
-                }}
+                onPress={handleComplete}
               >
                 <Text style={styles.forceButtonText}>Force Continue ⏭️</Text>
               </TouchableOpacity>

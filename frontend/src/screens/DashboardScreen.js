@@ -10,7 +10,7 @@ import {
   Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
@@ -41,6 +41,23 @@ export default function DashboardScreen() {
   
   // Profile Modal State
   const [isProfileVisible, setProfileVisible] = useState(false);
+
+  // Scroll Animation
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 100], [1, 0], Extrapolation.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, 100], [0, -20], Extrapolation.CLAMP);
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
 
   useEffect(() => {
     // Random quote for the day
@@ -147,11 +164,17 @@ export default function DashboardScreen() {
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
       <FloatingParticle size={180} color={COLORS.primary} x={width * 0.7} y={-40} delay={100} />
       <FloatingParticle size={120} color={COLORS.accent} x={-20} y={height * 0.4} delay={400} />
+      <FloatingParticle size={80} color={COLORS.streak} x={width * 0.2} y={height * 0.8} delay={700} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+      >
         
         {/* Header Section */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+        <Animated.View style={[styles.header, headerAnimatedStyle]} entering={FadeInDown.delay(100).springify()}>
           <View>
             <Text style={styles.greeting}>Ready to level up,</Text>
             <Text style={styles.username}>{displayName.split(' ')[0]}! 🚀</Text>
@@ -265,33 +288,7 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* Quick Actions */}
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('Planner')}>
-              <Text style={styles.actionEmoji}>📅</Text>
-              <Text style={styles.actionText}>Study Planner</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('CalendarUpload')}>
-              <Text style={styles.actionEmoji}>📄</Text>
-              <Text style={styles.actionText}>Upload Docs</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('YouTubeFeed')}>
-              <Text style={styles.actionEmoji}>▶️</Text>
-              <Text style={styles.actionText}>YouTube Hub</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('Leaderboard')}>
-              <Text style={styles.actionEmoji}>🏆</Text>
-              <Text style={styles.actionText}>Leaderboard</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Profile Modal */}
       <Modal visible={isProfileVisible} animationType="fade" transparent={true}>

@@ -15,6 +15,8 @@ import { StatusBar } from 'expo-status-bar';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
 import { GlassCard } from '../components/ui';
+import { useUser } from '../context/UserContext';
+import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,6 +28,9 @@ export default function YouTubePlayerScreen({ route, navigation }) {
   const [summaryData, setSummaryData] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
+  const { savedVideos, saveVideo, removeVideo } = useUser();
+  const isSaved = savedVideos.some(v => v.videoId === videoId);
+
   const handleSummarize = async () => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -33,7 +38,7 @@ export default function YouTubePlayerScreen({ route, navigation }) {
     setPlaying(false); // Pause video when summarizing
 
     try {
-      const response = await fetch('http://10.0.2.2:3000/api/youtube/summarize', {
+      const response = await fetch(`${API_BASE}/api/youtube/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ videoUrl: `https://youtube.com/watch?v=${videoId}` })
@@ -63,6 +68,15 @@ export default function YouTubePlayerScreen({ route, navigation }) {
     }
     // Mock save logic
     Alert.alert("Saved!", "This video and its study notes have been saved to your Offline Downloads.");
+  };
+
+  const handleToggleSave = () => {
+    if (isSaved) {
+      removeVideo(videoId);
+    } else {
+      saveVideo({ videoId, title, channelTitle, summaryData });
+      Alert.alert("Saved to Library", "You can access this video in your Saved Videos tab.");
+    }
   };
 
   return (
@@ -111,9 +125,9 @@ export default function YouTubePlayerScreen({ route, navigation }) {
               <Text style={styles.actionText}>Download</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionBtn} onPress={() => { /* Mock playlist save */ }}>
-              <Text style={styles.actionIcon}>➕</Text>
-              <Text style={styles.actionText}>Save</Text>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleToggleSave}>
+              <Text style={styles.actionIcon}>{isSaved ? '✅' : '➕'}</Text>
+              <Text style={styles.actionText}>{isSaved ? 'Saved' : 'Save'}</Text>
             </TouchableOpacity>
           </ScrollView>
 
