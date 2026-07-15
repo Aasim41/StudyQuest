@@ -80,6 +80,10 @@ export default function ScheduleGenerationScreen({ navigation }) {
         
         await updateStudyPlan(result.studyPlan || []);
         await completeOnboarding();
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Dashboard' }],
+        });
       } else {
         throw new Error(result.error || 'Failed to generate schedule');
       }
@@ -88,7 +92,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
       console.warn('Generation error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
       // Failsafe: just mark complete anyway so they aren't stuck
-      completeOnboarding();
+      await completeOnboarding();
     }
   };
 
@@ -115,8 +119,12 @@ export default function ScheduleGenerationScreen({ navigation }) {
             <Animated.View entering={FadeInDown.delay(500)}>
               <TouchableOpacity 
                 style={styles.forceButton}
-                onPress={() => {
-                  completeOnboarding();
+                onPress={async () => {
+                  await completeOnboarding();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Dashboard' }],
+                  });
                 }}
               >
                 <Text style={styles.forceButtonText}>Force Continue ⏭️</Text>
