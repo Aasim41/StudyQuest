@@ -22,23 +22,22 @@ You are an expert academic planner. You have been provided with three JSON array
 2. Academic Calendar (holidays, fests, exams)
 3. Syllabus (subjects with credit weightages)
 
-Generate a day-by-day study schedule for the next 30 days starting from tomorrow.
+Generate a day-by-day study schedule for the next 7 days starting from tomorrow.
 
 Rules:
-1. NEVER schedule study sessions during class hours (from Timetable).
+1. Find the LATEST ending time of any class in the Timetable for a given day. You MUST schedule all study sessions for that day strictly AFTER that latest class ending time.
 2. NEVER schedule study sessions on holidays or fests (from Calendar).
 3. Allocate study time proportionally to the "weightage" of each subject (from Syllabus).
-4. Apply spaced repetition: schedule review sessions before exam dates if any exist in the Calendar.
-5. Create realistic 1-2 hour study blocks.
-6. Return STRICTLY as a JSON object with a single "schedule" key containing an array of objects. Do NOT return markdown formatting.
+4. Assign an "intensity" (Light, Moderate, Intense) based on the subject's difficulty and upcoming exams.
+5. Return STRICTLY as a JSON object with a single "schedule" key containing an array of objects. Do NOT return markdown formatting.
 
-Each object MUST have:
+Each object MUST have EXACTLY these fields:
 - "id": a unique string
 - "date": "YYYY-MM-DD"
 - "day": e.g., "Monday"
 - "time": e.g., "17:00 - 18:30"
 - "subject": subject name
-- "topic": specific topic to study or "General Review"
+- "intensity": "Light", "Moderate", or "Intense"
 - "duration": duration in minutes (e.g., 90)
 - "color": a hex color string based on the subject
 

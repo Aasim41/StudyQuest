@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -13,10 +13,9 @@ import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
 
-// No mock data - read from Firestore
-const FILTERS = ['All', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const FILTERS = ['All', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const TopicCard = ({ item, index, onToggle }) => {
+const TopicCard = ({ item, index, onToggle, onEditClick }) => {
   const navigation = useNavigation();
   const scale = useSharedValue(1);
 
@@ -32,21 +31,10 @@ const TopicCard = ({ item, index, onToggle }) => {
     transform: [{ scale: scale.value }]
   }));
 
-  // Render difficulty dots
-  const renderDifficulty = () => {
-    let dots = [];
-    for (let i = 0; i < 5; i++) {
-      dots.push(
-        <View 
-          key={i} 
-          style={[
-            styles.diffDot, 
-            { backgroundColor: i < item.difficulty ? item.color : COLORS.glassBorder }
-          ]} 
-        />
-      );
-    }
-    return <View style={styles.diffContainer}>{dots}</View>;
+  const getIntensityColor = (intensity) => {
+    if (intensity === 'Intense') return '#FF4C4C';
+    if (intensity === 'Moderate') return '#F39C12';
+    return '#2ECC71'; 
   };
 
   return (
@@ -63,21 +51,26 @@ const TopicCard = ({ item, index, onToggle }) => {
           <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={{ flex: 1 }}>
             <View style={styles.cardHeader}>
               <Text style={[styles.subjectName, { color: item.color }]}>{item.subject}</Text>
-              <Text style={styles.timeText}>{item.time}</Text>
+              <View style={styles.headerRight}>
+                <Text style={styles.timeText}>{item.time}</Text>
+                {!item.completed && (
+                  <TouchableOpacity onPress={() => onEditClick(item)} style={styles.editBtn}>
+                    <Text style={styles.editIcon}>✏️</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             
-            <Text style={[styles.topicName, item.completed && styles.textStrike]}>
-              {item.topic}
-            </Text>
-
-            {renderDifficulty()}
+            <View style={[styles.intensityBadge, { backgroundColor: getIntensityColor(item.intensity) + '20', borderColor: getIntensityColor(item.intensity) }]}>
+               <Text style={[styles.intensityText, { color: getIntensityColor(item.intensity) }]}>{item.intensity || 'Moderate'} Intensity</Text>
+            </View>
           </TouchableOpacity>
 
           {!item.completed && (
             <TouchableOpacity 
               style={styles.startFocusBtn}
               onPress={() => navigation.navigate('FocusTimer', { 
-                topic: item.topic, 
+                topic: item.subject, 
                 subject: item.subject, 
                 color: item.color 
               })}
@@ -102,6 +95,12 @@ export default function PlannerScreen() {
   const [loading, setLoading] = useState(true);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const { userStats, studyPlan, updateStudyPlan, saveStatsToFirestore } = useUser();
+  
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editIntensity, setEditIntensity] = useState('Moderate');
 
   useEffect(() => {
     if (studyPlan) {
@@ -126,18 +125,15 @@ export default function PlannerScreen() {
     });
 
     if (isCompleting) {
-      // Award XP
       const XP_REWARD = 50;
       let newXp = userStats.xp + XP_REWARD;
       let newLevel = userStats.level;
       let nextLevelXp = userStats.nextLevelXp;
-      let leveledUp = false;
 
       if (newXp >= nextLevelXp) {
         newLevel += 1;
-        newXp = newXp - nextLevelXp; // carry over
+        newXp = newXp - nextLevelXp;
         nextLevelXp = Math.floor(nextLevelXp * 1.5);
-        leveledUp = true;
         setShowLevelUp(true);
         setTimeout(() => setShowLevelUp(false), 3000);
       }
@@ -148,40 +144,45 @@ export default function PlannerScreen() {
       if (userStats.lastStudyDate) {
         const today = new Date(todayStr);
         const lastDate = new Date(userStats.lastStudyDate);
-        const diffTime = Math.abs(today - lastDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          newStreak += 1;
-        } else if (diffDays > 1) {
-          newStreak = 1; // Restart streak
-        }
-        // if diffDays === 0, they already studied today, keep current streak
+        const diffDays = Math.ceil(Math.abs(today - lastDate) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) newStreak += 1;
+        else if (diffDays > 1) newStreak = 1;
       } else {
-        newStreak = 1; // First time studying
+        newStreak = 1;
       }
 
-      const newStats = { 
-        ...userStats, 
-        xp: newXp, 
-        level: newLevel, 
-        nextLevelXp,
-        streak: newStreak,
-        lastStudyDate: todayStr
-      };
-      
-      await saveStatsToFirestore(newStats);
-      await updateStudyPlan(newTopics);
-    } else {
-      // Just save uncompletion
-      await updateStudyPlan(newTopics);
+      await saveStatsToFirestore({ 
+        ...userStats, xp: newXp, level: newLevel, nextLevelXp, streak: newStreak, lastStudyDate: todayStr
+      });
     }
+    await updateStudyPlan(newTopics);
+  };
+
+  const openEditModal = (item) => {
+    setEditingItem(item);
+    setEditSubject(item.subject);
+    setEditTime(item.time);
+    setEditIntensity(item.intensity || 'Moderate');
+    setEditModalVisible(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingItem) return;
+    const newTopics = topics.map(t => {
+      if (t.id === editingItem.id) {
+        return { ...t, subject: editSubject, time: editTime, intensity: editIntensity };
+      }
+      return t;
+    });
+    setTopics(newTopics);
+    await updateStudyPlan(newTopics);
+    setEditModalVisible(false);
   };
 
   const handleRegenerate = async () => {
     try {
       setLoading(true);
-      setTopics([]); // Clear UI while generating
+      setTopics([]);
       
       const timetableStr = await AsyncStorage.getItem('@onboarding_timetable');
       const calendarStr = await AsyncStorage.getItem('@onboarding_calendar');
@@ -204,7 +205,6 @@ export default function PlannerScreen() {
         const plan = result.studyPlan.map((item, index) => ({
           ...item,
           completed: item.completed || false,
-          difficulty: item.difficulty || 3,
           color: item.color || ['#FF6B35', '#4A90D9', '#2ECC71', '#A29BFE'][index % 4],
         }));
         await updateStudyPlan(plan);
@@ -213,7 +213,6 @@ export default function PlannerScreen() {
       }
     } catch (e) {
       alert('Error regenerating schedule. Please try again later.');
-      console.warn(e);
     } finally {
       setLoading(false);
     }
@@ -221,14 +220,10 @@ export default function PlannerScreen() {
 
   const completedCount = topics.filter(t => t.completed).length;
   const progressPercent = topics.length > 0 ? (completedCount / topics.length) * 100 : 0;
-
-  // Dynamic date
+  
   const today = new Date();
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const dateString = `${dayNames[today.getDay()]}, ${monthNames[today.getMonth()]} ${today.getDate()}`;
+  const dateString = `${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][today.getDay()]}, ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][today.getMonth()]} ${today.getDate()}`;
 
-  // Filter topics
   const filteredTopics = activeFilter === 'All' 
     ? topics 
     : topics.filter(t => t.day && t.day.substring(0, 3) === activeFilter.substring(0, 3));
@@ -237,11 +232,9 @@ export default function PlannerScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
-
       <FloatingParticle size={200} color={COLORS.primary} x={-50} y={-50} delay={100} />
       <FloatingParticle size={150} color={COLORS.accent} x={width * 0.7} y={height * 0.4} delay={600} />
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
@@ -252,49 +245,36 @@ export default function PlannerScreen() {
             <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
           </View>
         </View>
-
-        {/* Progress Bar */}
         <View style={styles.progressBarBg}>
-          <Animated.View 
-            style={[styles.progressBarFill, { width: `${progressPercent}%` }]} 
-            layout={withSpring}
-          />
+          <Animated.View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} layout={withSpring} />
         </View>
       </View>
 
-      {/* Filters */}
       <View style={styles.filtersContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
           {FILTERS.map((filter, index) => (
             <Animated.View key={filter} entering={FadeInDown.delay(200 + index * 50).springify()}>
-              <TouchableOpacity 
-                style={[styles.filterPill, activeFilter === filter && styles.filterPillActive]}
-                onPress={() => setActiveFilter(filter)}
-              >
-                <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>
-                  {filter}
-                </Text>
+              <TouchableOpacity style={[styles.filterPill, activeFilter === filter && styles.filterPillActive]} onPress={() => setActiveFilter(filter)}>
+                <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>{filter}</Text>
               </TouchableOpacity>
             </Animated.View>
           ))}
         </ScrollView>
       </View>
 
-      {/* Topics List */}
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
         {filteredTopics.length === 0 ? (
           <Text style={{ color: COLORS.textMuted, textAlign: 'center', marginTop: 40, fontSize: 16 }}>
-            {loading ? 'Loading your study plan...' : 'No study plan yet. Complete onboarding to generate one.'}
+            {loading ? 'Loading your study plan...' : 'No study plan yet. Generate one below!'}
           </Text>
         ) : (
           filteredTopics.map((item, index) => (
-            <TopicCard key={item.id} item={item} index={index} onToggle={toggleComplete} />
+            <TopicCard key={item.id} item={item} index={index} onToggle={toggleComplete} onEditClick={openEditModal} />
           ))
         )}
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Level Up Celebration Overlay */}
       {showLevelUp && (
         <Animated.View entering={FadeInDown.springify()} style={styles.levelUpOverlay}>
           <Text style={styles.levelUpEmoji}>🎉</Text>
@@ -303,7 +283,6 @@ export default function PlannerScreen() {
         </Animated.View>
       )}
 
-      {/* FAB - Replan */}
       <Animated.View entering={FadeInDown.delay(800).springify()} style={styles.fabContainer}>
         <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={handleRegenerate}>
           <LinearGradient colors={COLORS.gradientAccent} style={styles.fabGradient}>
@@ -311,213 +290,109 @@ export default function PlannerScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
+
+      <Modal visible={isEditModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Session</Text>
+            
+            <Text style={styles.inputLabel}>Subject</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editSubject}
+              onChangeText={setEditSubject}
+              placeholderTextColor={COLORS.textMuted}
+            />
+
+            <Text style={styles.inputLabel}>Time (e.g. 18:00 - 19:30)</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editTime}
+              onChangeText={setEditTime}
+              placeholderTextColor={COLORS.textMuted}
+            />
+
+            <Text style={styles.inputLabel}>Intensity</Text>
+            <View style={styles.intensityPicker}>
+              {['Light', 'Moderate', 'Intense'].map(int => (
+                <TouchableOpacity 
+                  key={int} 
+                  style={[styles.intBtn, editIntensity === int && styles.intBtnActive]}
+                  onPress={() => setEditIntensity(int)}
+                >
+                  <Text style={[styles.intBtnText, editIntensity === int && {color: '#FFF'}]}>{int}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={saveEdit}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: height * 0.08,
-    marginBottom: SPACING.md,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  dateText: {
-    fontSize: FONT_SIZES.caption,
-    fontWeight: '700',
-    color: COLORS.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: FONT_SIZES.heading,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-  progressCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.glass,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: FONT_SIZES.caption,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: COLORS.glassBorder,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 3,
-  },
-  filtersContainer: {
-    marginBottom: SPACING.md,
-  },
-  filtersScroll: {
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.sm,
-  },
-  filterPill: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.pill,
-    backgroundColor: COLORS.glass,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    ...SHADOWS.glow,
-  },
-  filterPillActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterText: {
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-    fontSize: FONT_SIZES.body,
-  },
-  filterTextActive: {
-    color: '#FFF',
-  },
-  listContainer: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.md,
-  },
-  cardContainer: {
-    width: '100%',
-  },
-  topicCard: {
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    ...SHADOWS.card,
-  },
-  topicCardCompleted: {
-    opacity: 0.6,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  subjectName: {
-    fontSize: FONT_SIZES.caption,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  timeText: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textMuted,
-    fontWeight: '600',
-  },
-  topicName: {
-    fontSize: FONT_SIZES.subtitle,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  textStrike: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textSecondary,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  diffContainer: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  diffDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: COLORS.textMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkIcon: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: SPACING.xl,
-    right: SPACING.xl,
-    ...SHADOWS.glow,
-  },
-  fab: {
-    borderRadius: 30,
-    overflow: 'hidden',
-  },
-  fabGradient: {
-    width: 60,
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabIcon: {
-    fontSize: 24,
-  },
-  levelUpOverlay: {
-    position: 'absolute',
-    top: '30%',
-    left: SPACING.xl,
-    right: SPACING.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.xxl,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.accent,
-    ...SHADOWS.glow,
-  },
-  levelUpEmoji: {
-    fontSize: 64,
-    marginBottom: SPACING.md,
-  },
-  levelUpTitle: {
-    fontSize: FONT_SIZES.hero,
-    fontWeight: '900',
-    color: COLORS.accent,
-    marginBottom: SPACING.sm,
-  },
-  levelUpSub: {
-    fontSize: FONT_SIZES.subtitle,
-    fontWeight: '700',
-    color: '#FFF',
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, marginBottom: SPACING.md },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
+  dateText: { fontSize: FONT_SIZES.caption, fontWeight: '700', color: COLORS.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  title: { fontSize: FONT_SIZES.heading, fontWeight: '800', color: COLORS.textPrimary },
+  progressCircle: { width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.glass, borderWidth: 2, borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  progressText: { color: '#FFF', fontWeight: '700', fontSize: FONT_SIZES.caption },
+  progressBarBg: { height: 6, backgroundColor: COLORS.glassBorder, borderRadius: 3, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 3 },
+  filtersContainer: { marginBottom: SPACING.md },
+  filtersScroll: { paddingHorizontal: SPACING.xl, gap: SPACING.sm },
+  filterPill: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.pill, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder },
+  filterPillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  filterText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: FONT_SIZES.body },
+  filterTextActive: { color: '#FFF' },
+  listContainer: { flex: 1 },
+  listContent: { paddingHorizontal: SPACING.xl, gap: SPACING.md },
+  cardContainer: { width: '100%' },
+  topicCard: { padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.glassBorder },
+  topicCardCompleted: { opacity: 0.6 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  subjectName: { fontSize: FONT_SIZES.bodyLarge, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  timeText: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, fontWeight: '600', marginRight: 10 },
+  editBtn: { padding: 4 },
+  editIcon: { fontSize: 14 },
+  intensityBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, marginBottom: SPACING.sm },
+  intensityText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: COLORS.textMuted, alignItems: 'center', justifyContent: 'center' },
+  checkIcon: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  startFocusBtn: { backgroundColor: COLORS.glass, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.pill, borderWidth: 1, borderColor: COLORS.glassBorder, marginLeft: SPACING.md },
+  startFocusText: { color: '#FFF', fontSize: FONT_SIZES.caption, fontWeight: '700' },
+  fabContainer: { position: 'absolute', bottom: SPACING.xl, right: SPACING.xl },
+  fab: { borderRadius: 30, overflow: 'hidden' },
+  fabGradient: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
+  fabIcon: { fontSize: 24 },
+  levelUpOverlay: { position: 'absolute', top: '30%', left: SPACING.xl, right: SPACING.xl, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: BORDER_RADIUS.xl, padding: SPACING.xxl, alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent },
+  levelUpEmoji: { fontSize: 64, marginBottom: SPACING.md },
+  levelUpTitle: { fontSize: FONT_SIZES.hero, fontWeight: '900', color: COLORS.accent, marginBottom: SPACING.sm },
+  levelUpSub: { fontSize: FONT_SIZES.subtitle, fontWeight: '700', color: '#FFF' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.background, borderTopLeftRadius: BORDER_RADIUS.xl, borderTopRightRadius: BORDER_RADIUS.xl, padding: SPACING.xl, borderWidth: 1, borderColor: COLORS.glassBorder },
+  modalTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '800', marginBottom: SPACING.lg },
+  inputLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, marginBottom: 4, fontWeight: '600' },
+  modalInput: { backgroundColor: COLORS.glass, color: COLORS.textPrimary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.glassBorder },
+  intensityPicker: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.xl },
+  intBtn: { flex: 1, padding: SPACING.sm, backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.sm, alignItems: 'center', borderWidth: 1, borderColor: COLORS.glassBorder },
+  intBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  intBtnText: { color: COLORS.textSecondary, fontWeight: '700', fontSize: FONT_SIZES.caption },
+  modalActions: { flexDirection: 'row', gap: SPACING.md },
+  modalCancel: { flex: 1, padding: SPACING.md, alignItems: 'center', backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.md },
+  modalCancelText: { color: COLORS.textSecondary, fontWeight: '700' },
+  modalSave: { flex: 1, padding: SPACING.md, alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md },
+  modalSaveText: { color: '#FFF', fontWeight: '700' }
 });

@@ -15,6 +15,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
+import API_BASE from '../config/apiConfig';
 
 const { width } = Dimensions.get('window');
 
@@ -31,8 +32,7 @@ export default function YouTubeFeedScreen() {
   const fetchFeed = async () => {
     setIsLoading(true);
     try {
-      // 10.0.2.2 for Android emulator local dev
-      const response = await fetch('http://10.0.2.2:3000/api/youtube/feed');
+      const response = await fetch(`${API_BASE}/api/youtube/feed`);
       const data = await response.json();
       if (data.success) {
         setVideos(data.items);
@@ -51,7 +51,7 @@ export default function YouTubeFeedScreen() {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`http://10.0.2.2:3000/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       if (data.success) {
         setVideos(data.items);
