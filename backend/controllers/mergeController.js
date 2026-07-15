@@ -55,7 +55,7 @@ Syllabus: ${JSON.stringify(syllabus)}
     for (let i = 0; i < geminiClients.length; i++) {
       try {
         const response = await geminiClients[i].models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-1.5-pro',
           contents: [{ text: prompt }],
           config: { responseMimeType: "application/json" }
         });
@@ -73,7 +73,7 @@ Syllabus: ${JSON.stringify(syllabus)}
         try {
           const chatCompletion = await groqClients[i].chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.3-70b-versatile',
+            model: 'llama3-70b-8192',
             temperature: 0.2,
             response_format: { type: "json_object" },
           });

@@ -102,12 +102,6 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem('@onboarding_timetable', JSON.stringify(timetable));
-      const user = auth.currentUser;
-      if (user) {
-        setDoc(doc(db, 'users', user.uid), {
-          timetableData: timetable,
-        }, { merge: true }).catch(err => console.warn('Error saving timetable:', err));
-      }
       navigation.navigate('ScheduleGeneration');
     } catch (err) {
       console.warn('Error saving timetable:', err);

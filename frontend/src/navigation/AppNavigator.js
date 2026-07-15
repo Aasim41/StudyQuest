@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
-import { auth, db } from '../../firebaseConfig';
+import { auth } from '../../firebaseConfig';
+import { useUser } from '../context/UserContext';
 import API_BASE from '../config/apiConfig';
 
 // Auth Screens
@@ -102,50 +103,30 @@ const LoadingScreen = () => (
 
 export default function AppNavigator() {
   const [user, setUser] = useState(null);
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const { onboardingComplete, loading: contextLoading, loadFirestoreStats, loadLocalStudyPlan } = useUser();
 
   useEffect(() => {
-    let unsubsribeSnapshot = null;
-
     // Wake up Render server globally on app boot
     fetch(`${API_BASE}/api/health`).catch(() => {});
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        
-        // Listen to user document for realtime onboardingComplete updates
-        unsubsribeSnapshot = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
-          if (docSnap.exists() && docSnap.data().onboardingComplete) {
-            setOnboardingComplete(true);
-          } else {
-            setOnboardingComplete(false);
-          }
-          setLoading(false);
-        }, (err) => {
-          console.warn('Error listening to onboarding status:', err);
-          setOnboardingComplete(false);
-          setLoading(false);
-        });
-
+        loadFirestoreStats();
+        loadLocalStudyPlan();
       } else {
         setUser(null);
-        setOnboardingComplete(false);
-        setLoading(false);
-        if (unsubsribeSnapshot) {
-          unsubsribeSnapshot();
-        }
       }
+      setAuthLoading(false);
     });
 
     return () => {
       unsubscribeAuth();
-      if (unsubsribeSnapshot) unsubsribeSnapshot();
     };
   }, []);
 
-  if (loading) return <LoadingScreen />;
+  if (authLoading || contextLoading) return <LoadingScreen />;
 
   return (
     <NavigationContainer>

@@ -92,12 +92,6 @@ export default function SyllabusCorrectionScreen({ navigation, route }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem('@onboarding_syllabus', JSON.stringify(processedSyllabus));
-      const user = auth.currentUser;
-      if (user) {
-        setDoc(doc(db, 'users', user.uid), {
-          syllabusData: processedSyllabus,
-        }, { merge: true }).catch(err => console.warn('Error saving syllabus:', err));
-      }
       navigation.navigate('TimetableUpload');
     } catch (err) {
       console.error('Failed to save syllabus:', err);

@@ -14,8 +14,9 @@ import Animated, {
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../../firebaseConfig';
+import { auth } from '../../firebaseConfig';
+import { useUser } from '../context/UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
 import { FloatingParticle, GlassCard, GradientButton } from '../components/ui';
 
@@ -26,83 +27,54 @@ export default function DashboardScreen() {
 
   const [calendarData, setCalendarData] = React.useState([]);
   const [nextSession, setNextSession] = React.useState(null);
-  const [userStats, setUserStats] = React.useState({
-    level: 1, xp: 0, nextLevelXp: 1000, streak: 0,
-  });
+  const { userStats, studyPlan, saveStatsToFirestore } = useUser();
 
   React.useEffect(() => {
-    const fetchData = async () => {
+    const checkData = async () => {
       try {
-        const user = auth.currentUser;
-        if (!user) return;
-        
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          
-          if (data.calendarData) setCalendarData(data.calendarData);
-          if (data.xp !== undefined) {
-            let currentStreak = data.streak || 0;
-            const lastStudyDate = data.lastStudyDate;
-            
-            if (lastStudyDate) {
-              const today = new Date();
-              today.setHours(0,0,0,0);
-              const lastDate = new Date(lastStudyDate);
-              lastDate.setHours(0,0,0,0);
-              
-              const diffTime = Math.abs(today - lastDate);
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              
-              if (diffDays > 1) {
-                // Streak broken
-                currentStreak = 0;
-                updateDoc(doc(db, 'users', user.uid), { streak: 0 }).catch(e => console.log(e));
-              } else if (diffDays === 1) {
-                // Studied yesterday, they should study today to keep it.
-                // It hasn't broken yet, but it will if they don't study today.
-                // We keep it as is, or we increment if they just studied today in PlannerScreen.
-                // Wait, PlannerScreen doesn't increment streak, it only sets lastStudyDate.
-                // Let's just track it properly: If diffDays === 1, they are safe. If diffDays === 0, they studied today.
-                // We should increment streak here if diffDays === 1 and they study today?
-                // Actually, the easiest streak logic is: Planner increments it if lastDate was yesterday.
-                // But for now, we just reset it if diffDays > 1.
-              }
-            }
+        const calStr = await AsyncStorage.getItem('@onboarding_calendar');
+        if (calStr) setCalendarData(JSON.parse(calStr));
 
-            setUserStats({
-              level: data.level || 1,
-              xp: data.xp || 0,
-              nextLevelXp: data.nextLevelXp || 1000,
-              streak: currentStreak,
-            });
+        if (userStats.lastStudyDate) {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          const lastDate = new Date(userStats.lastStudyDate);
+          lastDate.setHours(0,0,0,0);
+          
+          const diffTime = Math.abs(today - lastDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays > 1 && userStats.streak > 0) {
+            // Lost streak
+            saveStatsToFirestore({ ...userStats, streak: 0 });
           }
-          if (data.studyPlan && data.studyPlan.length > 0) {
-            // Just grab the first uncompleted session
-            const upcoming = data.studyPlan.find(item => !item.completed);
-            if (upcoming) {
-              setNextSession({
-                subject: upcoming.subject,
-                topic: upcoming.topic,
-                time: upcoming.time,
-                color: upcoming.color || COLORS.primary,
-              });
-            }
+        }
+
+        if (studyPlan && studyPlan.length > 0) {
+          const upcoming = studyPlan.find(item => !item.completed);
+          if (upcoming) {
+            setNextSession({
+              subject: upcoming.subject,
+              topic: upcoming.topic,
+              time: upcoming.time,
+              color: upcoming.color || COLORS.primary,
+            });
+          } else {
+            setNextSession(null);
           }
         }
       } catch (err) {
-        console.warn('Error fetching dashboard data:', err);
+        console.warn('Error dashboard data:', err);
       }
     };
     
-    // Fetch on mount and when screen comes into focus
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchData();
+      checkData();
     });
 
-    fetchData();
+    checkData();
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, userStats, studyPlan]);
 
   // Map our AI parsed calendar into react-native-calendars format
   const markedDates = {};

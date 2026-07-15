@@ -5,8 +5,8 @@ import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, wit
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
-import { auth, db } from '../../firebaseConfig';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth } from '../../firebaseConfig';
+import { useUser } from '../context/UserContext';
 import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
@@ -15,6 +15,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
   const [status, setStatus] = useState('Gathering your data...');
   const [error, setError] = useState(null);
   const [showForceContinue, setShowForceContinue] = useState(false);
+  const { updateStudyPlan, completeOnboarding } = useUser();
 
   const pulse = useSharedValue(0);
 
@@ -77,31 +78,8 @@ export default function ScheduleGenerationScreen({ navigation }) {
       if (result.success) {
         setStatus('Finalizing setup...');
         
-        // Save to DB immediately without waiting for AsyncStorage
-        try {
-          await setDoc(doc(db, 'users', user.uid), {
-            studyPlan: result.studyPlan || [],
-            onboardingComplete: true
-          }, { merge: true });
-          
-          // Force navigate to Dashboard just in case the listener is slow
-          if (navigation && navigation.replace) {
-            navigation.replace('Dashboard');
-          }
-        } catch (dbErr) {
-          console.warn('Finalizing setup setDoc error:', dbErr);
-          throw new Error('Failed to save your schedule to the database.');
-        }
-
-        // Fire and forget backup
-        try {
-          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-          AsyncStorage.setItem(`@studyquest_backup_${user.uid}`, JSON.stringify({
-            studyPlan: result.studyPlan || [],
-            timestamp: new Date().toISOString()
-          })).catch(() => {});
-        } catch (e) {}
-
+        await updateStudyPlan(result.studyPlan || []);
+        await completeOnboarding();
       } else {
         throw new Error(result.error || 'Failed to generate schedule');
       }
@@ -110,12 +88,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
       console.warn('Generation error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
       // Failsafe: just mark complete anyway so they aren't stuck
-      const user = auth.currentUser;
-      if (user) {
-        setDoc(doc(db, 'users', user.uid), {
-          onboardingComplete: true
-        }, { merge: true }).catch(e => console.warn(e));
-      }
+      completeOnboarding();
     }
   };
 
@@ -143,11 +116,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
               <TouchableOpacity 
                 style={styles.forceButton}
                 onPress={() => {
-                  const user = auth.currentUser;
-                  if (user) {
-                    setDoc(doc(db, 'users', user.uid), { onboardingComplete: true }, { merge: true });
-                  }
-                  if (navigation && navigation.replace) navigation.replace('Dashboard');
+                  completeOnboarding();
                 }}
               >
                 <Text style={styles.forceButtonText}>Force Continue ⏭️</Text>

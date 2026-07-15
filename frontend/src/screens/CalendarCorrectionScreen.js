@@ -75,12 +75,6 @@ export default function CalendarCorrectionScreen({ navigation, route }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem('@onboarding_calendar', JSON.stringify(calendar));
-      const user = auth.currentUser;
-      if (user) {
-        setDoc(doc(db, 'users', user.uid), {
-          calendarData: calendar,
-        }, { merge: true }).catch(err => console.warn('Error saving calendar:', err));
-      }
       navigation.navigate('SyllabusUpload');
     } catch (err) {
       console.warn('Error saving calendar:', err);

@@ -7,7 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../theme';
 import { FloatingParticle } from '../components/ui';
 import { auth, db } from '../../firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useUser } from '../context/UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
 
 const { width, height } = Dimensions.get('window');
@@ -99,49 +100,17 @@ export default function PlannerScreen() {
   const [topics, setTopics] = useState([]);
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
-  const [userStats, setUserStats] = useState({ level: 1, xp: 0, nextLevelXp: 1000 });
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const { userStats, studyPlan, updateStudyPlan, saveStatsToFirestore } = useUser();
 
-  // Load study plan from Firestore on mount
   useEffect(() => {
-    const loadPlan = async () => {
-      try {
-        const user = auth.currentUser;
-        if (user) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            if (data.studyPlan) {
-              const plan = data.studyPlan.map((item, index) => ({
-                ...item,
-                completed: item.completed || false,
-                difficulty: item.difficulty || 3,
-                color: item.color || ['#FF6B35', '#4A90D9', '#2ECC71', '#A29BFE'][index % 4],
-              }));
-              setTopics(plan);
-            }
-            setUserStats({
-              level: data.level || 1,
-              xp: data.xp || 0,
-              nextLevelXp: data.nextLevelXp || 1000,
-              streak: data.streak || 0,
-              lastStudyDate: data.lastStudyDate || null,
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('Error loading study plan:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPlan();
-  }, []);
+    if (studyPlan) {
+      setTopics(studyPlan);
+    }
+    setLoading(false);
+  }, [studyPlan]);
 
   const toggleComplete = async (id) => {
-    const user = auth.currentUser;
-    if (!user) return;
-
     let newTopics = [];
     let isCompleting = false;
 
@@ -200,44 +169,28 @@ export default function PlannerScreen() {
         streak: newStreak,
         lastStudyDate: todayStr
       };
-      setUserStats(newStats);
-
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          studyPlan: newTopics,
-          xp: newXp,
-          level: newLevel,
-          nextLevelXp: nextLevelXp,
-          streak: newStreak,
-          lastStudyDate: todayStr
-        });
-      } catch (err) {
-        console.warn('Error saving XP:', err);
-      }
+      
+      await saveStatsToFirestore(newStats);
+      await updateStudyPlan(newTopics);
     } else {
       // Just save uncompletion
-      try {
-        await updateDoc(doc(db, 'users', user.uid), { studyPlan: newTopics });
-      } catch (err) {
-        console.warn('Error saving completion:', err);
-      }
+      await updateStudyPlan(newTopics);
     }
   };
 
   const handleRegenerate = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-    
     try {
       setLoading(true);
       setTopics([]); // Clear UI while generating
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const data = userDoc.data();
+      
+      const timetableStr = await AsyncStorage.getItem('@onboarding_timetable');
+      const calendarStr = await AsyncStorage.getItem('@onboarding_calendar');
+      const syllabusStr = await AsyncStorage.getItem('@onboarding_syllabus');
       
       const payload = {
-        timetable: data.timetable || [],
-        calendar: data.calendar || [],
-        syllabus: data.syllabus || []
+        timetable: timetableStr ? JSON.parse(timetableStr) : [],
+        calendar: calendarStr ? JSON.parse(calendarStr) : [],
+        syllabus: syllabusStr ? JSON.parse(syllabusStr) : []
       };
 
       const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
@@ -248,14 +201,13 @@ export default function PlannerScreen() {
       
       const result = await res.json();
       if (result.success) {
-        await updateDoc(doc(db, 'users', user.uid), { studyPlan: result.studyPlan });
         const plan = result.studyPlan.map((item, index) => ({
           ...item,
           completed: item.completed || false,
           difficulty: item.difficulty || 3,
           color: item.color || ['#FF6B35', '#4A90D9', '#2ECC71', '#A29BFE'][index % 4],
         }));
-        setTopics(plan);
+        await updateStudyPlan(plan);
       } else {
         alert(result.error || 'Failed to generate schedule');
       }
