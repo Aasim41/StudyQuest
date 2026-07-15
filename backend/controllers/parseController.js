@@ -36,7 +36,7 @@ async function callVisionModelWithFallback(prompt, imageParts, req) {
   for (let i = 0; i < geminiClients.length; i++) {
     try {
       const response = await geminiClients[i].models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-1.5-flash',
         contents: [{ text: prompt }, ...imageParts],
         config: { responseMimeType: "application/json" }
       });
