@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged } from 'firebase/auth';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
 import { auth } from '../../firebaseConfig';
@@ -88,6 +88,7 @@ const MainTabNavigator = () => (
         else if (route.name === 'Planner') icon = '📅';
         else if (route.name === 'StudyTube') icon = '▶️';
         else if (route.name === 'Saved') icon = '💾';
+        else if (route.name === 'Leaderboard') icon = '🏆';
         return <View style={focused ? {
           shadowColor: COLORS.accent,
           shadowOffset: {width: 0, height: 0},
@@ -101,6 +102,7 @@ const MainTabNavigator = () => (
     <Tab.Screen name="Planner" component={PlannerScreen} />
     <Tab.Screen name="StudyTube" component={YouTubeFeedScreen} />
     <Tab.Screen name="Saved" component={SavedVideosScreen} />
+    <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
   </Tab.Navigator>
 );
 
@@ -118,7 +120,6 @@ const MainStack = () => (
       options={{ presentation: 'fullScreenModal' }}
     />
     <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} />
-    <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
     
     {/* Upload Screens available from Dashboard too */}
     <Stack.Screen name="CalendarUpload" component={CalendarUploadScreen} />

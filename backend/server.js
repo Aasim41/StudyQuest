@@ -14,12 +14,25 @@ const fs = require('fs');
 
 // ─── Firebase Admin ─────────────────────────────────────────────────────────
 const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json');
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+    serviceAccount = require('./serviceAccountKey.json');
+  }
+} catch (error) {
+  console.warn("Firebase service account credentials not found. Ensure FIREBASE_SERVICE_ACCOUNT is set.");
+}
 
-const adminApp = admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: "studyquest-43b26.firebasestorage.app",
-});
+if (serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: "studyquest-43b26.firebasestorage.app",
+  });
+} else {
+  admin.initializeApp();
+}
 
 // ─── Groq SDK ───────────────────────────────────────────────────────────────
 const Groq = require('groq-sdk');
@@ -67,7 +80,7 @@ app.use((req, res, next) => {
 
 // ─── CORS ───────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000', 'http://localhost:8081', 'exp://127.0.0.1:8081'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -87,14 +100,12 @@ app.locals.geminiClients = geminiClients;
 const healthRoutes = require('./routes/health');
 const collegeRoutes = require('./routes/colleges');
 const parseRoutes = require('./routes/parse');
-const scheduleRoutes = require('./routes/schedule');
 const youtubeRoutes = require('./routes/youtube');
 const mergeRoutes = require('./routes/merge');
 
 app.use('/api/health', healthRoutes);
 app.use('/api/colleges', collegeRoutes);
 app.use('/api/parse', parseRoutes);
-app.use('/api/schedule', scheduleRoutes);
 app.use('/api/youtube', youtubeRoutes);
 app.use('/api/schedule/merge', mergeRoutes);
 

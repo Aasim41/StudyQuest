@@ -1,0 +1,62 @@
+[
+  {
+    "id": "mit",
+    "name": "Massachusetts Institute of Technology (MIT)",
+    "country": "United States",
+    "domain": "mit.edu"
+  },
+  {
+    "id": "stanford",
+    "name": "Stanford University",
+    "country": "United States",
+    "domain": "stanford.edu"
+  },
+  {
+    "id": "harvard",
+    "name": "Harvard University",
+    "country": "United States",
+    "domain": "harvard.edu"
+  },
+  {
+    "id": "oxford",
+    "name": "University of Oxford",
+    "country": "United Kingdom",
+    "domain": "ox.ac.uk"
+  },
+  {
+    "id": "cambridge",
+    "name": "University of Cambridge",
+    "country": "United Kingdom",
+    "domain": "cam.ac.uk"
+  },
+  {
+    "id": "iit-b",
+    "name": "Indian Institute of Technology Bombay",
+    "country": "India",
+    "domain": "iitb.ac.in"
+  },
+  {
+    "id": "iit-d",
+    "name": "Indian Institute of Technology Delhi",
+    "country": "India",
+    "domain": "iitd.ac.in"
+  },
+  {
+    "id": "toronto",
+    "name": "University of Toronto",
+    "country": "Canada",
+    "domain": "utoronto.ca"
+  },
+  {
+    "id": "nus",
+    "name": "National University of Singapore",
+    "country": "Singapore",
+    "domain": "nus.edu.sg"
+  },
+  {
+    "id": "melbourne",
+    "name": "University of Melbourne",
+    "country": "Australia",
+    "domain": "unimelb.edu.au"
+  }
+]
