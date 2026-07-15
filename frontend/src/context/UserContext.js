@@ -31,8 +31,10 @@ export const UserProvider = ({ children }) => {
 
   const completeOnboarding = async () => {
     try {
-      await AsyncStorage.setItem('@onboardingComplete', 'true');
+      // Set UI state IMMEDIATELY so navigation happens instantly
       setOnboardingComplete(true);
+      // Fire-and-forget storage so it doesn't block the UI
+      AsyncStorage.setItem('@onboardingComplete', 'true').catch(e => console.warn('Failed to save onboarding complete', e));
     } catch (e) {
       console.warn('Failed to set onboarding complete', e);
     }
@@ -78,7 +80,7 @@ export const UserProvider = ({ children }) => {
   const updateStudyPlan = async (newPlan) => {
     setStudyPlan(newPlan);
     try {
-      await AsyncStorage.setItem('@studyPlan', JSON.stringify(newPlan));
+      AsyncStorage.setItem('@studyPlan', JSON.stringify(newPlan)).catch(e => console.warn('Failed to save study plan locally', e));
     } catch (e) {
       console.warn('Failed to save study plan locally', e);
     }
