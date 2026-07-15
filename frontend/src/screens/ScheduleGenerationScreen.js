@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, interpolate } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
-import { FloatingParticle } from '../components/ui';
+import { FloatingParticle, GradientButton } from '../components/ui';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import API_BASE from '../config/apiConfig';
@@ -126,14 +126,14 @@ export default function ScheduleGenerationScreen({ navigation }) {
           )}
 
           {showForceContinue && (
-            <Animated.View entering={FadeInDown.delay(500)}>
-              <TouchableOpacity 
-                style={styles.forceButton}
+            <View style={{ marginTop: SPACING.xxl, width: '100%' }}>
+              <GradientButton 
+                title="Force Continue ⏭️"
                 onPress={handleComplete}
-              >
-                <Text style={styles.forceButtonText}>Force Continue ⏭️</Text>
-              </TouchableOpacity>
-            </Animated.View>
+                colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.2)']}
+                style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
+              />
+            </View>
           )}
         </Animated.View>
       </View>

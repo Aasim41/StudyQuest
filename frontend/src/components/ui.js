@@ -220,6 +220,7 @@ export const FloatingParticle = ({ size = 100, color = COLORS.primary, x, y, del
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         {
           position: 'absolute',
