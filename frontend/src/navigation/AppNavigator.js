@@ -120,15 +120,6 @@ const MainStack = () => (
       options={{ presentation: 'fullScreenModal' }}
     />
     <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} />
-    
-    {/* Upload Screens available from Dashboard too */}
-    <Stack.Screen name="CalendarUpload" component={CalendarUploadScreen} />
-    <Stack.Screen name="CalendarCorrection" component={CalendarCorrectionScreen} />
-    <Stack.Screen name="SyllabusUpload" component={SyllabusUploadScreen} />
-    <Stack.Screen name="SyllabusCorrection" component={SyllabusCorrectionScreen} />
-    <Stack.Screen name="TimetableUpload" component={TimetableUploadScreen} />
-    <Stack.Screen name="TimetableCorrection" component={TimetableCorrectionScreen} />
-    <Stack.Screen name="ScheduleGeneration" component={ScheduleGenerationScreen} />
   </Stack.Navigator>
 );
 

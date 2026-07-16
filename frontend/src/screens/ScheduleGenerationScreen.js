@@ -14,7 +14,6 @@ const { width, height } = Dimensions.get('window');
 export default function ScheduleGenerationScreen({ navigation }) {
   const [status, setStatus] = useState('Gathering your data...');
   const [error, setError] = useState(null);
-  const [showForceContinue, setShowForceContinue] = useState(false);
   const { updateStudyPlan, completeOnboarding } = useUser();
 
   const pulse = useSharedValue(0);
@@ -26,13 +25,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
       true
     );
 
-    const timer = setTimeout(() => {
-      setShowForceContinue(true);
-    }, 7000); // Show bypass button after 7 seconds just in case
-
     generateSchedule();
-
-    return () => clearTimeout(timer);
   }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -91,7 +84,6 @@ export default function ScheduleGenerationScreen({ navigation }) {
       
       if (result.success) {
         setStatus('Finalizing setup...');
-        
         await updateStudyPlan(result.studyPlan || []);
         await handleComplete();
       } else {
@@ -100,8 +92,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
 
     } catch (err) {
       console.warn('Generation error:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
-      // Failsafe: just mark complete anyway so they aren't stuck
+      // Fast automatic redirect on failure
       await handleComplete();
     }
   };
@@ -120,21 +111,8 @@ export default function ScheduleGenerationScreen({ navigation }) {
 
         <Animated.View entering={FadeInDown.delay(300).springify()} style={{ alignItems: 'center' }}>
           <Text style={styles.title}>Generating Schedule</Text>
-          <Text style={styles.subtitle}>{error ? "Completing setup (AI failed)" : status}</Text>
-          {!error && (
-            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: SPACING.xl }} />
-          )}
-
-          {showForceContinue && (
-            <View style={{ marginTop: SPACING.xxl, width: '100%' }}>
-              <GradientButton 
-                title="Force Continue ⏭️"
-                onPress={handleComplete}
-                colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.2)']}
-                style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
-              />
-            </View>
-          )}
+          <Text style={styles.subtitle}>{status}</Text>
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: SPACING.xl }} />
         </Animated.View>
       </View>
     </View>
