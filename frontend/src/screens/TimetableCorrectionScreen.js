@@ -102,7 +102,7 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem('@onboarding_timetable', JSON.stringify(timetable));
-      navigation.navigate('ScheduleGeneration');
+      navigation.replace('ScheduleGeneration');
     } catch (err) {
       console.warn('Error saving timetable:', err);
     } finally {

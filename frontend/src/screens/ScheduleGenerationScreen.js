@@ -67,7 +67,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
       const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
         method: 'POST',
