@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import { SvgUri } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { auth } from '../../firebaseConfig';
@@ -37,10 +38,21 @@ export default function DashboardScreen() {
   const [nextSession, setNextSession] = useState(null);
   const [todayProgress, setTodayProgress] = useState(0);
   const [quoteOfTheDay, setQuoteOfTheDay] = useState(QUOTES[0]);
-  const { userStats, studyPlan, saveStatsToFirestore, isGeneratingSchedule } = useUser();
+  const { userStats, studyPlan, saveStatsToFirestore, isGeneratingSchedule, generationError, BADGE_DEFINITIONS } = useUser();
   
   // Profile Modal State
   const [isProfileVisible, setProfileVisible] = useState(false);
+
+  const renderBadge = (badgeId, index) => {
+    const badgeDef = BADGE_DEFINITIONS[badgeId];
+    if (!badgeDef) return null;
+    return (
+      <View key={index} style={styles.badgeItem}>
+        <Text style={styles.badgeIcon}>{badgeDef.icon}</Text>
+        <Text style={styles.badgeName}>{badgeDef.name}</Text>
+      </View>
+    );
+  };
 
   // Scroll Animation
   const scrollY = useSharedValue(0);
@@ -183,7 +195,11 @@ export default function DashboardScreen() {
             style={styles.avatarButton} 
             onPress={() => setProfileVisible(true)}
           >
-            <Text style={styles.avatarLetter}>{initialLetter}</Text>
+            {userStats.avatarUrl ? (
+              <SvgUri width="100%" height="100%" uri={userStats.avatarUrl} />
+            ) : (
+              <Text style={styles.avatarLetter}>{initialLetter}</Text>
+            )}
           </TouchableOpacity>
         </Animated.View>
 
@@ -231,6 +247,11 @@ export default function DashboardScreen() {
             <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
               <ActivityIndicator color={COLORS.primary} style={{ marginBottom: 8 }} />
               <Text style={{ color: COLORS.accent, fontSize: FONT_SIZES.body, fontWeight: '700' }}>AI is crafting your study plan...</Text>
+            </GlassCard>
+          ) : generationError && studyPlan.length === 0 ? (
+            <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
+              <Text style={{ color: '#FF4C4C', fontSize: FONT_SIZES.body, fontWeight: '700', marginBottom: 4 }}>⚠️ AI Generation Failed</Text>
+              <Text style={{ color: COLORS.textMuted, fontSize: 12, textAlign: 'center' }}>{generationError}</Text>
             </GlassCard>
           ) : nextSession ? (
             <LinearGradient
@@ -308,8 +329,22 @@ export default function DashboardScreen() {
             
             <View style={styles.profileDetailsContainer}>
                <View style={styles.largeAvatar}>
-                  <Text style={styles.largeAvatarText}>{initialLetter}</Text>
+                 {userStats.avatarUrl ? (
+                   <SvgUri width="100%" height="100%" uri={userStats.avatarUrl} />
+                 ) : (
+                   <Text style={styles.largeAvatarText}>{initialLetter}</Text>
+                 )}
                </View>
+               <TouchableOpacity 
+                 style={styles.editAvatarBtn}
+                 onPress={() => {
+                   setProfileVisible(false);
+                   navigation.navigate('AvatarSelection', { isEditing: true });
+                 }}
+               >
+                 <Text style={styles.editAvatarText}>✎ Edit Avatar</Text>
+               </TouchableOpacity>
+
                <Text style={styles.profileName}>{displayName}</Text>
                <Text style={styles.profileEmail}>{auth.currentUser?.email}</Text>
                
@@ -330,15 +365,36 @@ export default function DashboardScreen() {
                    )}
                  </View>
                )}
-            </View>
+               <View style={styles.profileInfoContainer}>
+                <View style={styles.profileInfoItem}>
+                  <Text style={styles.profileInfoLabel}>Role</Text>
+                  <Text style={styles.profileInfoValue}>{userStats.userType || 'Student'}</Text>
+                </View>
+                <View style={styles.profileInfoItem}>
+                  <Text style={styles.profileInfoLabel}>Institute</Text>
+                  <Text style={styles.profileInfoValue}>{userStats.institute || "Not Set"}</Text>
+                </View>
+                <View style={styles.profileInfoItem}>
+                  <Text style={styles.profileInfoLabel}>Level</Text>
+                  <Text style={styles.profileInfoValue}>{userStats.level}</Text>
+                </View>
+                <View style={styles.profileInfoItem}>
+                  <Text style={styles.profileInfoLabel}>Total XP</Text>
+                  <Text style={styles.profileInfoValue}>{userStats.xp}</Text>
+                </View>
+              </View>
 
-            <View style={styles.profileStatsRow}>
-               <View style={styles.profileStat}>
-                 <Text style={styles.profileStatVal}>Level {userStats.level}</Text>
-               </View>
-               <View style={styles.profileStat}>
-                 <Text style={styles.profileStatVal}>{userStats.streak} Days</Text>
-               </View>
+              {/* Badges Section */}
+              <View style={styles.badgesSection}>
+                <Text style={styles.sectionTitle}>Unlocked Badges</Text>
+                <View style={styles.badgesContainer}>
+                  {userStats.unlockedBadges && userStats.unlockedBadges.length > 0 ? (
+                    userStats.unlockedBadges.map((badgeId, idx) => renderBadge(badgeId, idx))
+                  ) : (
+                    <Text style={styles.noBadgesText}>No badges unlocked yet. Keep studying!</Text>
+                  )}
+                </View>
+              </View>
             </View>
 
             <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -358,7 +414,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
   greeting: { color: COLORS.textSecondary, fontSize: FONT_SIZES.bodyLarge, fontWeight: '500' },
   username: { color: COLORS.textPrimary, fontSize: FONT_SIZES.heading, fontWeight: '800' },
-  avatarButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.primary, borderWidth: 2, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  avatarButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.primary, borderWidth: 2, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarLetter: { color: '#FFF', fontSize: 24, fontWeight: '800' },
   quoteContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.glass, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: COLORS.glassBorder },
   quoteIcon: { fontSize: 20, marginRight: SPACING.sm },
@@ -397,8 +453,10 @@ const styles = StyleSheet.create({
   modalTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.heading, fontWeight: '800' },
   closeModalText: { color: COLORS.textSecondary, fontSize: 24, fontWeight: 'bold' },
   profileDetailsContainer: { alignItems: 'center', marginBottom: SPACING.xl },
-  largeAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primary, borderWidth: 3, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
+  largeAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primary, borderWidth: 3, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
   largeAvatarText: { color: '#FFF', fontSize: 36, fontWeight: '800' },
+  editAvatarBtn: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: BORDER_RADIUS.pill, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.glassBorder },
+  editAvatarText: { color: COLORS.accent, fontSize: FONT_SIZES.caption, fontWeight: '700' },
   profileName: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '700', marginBottom: 4 },
   profileEmail: { color: COLORS.textMuted, fontSize: FONT_SIZES.body, marginBottom: SPACING.md },
   educationBadge: { backgroundColor: COLORS.glass, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', width: '100%' },
@@ -408,6 +466,12 @@ const styles = StyleSheet.create({
   profileStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: SPACING.xl },
   profileStat: { padding: SPACING.md, backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', flex: 1, marginHorizontal: 4 },
   profileStatVal: { color: COLORS.textPrimary, fontWeight: '700', fontSize: FONT_SIZES.body },
-  logoutBtn: { backgroundColor: '#FF4C4C', padding: SPACING.md, borderRadius: BORDER_RADIUS.md, alignItems: 'center' },
-  logoutBtnText: { color: '#FFF', fontWeight: '800', fontSize: FONT_SIZES.body }
+  logoutBtn: { backgroundColor: '#FF4C4C', padding: SPACING.md, borderRadius: BORDER_RADIUS.md, alignItems: 'center', marginTop: SPACING.xl },
+  logoutBtnText: { color: '#FFF', fontWeight: '800', fontSize: FONT_SIZES.body },
+  badgesSection: { width: '100%', marginTop: SPACING.xl },
+  badgesContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, justifyContent: 'center' },
+  badgeItem: { backgroundColor: 'rgba(255,255,255,0.05)', padding: SPACING.sm, borderRadius: BORDER_RADIUS.sm, alignItems: 'center', width: 80, borderWidth: 1, borderColor: COLORS.glassBorder },
+  badgeIcon: { fontSize: 28, marginBottom: 4 },
+  badgeName: { color: COLORS.textPrimary, fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  noBadgesText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontStyle: 'italic', textAlign: 'center' }
 });

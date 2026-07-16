@@ -47,33 +47,47 @@ async function summarizeVideo(req, res) {
         const path = require('path');
         const os = require('os');
         
-        const info = await ytdl.getInfo(videoUrl);
-        const audioFormat = ytdl.chooseFormat(info.formats, { filter: 'audioonly' });
+        let info;
+        try {
+          info = await ytdl.getInfo(videoUrl);
+        } catch (infoErr) {
+          throw new Error('Video unavailable or restricted.');
+        }
         
-        if (!audioFormat) throw new Error('No audio format found');
+        try {
+          const audioFormat = ytdl.chooseFormat(info.formats, { filter: 'audioonly' });
+          if (!audioFormat) throw new Error('No audio format found');
 
-        const tempFilePath = path.join(os.tmpdir(), `${videoId}.mp4`);
-        
-        await new Promise((resolve, reject) => {
-          ytdl.downloadFromInfo(info, { format: audioFormat })
-            .pipe(fs.createWriteStream(tempFilePath))
-            .on('finish', resolve)
-            .on('error', reject);
-        });
+          const tempFilePath = path.join(os.tmpdir(), `${videoId}.mp4`);
+          
+          await new Promise((resolve, reject) => {
+            ytdl.downloadFromInfo(info, { format: audioFormat })
+              .pipe(fs.createWriteStream(tempFilePath))
+              .on('finish', resolve)
+              .on('error', reject);
+          });
 
-        // Send to Groq Whisper
-        const transcription = await groq.audio.transcriptions.create({
-          file: fs.createReadStream(tempFilePath),
-          model: "whisper-large-v3-turbo",
-        });
-        
-        fullTranscript = transcription.text;
-        fs.unlinkSync(tempFilePath); // Cleanup
+          // Send to Groq Whisper
+          const transcription = await groq.audio.transcriptions.create({
+            file: fs.createReadStream(tempFilePath),
+            model: "whisper-large-v3-turbo",
+          });
+          
+          fullTranscript = transcription.text;
+          fs.unlinkSync(tempFilePath); // Cleanup
+        } catch (streamErr) {
+          console.log("Audio stream failed, using metadata fallback:", streamErr.message);
+          if (info && info.videoDetails) {
+            fullTranscript = `Title: ${info.videoDetails.title}\n\nDescription: ${info.videoDetails.description}`;
+          } else {
+            throw new Error('Could not extract metadata.');
+          }
+        }
       } catch (audioErr) {
-        console.error("Audio fallback failed:", audioErr);
+        console.error("Ultimate fallback failed:", audioErr);
         return res.status(400).json({ 
           success: false, 
-          error: 'Could not fetch transcript or extract audio. The video might be restricted.' 
+          error: 'Could not fetch transcript or extract data. The video might be restricted.' 
         });
       }
     }

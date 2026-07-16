@@ -96,7 +96,7 @@ export default function PlannerScreen() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const { userStats, studyPlan, updateStudyPlan, saveStatsToFirestore, isGeneratingSchedule } = useUser();
+  const { userStats, studyPlan, updateStudyPlan, saveStatsToFirestore, isGeneratingSchedule, generationError } = useUser();
   
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -206,6 +206,7 @@ export default function PlannerScreen() {
       if (result.success) {
         const plan = result.studyPlan.map((item, index) => ({
           ...item,
+          id: item.id || `generated-${Date.now()}-${index}`,
           completed: item.completed || false,
           color: item.color || ['#FF6B35', '#4A90D9', '#2ECC71', '#A29BFE'][index % 4],
         }));
@@ -273,6 +274,13 @@ export default function PlannerScreen() {
                 <Text style={{ color: COLORS.accent, fontSize: 16, fontWeight: 'bold' }}>AI is building your master schedule...</Text>
                 <Text style={{ color: COLORS.textMuted, fontSize: 14, marginTop: 8, textAlign: 'center' }}>This usually takes a few seconds.</Text>
               </>
+            ) : generationError ? (
+              <>
+                <Text style={{ color: '#FF4C4C', fontSize: 32, marginBottom: 8 }}>⚠️</Text>
+                <Text style={{ color: '#FF4C4C', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 }}>AI Generation Failed</Text>
+                <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontSize: 14 }}>{generationError}</Text>
+                <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontSize: 14, marginTop: 16 }}>Tap the ✨ button below to try again.</Text>
+              </>
             ) : (
               <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontSize: 16 }}>
                 {loading ? 'Loading your study plan...' : 'No study plan yet. Generate one below!'}
@@ -281,7 +289,7 @@ export default function PlannerScreen() {
           </View>
         ) : (
           filteredTopics.map((item, index) => (
-            <TopicCard key={item.id} item={item} index={index} onToggle={toggleComplete} onEditClick={openEditModal} />
+            <TopicCard key={item.id || `topic-${index}`} item={item} index={index} onToggle={toggleComplete} onEditClick={openEditModal} />
           ))
         )}
         <View style={{ height: 100 }} />

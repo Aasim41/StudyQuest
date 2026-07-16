@@ -14,7 +14,8 @@ import API_BASE from '../config/apiConfig';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import WelcomeLandingScreen from '../screens/WelcomeLandingScreen';
-// import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
+import HowItWorksScreen from '../screens/HowItWorksScreen';
+import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
 import UserTypeScreen from '../screens/UserTypeScreen';
 import InstituteSearchScreen from '../screens/InstituteSearchScreen';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -30,7 +31,9 @@ import FocusTimerScreen from '../screens/FocusTimerScreen';
 import YouTubeFeedScreen from '../screens/YouTubeFeedScreen';
 import YouTubePlayerScreen from '../screens/YouTubePlayerScreen';
 import SavedVideosScreen from '../screens/SavedVideosScreen';
-import LeaderboardScreen from '../screens/LeaderboardScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
+import ChatTutorScreen from '../screens/ChatTutorScreen';
+import FloatingTutor from '../components/FloatingTutor';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +46,7 @@ const AuthStack = () => (
     }}
   >
     <Stack.Screen name="Welcome" component={WelcomeLandingScreen} />
+    <Stack.Screen name="HowItWorks" component={HowItWorksScreen} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Signup" component={SignupScreen} />
   </Stack.Navigator>
@@ -56,6 +60,7 @@ const OnboardingStack = () => (
       animationDuration: 350,
     }}
   >
+    <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
     <Stack.Screen name="UserType" component={UserTypeScreen} />
     <Stack.Screen name="InstituteSearch" component={InstituteSearchScreen} />
     <Stack.Screen name="CalendarUpload" component={CalendarUploadScreen} />
@@ -90,7 +95,7 @@ const MainTabNavigator = () => (
         else if (route.name === 'Planner') icon = '📅';
         else if (route.name === 'StudyTube') icon = '▶️';
         else if (route.name === 'Saved') icon = '💾';
-        else if (route.name === 'Leaderboard') icon = '🏆';
+        else if (route.name === 'Analytics') icon = '📊';
         return <View style={focused ? {
           shadowColor: COLORS.accent,
           shadowOffset: {width: 0, height: 0},
@@ -104,25 +109,38 @@ const MainTabNavigator = () => (
     <Tab.Screen name="Planner" component={PlannerScreen} />
     <Tab.Screen name="StudyTube" component={YouTubeFeedScreen} />
     <Tab.Screen name="Saved" component={SavedVideosScreen} />
-    <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
+    <Tab.Screen name="Analytics" component={AnalyticsScreen} />
   </Tab.Navigator>
 );
 
 const MainStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-      animation: 'fade',
-    }}
-  >
-    <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-    <Stack.Screen 
-      name="FocusTimer" 
-      component={FocusTimerScreen} 
-      options={{ presentation: 'fullScreenModal' }}
-    />
-    <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} />
-  </Stack.Navigator>
+  <>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+      }}
+    >
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+      <Stack.Screen 
+        name="FocusTimer" 
+        component={FocusTimerScreen} 
+        options={{ presentation: 'fullScreenModal' }}
+      />
+      <Stack.Screen name="YouTubePlayer" component={YouTubePlayerScreen} />
+      <Stack.Screen 
+        name="AvatarSelection" 
+        component={AvatarSelectionScreen} 
+        options={{ presentation: 'fullScreenModal' }}
+      />
+      <Stack.Screen 
+        name="ChatTutor" 
+        component={ChatTutorScreen} 
+        options={{ presentation: 'modal' }}
+      />
+    </Stack.Navigator>
+    <FloatingTutor />
+  </>
 );
 
 const LoadingScreen = () => (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -14,6 +14,8 @@ import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle } from 'react-native-svg';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
+import LevelUpModal from '../components/ui/LevelUpModal';
+import { useUser } from '../context/UserContext';
 
 const { width, height } = Dimensions.get('window');
 const TIMER_SIZE = width * 0.7;
@@ -22,13 +24,23 @@ const RADIUS = (TIMER_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = RADIUS * 2 * Math.PI;
 
 export default function FocusTimerScreen({ route, navigation }) {
-  // Pass topic details via route params (or use mock data)
   const { topic = 'Calculus: Derivatives', subject = 'Mathematics', color = COLORS.primary } = route.params || {};
+  const { logStudySession } = useUser();
 
-  const [mode, setMode] = useState('focus'); // 'focus', 'short_break', 'long_break'
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [focusDuration, setFocusDuration] = useState(25 * 60);
+  const [breakDuration, setBreakDuration] = useState(5 * 60);
+
+  const [mode, setMode] = useState('focus'); // 'focus' | 'break'
+  const [timeLeft, setTimeLeft] = useState(focusDuration);
   const [isActive, setIsActive] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
+
+  // Gamification State
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [newLevel, setNewLevel] = useState(1);
+
+  // Settings State
+  const [showSettings, setShowSettings] = useState(false);
 
   // Animations
   const progress = useSharedValue(1);
@@ -55,12 +67,36 @@ export default function FocusTimerScreen({ route, navigation }) {
 
   useEffect(() => {
     // Update SVG progress ring
-    const totalTime = mode === 'focus' ? 25 * 60 : (mode === 'short_break' ? 5 * 60 : 15 * 60);
+    const totalTime = mode === 'focus' ? focusDuration : breakDuration;
     progress.value = withTiming(timeLeft / totalTime, { duration: 1000, easing: Easing.linear });
   }, [timeLeft]);
 
-  useEffect(() => {
-    if (isActive) {
+  const handleSessionComplete = () => {
+    setIsActive(false);
+    
+    if (mode === 'focus') {
+      const durationMins = Math.floor(focusDuration / 60);
+      setCompletedSessions((prev) => prev + 1);
+      
+      // Log session and check level up
+      logStudySession(subject, durationMins).then((res) => {
+        if (res && res.leveledUp) {
+          setNewLevel(res.newLevel);
+          setShowLevelUp(true);
+        }
+      });
+
+      setMode('break');
+      setTimeLeft(breakDuration);
+    } else {
+      setMode('focus');
+      setTimeLeft(focusDuration);
+    }
+  };
+
+  const toggleTimer = () => {
+    setIsActive(!isActive);
+    if (!isActive) {
       pulseScale.value = withRepeat(
         withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         -1,
@@ -69,32 +105,15 @@ export default function FocusTimerScreen({ route, navigation }) {
     } else {
       pulseScale.value = withSpring(1);
     }
-  }, [isActive]);
-
-  const handleSessionComplete = () => {
-    setIsActive(false);
-    if (mode === 'focus') {
-      const newSessions = completedSessions + 1;
-      setCompletedSessions(newSessions);
-      if (newSessions % 4 === 0) {
-        setMode('long_break');
-        setTimeLeft(15 * 60);
-      } else {
-        setMode('short_break');
-        setTimeLeft(5 * 60);
-      }
-    } else {
-      setMode('focus');
-      setTimeLeft(25 * 60);
-    }
   };
 
-  const toggleTimer = () => setIsActive(!isActive);
   const skipSession = () => handleSessionComplete();
 
   const resetTimer = () => {
     setIsActive(false);
-    setTimeLeft(mode === 'focus' ? 25 * 60 : (mode === 'short_break' ? 5 * 60 : 15 * 60));
+    pulseScale.value = 1;
+    progress.value = 1;
+    setTimeLeft(mode === 'focus' ? focusDuration : breakDuration);
   };
 
   const animatedProps = useAnimatedStyle(() => {
@@ -111,6 +130,14 @@ export default function FocusTimerScreen({ route, navigation }) {
 
   const activeColor = mode === 'focus' ? color : COLORS.secondary;
 
+  const applySettings = (focusMins, breakMins) => {
+    setFocusDuration(focusMins * 60);
+    setBreakDuration(breakMins * 60);
+    if (mode === 'focus') setTimeLeft(focusMins * 60);
+    else setTimeLeft(breakMins * 60);
+    setShowSettings(false);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -121,11 +148,18 @@ export default function FocusTimerScreen({ route, navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.modeText}>{mode === 'focus' ? 'Focus Time' : 'Break Time'}</Text>
-        <View style={{ width: 60 }} />
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backTxt}>← Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowSettings(true)} style={styles.settingsBtn}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.headerInfo}>
+          <Text style={styles.modeText}>{mode === 'focus' ? 'Focus Time' : 'Break Time'}</Text>
+        </Animated.View>
       </View>
 
       {/* Topic Info */}
@@ -146,7 +180,7 @@ export default function FocusTimerScreen({ route, navigation }) {
             strokeWidth={STROKE_WIDTH}
             fill="transparent"
           />
-          {/* Progress Circle (Animated via strokeDashoffset inline below natively but reanimated handles it via animatedProps) */}
+          {/* Progress Circle */}
           <AnimatedCircle
             cx={TIMER_SIZE / 2}
             cy={TIMER_SIZE / 2}
@@ -195,6 +229,42 @@ export default function FocusTimerScreen({ route, navigation }) {
         ))}
       </Animated.View>
 
+      <LevelUpModal 
+        visible={showLevelUp} 
+        newLevel={newLevel} 
+        onClose={() => setShowLevelUp(false)} 
+      />
+
+      {/* Settings Modal */}
+      <Modal visible={showSettings} transparent animationType="slide">
+        <View style={styles.settingsOverlay}>
+          <View style={styles.settingsCard}>
+            <Text style={styles.settingsTitle}>Timer Settings</Text>
+            
+            <Text style={styles.settingsLabel}>Focus Duration (Minutes)</Text>
+            <View style={styles.durationRow}>
+              {[25, 45, 50, 90].map(min => (
+                <TouchableOpacity key={min} onPress={() => applySettings(min, breakDuration/60)} style={[styles.durationBtn, focusDuration/60 === min && styles.durationBtnActive]}>
+                  <Text style={[styles.durationText, focusDuration/60 === min && styles.durationTextActive]}>{min}m</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.settingsLabel}>Break Duration (Minutes)</Text>
+            <View style={styles.durationRow}>
+              {[5, 10, 15, 20].map(min => (
+                <TouchableOpacity key={min} onPress={() => applySettings(focusDuration/60, min)} style={[styles.durationBtn, breakDuration/60 === min && styles.durationBtnActive]}>
+                  <Text style={[styles.durationText, breakDuration/60 === min && styles.durationTextActive]}>{min}m</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.closeSettingsBtn} onPress={() => setShowSettings(false)}>
+              <Text style={styles.closeSettingsTxt}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -208,19 +278,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xl,
     paddingTop: height * 0.08,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
   },
   backBtn: {
-    padding: SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
-  backBtnText: {
+  backTxt: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
+  },
+  settingsBtn: {
+    padding: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+  },
+  settingsIcon: {
+    fontSize: 16,
+  },
+  headerInfo: {
+    alignItems: 'center',
   },
   modeText: {
     color: COLORS.textPrimary,
@@ -311,4 +396,69 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.glassBorder,
   },
+  settingsOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  settingsCard: {
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
+    borderTopWidth: 1,
+    borderColor: COLORS.glassBorder,
+  },
+  settingsTitle: {
+    fontSize: FONT_SIZES.title,
+    color: '#FFF',
+    fontWeight: '800',
+    marginBottom: SPACING.xl,
+    textAlign: 'center',
+  },
+  settingsLabel: {
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    fontWeight: '600',
+  },
+  durationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xl,
+  },
+  durationBtn: {
+    flex: 1,
+    marginHorizontal: 4,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    alignItems: 'center',
+  },
+  durationBtnActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  durationText: {
+    color: COLORS.textPrimary,
+    fontWeight: '700',
+  },
+  durationTextActive: {
+    color: '#FFF',
+  },
+  closeSettingsBtn: {
+    backgroundColor: COLORS.primary,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    marginBottom: 40, // iPhone bottom safe area
+  },
+  closeSettingsTxt: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: FONT_SIZES.bodyLarge,
+  }
 });

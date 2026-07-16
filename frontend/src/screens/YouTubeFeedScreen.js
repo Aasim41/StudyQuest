@@ -25,11 +25,16 @@ export default function YouTubeFeedScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [videos, setVideos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState(null);
 
-  const { studyPlan } = useUser();
+  const { studyPlan, watchHistory } = useUser();
 
   useEffect(() => {
-    if (studyPlan && studyPlan.length > 0) {
+    if (watchHistory && watchHistory.length > 0) {
+      fetchFeed(watchHistory.join(','));
+    } else if (studyPlan && studyPlan.length > 0) {
       // Pick a random subject from the study plan to personalize the feed
       const randomSubject = studyPlan[Math.floor(Math.random() * studyPlan.length)].subject;
       handleSearch(randomSubject);
@@ -38,10 +43,13 @@ export default function YouTubeFeedScreen() {
     }
   }, []);
 
-  const fetchFeed = async () => {
+  const fetchFeed = async (historyStr = '') => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/youtube/feed`);
+      const url = historyStr 
+        ? `${API_BASE}/api/youtube/feed?history=${encodeURIComponent(historyStr)}`
+        : `${API_BASE}/api/youtube/feed`;
+      const response = await fetch(url);
       const data = await response.json();
       if (data.success) {
         setVideos(data.items);
@@ -53,12 +61,52 @@ export default function YouTubeFeedScreen() {
     }
   };
 
+  const handleTextChange = (text) => {
+    setSearchQuery(text);
+    if (!text) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      fetchFeed(watchHistory.join(','));
+      return;
+    }
+
+    setShowSuggestions(true);
+    
+    // Debounce API calls
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    
+    const timeout = setTimeout(async () => {
+      // 1. Fetch autocomplete suggestions
+      try {
+        const suggestRes = await fetch(`${API_BASE}/api/youtube/suggest?q=${encodeURIComponent(text)}`);
+        const suggestData = await suggestRes.json();
+        if (suggestData.success) {
+          setSuggestions(suggestData.suggestions);
+        }
+      } catch (err) {
+        console.error('Suggest error:', err);
+      }
+      
+      // 2. Perform live search immediately
+      handleSearch(text);
+    }, 600); // 600ms debounce
+    
+    setDebounceTimeout(timeout);
+  };
+
+  const selectSuggestion = (query) => {
+    setSearchQuery(query);
+    setShowSuggestions(false);
+    handleSearch(query);
+  };
+
   const handleSearch = async (queryOverride) => {
     const q = typeof queryOverride === 'string' ? queryOverride : searchQuery;
     if (!q) {
-      fetchFeed();
+      fetchFeed(watchHistory.join(','));
       return;
     }
+    setShowSuggestions(false);
     setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE}/api/youtube/search?q=${encodeURIComponent(q)}`);
@@ -123,14 +171,26 @@ export default function YouTubeFeedScreen() {
             placeholder="Search educational videos..."
             placeholderTextColor={COLORS.textSecondary}
             value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
+            onChangeText={handleTextChange}
+            onSubmitEditing={() => handleSearch()}
             returnKeyType="search"
           />
-          <TouchableOpacity style={styles.searchIconBtn} onPress={handleSearch}>
+          <TouchableOpacity style={styles.searchIconBtn} onPress={() => handleSearch()}>
             <Text style={styles.searchIcon}>🔍</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Autocomplete Dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            {suggestions.map((item, index) => (
+              <TouchableOpacity key={index} style={styles.suggestionItem} onPress={() => selectSuggestion(item)}>
+                <Text style={styles.suggestionIcon}>🔍</Text>
+                <Text style={styles.suggestionText} numberOfLines={1}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Feed */}
@@ -188,6 +248,30 @@ const styles = StyleSheet.create({
   },
   searchIconBtn: { padding: SPACING.sm },
   searchIcon: { fontSize: 20 },
+  suggestionsContainer: {
+    backgroundColor: COLORS.glass,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    marginTop: 8,
+    paddingVertical: SPACING.xs,
+    position: 'absolute',
+    top: 100, // Below search bar
+    left: SPACING.md,
+    right: SPACING.md,
+    zIndex: 20,
+    ...SHADOWS.card
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  suggestionIcon: { fontSize: 14, marginRight: SPACING.sm, color: COLORS.textMuted },
+  suggestionText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body },
   loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   feedContent: { paddingBottom: 100 },
   videoCard: {

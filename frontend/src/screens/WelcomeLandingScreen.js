@@ -67,14 +67,28 @@ export default function WelcomeLandingScreen() {
             </Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(500).springify()} style={styles.ctaRow}>
-            <GradientButton 
-              title="Start Learning Free" 
+          <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.actionContainer}>
+            <TouchableOpacity 
+              style={styles.primaryBtn} 
+              activeOpacity={0.8}
               onPress={() => navigation.navigate('Signup')}
-              style={{ flex: 1, marginRight: SPACING.md }}
-            />
-            <TouchableOpacity style={styles.howItWorksBtn}>
-              <Text style={styles.howItWorksText}>How it Works</Text>
+            >
+              <LinearGradient
+                colors={COLORS.gradientPrimary}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={styles.primaryBtnGradient}
+              >
+                <Text style={styles.primaryBtnText}>Start Your Journey</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.secondaryBtn} 
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('HowItWorks')}
+            >
+              <Text style={styles.secondaryBtnText}>How it Works</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>

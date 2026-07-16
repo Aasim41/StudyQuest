@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,15 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert
+  Alert,
+  Image,
+  FlatList
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
-import { GlassCard } from '../components/ui';
 import { useUser } from '../context/UserContext';
 import API_BASE from '../config/apiConfig';
 
@@ -24,59 +25,64 @@ export default function YouTubePlayerScreen({ route, navigation }) {
   const { videoId, title, channelTitle } = route.params;
 
   const [playing, setPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [summaryData, setSummaryData] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [relatedVideos, setRelatedVideos] = useState([]);
+  const [loadingRelated, setLoadingRelated] = useState(true);
 
-  const { savedVideos, saveVideo, removeVideo } = useUser();
+  const { savedVideos, saveVideo, removeVideo, addToWatchHistory } = useUser();
   const isSaved = savedVideos.some(v => v.videoId === videoId);
 
-  const handleSummarize = async () => {
-    setIsLoading(true);
-    setErrorMsg(null);
-    setSummaryData(null);
-    setPlaying(false); // Pause video when summarizing
+  useEffect(() => {
+    // Add to history
+    addToWatchHistory(title);
 
-    try {
-      const response = await fetch(`${API_BASE}/api/youtube/summarize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoUrl: `https://youtube.com/watch?v=${videoId}` })
-      });
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        setErrorMsg(data.error || "Failed to parse video.");
-      } else if (!data.educational) {
-        setErrorMsg(`❌ Rejected by Guardrails: ${data.reason}`);
-      } else {
-        setSummaryData(data);
+    // Fetch related videos
+    const fetchRelated = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/youtube/related?videoId=${videoId}&title=${encodeURIComponent(title)}`);
+        const data = await response.json();
+        if (data.success) {
+          setRelatedVideos(data.items);
+        }
+      } catch (err) {
+        console.error('Failed to fetch related', err);
+      } finally {
+        setLoadingRelated(false);
       }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Network error. Make sure backend is running.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchRelated();
+  }, [videoId, title]);
 
   const handleDownload = () => {
-    if (!summaryData) {
-      Alert.alert("Notice", "Please generate the AI Study Notes first. The download feature will save this video and its notes offline.");
-      return;
-    }
-    // Mock save logic
-    Alert.alert("Saved!", "This video and its study notes have been saved to your Offline Downloads.");
+    Alert.alert("Saved!", "This video has been saved to your Offline Downloads.");
   };
 
   const handleToggleSave = () => {
     if (isSaved) {
       removeVideo(videoId);
     } else {
-      saveVideo({ videoId, title, channelTitle, summaryData });
+      saveVideo({ videoId, title, channelTitle });
       Alert.alert("Saved to Library", "You can access this video in your Saved Videos tab.");
     }
+  };
+
+  const renderRelatedVideo = ({ item, index }) => {
+    const relVideoId = item.id.videoId;
+    const { title: relTitle, channelTitle: relChannelTitle, thumbnails } = item.snippet;
+
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        <TouchableOpacity 
+          style={styles.relatedCard}
+          onPress={() => navigation.push('YouTubePlayer', { videoId: relVideoId, title: relTitle, channelTitle: relChannelTitle })}
+        >
+          <Image source={{ uri: thumbnails.medium.url }} style={styles.relatedThumb} />
+          <View style={styles.relatedInfo}>
+            <Text style={styles.relatedTitle} numberOfLines={2}>{relTitle}</Text>
+            <Text style={styles.relatedChannel}>{relChannelTitle}</Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
   };
 
   return (
@@ -130,62 +136,21 @@ export default function YouTubePlayerScreen({ route, navigation }) {
               <Text style={styles.actionText}>{isSaved ? 'Saved' : 'Save'}</Text>
             </TouchableOpacity>
           </ScrollView>
-
-          {/* Summarize Button */}
-          <TouchableOpacity 
-            style={styles.summarizeBtn} 
-            onPress={handleSummarize}
-            disabled={isLoading}
-          >
-            <LinearGradient colors={['#3498DB', '#2980B9']} style={styles.gradientBg}>
-              {isLoading ? (
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <ActivityIndicator color="#FFF" style={{marginRight: 10}} />
-                  <Text style={styles.summarizeBtnText}>Groq is analyzing...</Text>
-                </View>
-              ) : (
-                <Text style={styles.summarizeBtnText}>✨ Generate AI Study Notes</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
 
-        {/* Error / Guardrail Message */}
-        {errorMsg && (
-          <Animated.View entering={FadeInUp.springify()} style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMsg}</Text>
-          </Animated.View>
-        )}
-
-        {/* AI Summary Results */}
-        {summaryData && (
-          <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.resultsContainer}>
-            <GlassCard style={styles.resultCard}>
-              <Text style={styles.cardHeader}>📝 Detailed Summary</Text>
-              <Text style={styles.cardText}>{summaryData.summary}</Text>
-            </GlassCard>
-
-            <GlassCard style={styles.resultCard}>
-              <Text style={styles.cardHeader}>🔑 Key Takeaways</Text>
-              {summaryData.keyTakeaways?.map((point, index) => (
-                <View key={index} style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.cardText}>{point}</Text>
-                </View>
-              ))}
-            </GlassCard>
-
-            <GlassCard style={styles.resultCard}>
-              <Text style={styles.cardHeader}>❓ Self-Quiz</Text>
-              {summaryData.quizQuestions?.map((q, index) => (
-                <View key={index} style={styles.quizItem}>
-                  <Text style={styles.quizQ}>Q: {q.question}</Text>
-                  <Text style={styles.quizA}>A: {q.answer}</Text>
-                </View>
-              ))}
-            </GlassCard>
-          </Animated.View>
-        )}
+        {/* Suggested / Related Videos */}
+        <View style={styles.relatedSection}>
+          <Text style={styles.relatedSectionTitle}>Suggested Videos</Text>
+          {loadingRelated ? (
+            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: SPACING.md }} />
+          ) : (
+            relatedVideos.map((item, index) => (
+              <React.Fragment key={item.id?.videoId || index}>
+                {renderRelatedVideo({ item, index })}
+              </React.Fragment>
+            ))
+          )}
+        </View>
 
       </ScrollView>
     </View>
@@ -218,10 +183,11 @@ const styles = StyleSheet.create({
   playerWrapper: {
     width: '100%',
     backgroundColor: '#000',
-    marginTop: 0, // No margin so it touches the top (or below absolute header)
+    marginTop: 0,
   },
   infoSection: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.sm,
   },
   videoTitle: {
     color: COLORS.textPrimary,
@@ -237,7 +203,7 @@ const styles = StyleSheet.create({
   },
   actionBar: {
     flexDirection: 'row',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.sm,
   },
   actionBtn: {
     backgroundColor: COLORS.glass,
@@ -258,46 +224,41 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontWeight: '600',
   },
-  summarizeBtn: {
-    height: 55,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-    ...SHADOWS.glow,
-    marginBottom: SPACING.lg,
+  relatedSection: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
-  gradientBg: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
+  relatedSectionTitle: {
+    color: '#FFF',
+    fontSize: FONT_SIZES.bodyLarge,
+    fontWeight: '700',
+    marginBottom: SPACING.md,
+  },
+  relatedCard: {
+    flexDirection: 'row',
+    marginBottom: SPACING.md,
+  },
+  relatedThumb: {
+    width: 120,
+    height: 68,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#000',
+  },
+  relatedInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
     justifyContent: 'center',
   },
-  summarizeBtnText: { color: '#FFF', fontSize: FONT_SIZES.bodyLarge, fontWeight: '800' },
-  errorContainer: {
-    backgroundColor: 'rgba(231, 76, 60, 0.2)',
-    borderWidth: 1,
-    borderColor: '#E74C3C',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginHorizontal: SPACING.lg,
+  relatedTitle: {
+    color: COLORS.textPrimary,
+    fontSize: FONT_SIZES.body,
+    fontWeight: '600',
+    marginBottom: 4,
   },
-  errorText: { color: '#FFF', fontSize: FONT_SIZES.body, fontWeight: '600', textAlign: 'center' },
-  resultsContainer: { paddingHorizontal: SPACING.lg },
-  resultCard: { padding: SPACING.lg, marginBottom: SPACING.md, width: '100%' },
-  cardHeader: {
-    fontSize: FONT_SIZES.subtitle,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: SPACING.sm,
-  },
-  cardText: { fontSize: FONT_SIZES.body, color: COLORS.textSecondary, lineHeight: 24 },
-  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  bullet: { color: COLORS.primary, fontSize: 18, marginRight: 8, lineHeight: 24 },
-  quizItem: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.sm,
-    marginBottom: SPACING.sm,
-  },
-  quizQ: { color: COLORS.textPrimary, fontWeight: '700', marginBottom: 4 },
-  quizA: { color: COLORS.textSecondary, fontStyle: 'italic' },
+  relatedChannel: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.caption,
+  }
 });
