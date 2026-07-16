@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import API_BASE from '../config/apiConfig';
 
 const UserContext = createContext();
 
@@ -12,6 +13,42 @@ export const UserProvider = ({ children }) => {
   const [userStats, setUserStats] = useState({ level: 1, xp: 0, nextLevelXp: 1000, streak: 0, lastStudyDate: null });
   const [studyPlan, setStudyPlan] = useState([]);
   const [savedVideos, setSavedVideos] = useState([]);
+  const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
+
+  const generateScheduleInBackground = async () => {
+    setIsGeneratingSchedule(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated");
+
+      const calendarStr = await AsyncStorage.getItem('@onboarding_calendar');
+      const syllabusStr = await AsyncStorage.getItem('@onboarding_syllabus');
+      const timetableStr = await AsyncStorage.getItem('@onboarding_timetable');
+      
+      const payload = {
+        timetable: timetableStr ? JSON.parse(timetableStr) : [],
+        calendar: calendarStr ? JSON.parse(calendarStr) : [],
+        syllabus: syllabusStr ? JSON.parse(syllabusStr) : []
+      };
+
+      const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await res.json();
+      if (result.success) {
+        await updateStudyPlan(result.studyPlan || []);
+      } else {
+        console.warn('Background generation failed', result.error);
+      }
+    } catch (err) {
+      console.warn('Background generation error:', err);
+    } finally {
+      setIsGeneratingSchedule(false);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -129,7 +166,9 @@ export const UserProvider = ({ children }) => {
       updateStudyPlan,
       savedVideos,
       saveVideo,
-      removeVideo
+      removeVideo,
+      isGeneratingSchedule,
+      generateScheduleInBackground
     }}>
       {children}
     </UserContext.Provider>

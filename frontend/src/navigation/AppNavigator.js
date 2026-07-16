@@ -13,6 +13,7 @@ import API_BASE from '../config/apiConfig';
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
+import WelcomeLandingScreen from '../screens/WelcomeLandingScreen';
 // import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
 import UserTypeScreen from '../screens/UserTypeScreen';
 import InstituteSearchScreen from '../screens/InstituteSearchScreen';
@@ -41,6 +42,7 @@ const AuthStack = () => (
       animationDuration: 350,
     }}
   >
+    <Stack.Screen name="Welcome" component={WelcomeLandingScreen} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Signup" component={SignupScreen} />
   </Stack.Navigator>

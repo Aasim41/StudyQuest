@@ -96,7 +96,7 @@ export default function PlannerScreen() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [showLevelUp, setShowLevelUp] = useState(false);
-  const { userStats, studyPlan, updateStudyPlan, saveStatsToFirestore } = useUser();
+  const { userStats, studyPlan, updateStudyPlan, saveStatsToFirestore, isGeneratingSchedule } = useUser();
   
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -112,19 +112,19 @@ export default function PlannerScreen() {
   }, [studyPlan]);
 
   const toggleComplete = async (id) => {
-    let newTopics = [];
-    let isCompleting = false;
-
-    setTopics(prev => {
-      newTopics = prev.map(t => {
-        if (t.id === id) {
-          isCompleting = !t.completed;
-          return { ...t, completed: isCompleting };
-        }
-        return t;
-      });
-      return newTopics;
+    const newTopics = topics.map(t => {
+      if (t.id === id) {
+        return { ...t, completed: !t.completed };
+      }
+      return t;
     });
+
+    setTopics(newTopics);
+
+    const item = newTopics.find(t => t.id === id);
+    if (!item) return;
+
+    const isCompleting = item.completed;
 
     if (isCompleting) {
       const XP_REWARD = 50;
@@ -266,9 +266,19 @@ export default function PlannerScreen() {
 
       <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
         {filteredTopics.length === 0 ? (
-          <Text style={{ color: COLORS.textMuted, textAlign: 'center', marginTop: 40, fontSize: 16 }}>
-            {loading ? 'Loading your study plan...' : 'No study plan yet. Generate one below!'}
-          </Text>
+          <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 20 }}>
+            {isGeneratingSchedule ? (
+              <>
+                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginBottom: 16 }} />
+                <Text style={{ color: COLORS.accent, fontSize: 16, fontWeight: 'bold' }}>AI is building your master schedule...</Text>
+                <Text style={{ color: COLORS.textMuted, fontSize: 14, marginTop: 8, textAlign: 'center' }}>This usually takes a few seconds.</Text>
+              </>
+            ) : (
+              <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontSize: 16 }}>
+                {loading ? 'Loading your study plan...' : 'No study plan yet. Generate one below!'}
+              </Text>
+            )}
+          </View>
         ) : (
           filteredTopics.map((item, index) => (
             <TopicCard key={item.id} item={item} index={index} onToggle={toggleComplete} onEditClick={openEditModal} />

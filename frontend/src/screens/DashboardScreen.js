@@ -37,7 +37,7 @@ export default function DashboardScreen() {
   const [nextSession, setNextSession] = useState(null);
   const [todayProgress, setTodayProgress] = useState(0);
   const [quoteOfTheDay, setQuoteOfTheDay] = useState(QUOTES[0]);
-  const { userStats, studyPlan, saveStatsToFirestore } = useUser();
+  const { userStats, studyPlan, saveStatsToFirestore, isGeneratingSchedule } = useUser();
   
   // Profile Modal State
   const [isProfileVisible, setProfileVisible] = useState(false);
@@ -227,7 +227,12 @@ export default function DashboardScreen() {
         {/* Next Up Session */}
         <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
           <Text style={styles.sectionTitle}>Up Next</Text>
-          {nextSession ? (
+          {isGeneratingSchedule ? (
+            <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
+              <ActivityIndicator color={COLORS.primary} style={{ marginBottom: 8 }} />
+              <Text style={{ color: COLORS.accent, fontSize: FONT_SIZES.body, fontWeight: '700' }}>AI is crafting your study plan...</Text>
+            </GlassCard>
+          ) : nextSession ? (
             <LinearGradient
               colors={COLORS.gradientGlass}
               style={[styles.nextSessionCard, { borderLeftColor: nextSession.color, borderLeftWidth: 4 }]}

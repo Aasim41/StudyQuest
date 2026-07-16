@@ -13,8 +13,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function ScheduleGenerationScreen({ navigation }) {
   const [status, setStatus] = useState('Gathering your data...');
-  const [error, setError] = useState(null);
-  const { updateStudyPlan, completeOnboarding } = useUser();
+  const { completeOnboarding, generateScheduleInBackground } = useUser();
 
   const pulse = useSharedValue(0);
 
@@ -25,7 +24,18 @@ export default function ScheduleGenerationScreen({ navigation }) {
       true
     );
 
-    generateSchedule();
+    // 1. Trigger the actual generation in the background
+    generateScheduleInBackground();
+
+    // 2. Wait 10 seconds for the user to see the cool animation, then redirect
+    const timer = setTimeout(() => {
+      setStatus('Finalizing setup...');
+      setTimeout(() => {
+        handleComplete();
+      }, 1000);
+    }, 10000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -38,62 +48,6 @@ export default function ScheduleGenerationScreen({ navigation }) {
       await completeOnboarding();
     } catch (e) {
       console.error(e);
-    }
-  };
-
-  const generateSchedule = async () => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
-
-      setStatus('Reading uploaded documents...');
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const calendarStr = await AsyncStorage.getItem('@onboarding_calendar');
-      const syllabusStr = await AsyncStorage.getItem('@onboarding_syllabus');
-      const timetableStr = await AsyncStorage.getItem('@onboarding_timetable');
-      
-      const timetableData = timetableStr ? JSON.parse(timetableStr) : [];
-      const calendarData = calendarStr ? JSON.parse(calendarStr) : [];
-      const syllabusData = syllabusStr ? JSON.parse(syllabusStr) : [];
-
-      setStatus('AI is crafting your perfect study plan...');
-      
-      const payload = {
-        timetable: timetableData,
-        calendar: calendarData,
-        syllabus: syllabusData
-      };
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-      const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-
-      const result = await res.json();
-      
-      if (result.success) {
-        setStatus('Finalizing setup...');
-        await updateStudyPlan(result.studyPlan || []);
-        await handleComplete();
-      } else {
-        throw new Error(result.error || 'Failed to generate schedule');
-      }
-
-    } catch (err) {
-      console.warn('Generation error:', err);
-      // Fast automatic redirect on failure
-      await handleComplete();
     }
   };
 

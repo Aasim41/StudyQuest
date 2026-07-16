@@ -24,22 +24,61 @@ async function summarizeVideo(req, res) {
       return res.status(400).json({ success: false, error: 'Invalid YouTube URL' });
     }
 
-    // 1. Fetch transcript
-    let transcriptItems = [];
+    // 1. Fetch transcript using closed captions
+    let fullTranscript = "";
     try {
-      transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+      fullTranscript = transcriptItems.map(item => item.text).join(' ');
     } catch (e) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Could not fetch transcript. The video might not have closed captions enabled.' 
-      });
+      console.log(`No CC available for ${videoId}, attempting Whisper audio extraction...`);
     }
 
-    // Combine text
-    const fullTranscript = transcriptItems.map(item => item.text).join(' ');
-
-    // 2. Guardrail & Summarize using Groq
+    // 2. Whisper Fallback if CC fails
     const groq = req.app.locals.groqClients && req.app.locals.groqClients.length > 0 ? req.app.locals.groqClients[0] : null;
+    
+    if (!fullTranscript) {
+      if (!groq) {
+        return res.status(500).json({ success: false, error: 'Groq client not configured for Whisper fallback.' });
+      }
+
+      try {
+        const ytdl = require('@distube/ytdl-core');
+        const fs = require('fs');
+        const path = require('path');
+        const os = require('os');
+        
+        const info = await ytdl.getInfo(videoUrl);
+        const audioFormat = ytdl.chooseFormat(info.formats, { filter: 'audioonly' });
+        
+        if (!audioFormat) throw new Error('No audio format found');
+
+        const tempFilePath = path.join(os.tmpdir(), `${videoId}.mp4`);
+        
+        await new Promise((resolve, reject) => {
+          ytdl.downloadFromInfo(info, { format: audioFormat })
+            .pipe(fs.createWriteStream(tempFilePath))
+            .on('finish', resolve)
+            .on('error', reject);
+        });
+
+        // Send to Groq Whisper
+        const transcription = await groq.audio.transcriptions.create({
+          file: fs.createReadStream(tempFilePath),
+          model: "whisper-large-v3-turbo",
+        });
+        
+        fullTranscript = transcription.text;
+        fs.unlinkSync(tempFilePath); // Cleanup
+      } catch (audioErr) {
+        console.error("Audio fallback failed:", audioErr);
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Could not fetch transcript or extract audio. The video might be restricted.' 
+        });
+      }
+    }
+
+    // 3. Guardrail & Summarize using Groq
     if (!groq) {
       return res.status(500).json({ success: false, error: 'Groq client not configured' });
     }
