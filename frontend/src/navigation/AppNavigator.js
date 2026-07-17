@@ -3,7 +3,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged } from 'firebase/auth';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
 import { auth } from '../../firebaseConfig';
@@ -80,28 +82,64 @@ const MainTabNavigator = () => (
     screenOptions={({ route }) => ({
       headerShown: false,
       tabBarStyle: {
-        backgroundColor: '#0A0A1A',
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.1)',
+        position: 'absolute',
+        bottom: 24,
+        left: 20,
+        right: 20,
         height: 65,
-        paddingBottom: 10,
-        paddingTop: 10,
+        borderRadius: 24,
+        backgroundColor: 'rgba(20, 20, 50, 0.75)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 10,
       },
+      tabBarBackground: () => (
+        <BlurView 
+          tint="dark" 
+          intensity={80} 
+          style={StyleSheet.absoluteFill} 
+          pointerEvents="none"
+          experimentalBlurMethod="dimezisBlurView"
+        />
+      ),
+      tabBarShowLabel: false,
       tabBarActiveTintColor: COLORS.accent,
       tabBarInactiveTintColor: COLORS.textMuted,
       tabBarIcon: ({ color, size, focused }) => {
-        let icon = '';
-        if (route.name === 'Dashboard') icon = '🏠';
-        else if (route.name === 'Planner') icon = '📅';
-        else if (route.name === 'StudyTube') icon = '▶️';
-        else if (route.name === 'Saved') icon = '💾';
-        else if (route.name === 'Analytics') icon = '📊';
-        return <View style={focused ? {
-          shadowColor: COLORS.accent,
-          shadowOffset: {width: 0, height: 0},
-          shadowOpacity: 0.8,
-          shadowRadius: 10,
-        } : null}><Text style={{ fontSize: size }}>{icon}</Text></View>;
+        let iconName = '';
+        if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+        else if (route.name === 'Planner') iconName = focused ? 'calendar-month' : 'calendar-month-outline';
+        else if (route.name === 'StudyTube') iconName = focused ? 'play-circle' : 'play-circle-outline';
+        else if (route.name === 'Saved') iconName = focused ? 'bookmark' : 'bookmark-outline';
+        else if (route.name === 'Analytics') iconName = focused ? 'chart-bar' : 'chart-bar-stacked';
+
+        return (
+          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+            {focused && (
+              <View style={{
+                position: 'absolute',
+                width: 40,
+                height: 40,
+                backgroundColor: 'rgba(108, 92, 231, 0.25)',
+                borderRadius: 20,
+              }} />
+            )}
+            <MaterialCommunityIcons 
+              name={iconName} 
+              size={28} 
+              color={color} 
+              style={focused ? {
+                textShadowColor: COLORS.accentGlow,
+                textShadowOffset: {width: 0, height: 0},
+                textShadowRadius: 10,
+              } : null}
+            />
+          </View>
+        );
       },
     })}
   >

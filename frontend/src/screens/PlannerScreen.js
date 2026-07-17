@@ -5,7 +5,7 @@ import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, wit
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../theme';
-import { FloatingParticle } from '../components/ui';
+import { FloatingParticle, ProgressBar } from '../components/ui';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -248,8 +248,8 @@ export default function PlannerScreen() {
             <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
           </View>
         </View>
-        <View style={styles.progressBarBg}>
-          <Animated.View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} layout={Layout.springify()} />
+        <View style={{ marginTop: SPACING.md }}>
+          <ProgressBar progress={progressPercent / 100} height={12} gradient={COLORS.gradientPrimary} />
         </View>
       </View>
 
@@ -270,7 +270,7 @@ export default function PlannerScreen() {
           <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 20 }}>
             {isGeneratingSchedule ? (
               <>
-                <ActivityIndicator size="large" color={COLORS.primary} style={{ marginBottom: 16 }} />
+                <ProgressBar progress={100} height={4} gradient={COLORS.gradientAccent} style={{ marginBottom: 16, width: '80%' }} />
                 <Text style={{ color: COLORS.accent, fontSize: 16, fontWeight: 'bold' }}>AI is building your master schedule...</Text>
                 <Text style={{ color: COLORS.textMuted, fontSize: 14, marginTop: 8, textAlign: 'center' }}>This usually takes a few seconds.</Text>
               </>

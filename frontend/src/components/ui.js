@@ -306,4 +306,38 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.md,
     marginBottom: SPACING.xs,
   },
+  progressContainer: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 999,
+    overflow: 'hidden',
+    width: '100%',
+  },
 });
+
+/**
+ * ProgressBar - Animated gradient progress bar
+ */
+export const ProgressBar = ({ progress = 0, height = 8, gradient = COLORS.gradientSuccess, style }) => {
+  const widthAnim = useSharedValue(0);
+
+  React.useEffect(() => {
+    widthAnim.value = withSpring(progress * 100, ANIMATION.springSmooth);
+  }, [progress]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${widthAnim.value}%`,
+  }));
+
+  return (
+    <View style={[styles.progressContainer, { height }, style]}>
+      <Animated.View style={[StyleSheet.absoluteFill, animatedStyle, { borderRadius: height / 2, overflow: 'hidden' }]}>
+        <LinearGradient
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+    </View>
+  );
+};

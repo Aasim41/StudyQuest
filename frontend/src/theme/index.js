@@ -22,16 +22,17 @@ export const COLORS = {
   streak: '#FF6B35',
   streakGlow: '#FF8C5A',
   levelUp: '#2ECC71',
+  fest: '#9B59B6',
   
   // Gradients (as arrays for LinearGradient)
   gradientPrimary: ['#6C5CE7', '#A29BFE', '#74B9FF'],
-  gradientDark: ['#0A0A1A', '#141432', '#1A1A3E'],
+  gradientDark: ['#0A0A1A', '#111122', '#181830'],
   gradientCard: ['rgba(108, 92, 231, 0.15)', 'rgba(162, 155, 254, 0.05)'],
-  gradientAccent: ['#00D2FF', '#6C5CE7'],
-  gradientFire: ['#FF6B35', '#FFD93D'],
-  gradientSuccess: ['#2ECC71', '#27AE60'],
-  gradientGlass: ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)'],
-  gradientOnboarding: ['#0A0A1A', '#1A1145', '#2D1B69'],
+  gradientAccent: ['#00D2FF', '#3A7BD5'],
+  gradientFire: ['#FF416C', '#FF4B2B'],
+  gradientSuccess: ['#11998E', '#38EF7D'],
+  gradientGlass: ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)'],
+  gradientOnboarding: ['#05050A', '#130B29', '#1C0D45'],
   
   // Surface / Background
   background: '#0A0A1A',

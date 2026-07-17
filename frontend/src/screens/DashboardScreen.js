@@ -20,7 +20,7 @@ import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
-import { FloatingParticle, GlassCard } from '../components/ui';
+import { FloatingParticle, GlassCard, ProgressBar } from '../components/ui';
 
 const { width, height } = Dimensions.get('window');
 
@@ -235,9 +235,7 @@ export default function DashboardScreen() {
            <Text style={styles.sectionTitle}>Today's Progress</Text>
            <View style={styles.dailyProgressContainer}>
               <Text style={styles.progressLabel}>{Math.round(todayProgress)}% Completed</Text>
-              <View style={styles.xpBarContainer}>
-                <View style={[styles.xpBarFill, { width: `${todayProgress}%`, backgroundColor: COLORS.success || '#2ECC71' }]} />
-              </View>
+              <ProgressBar progress={todayProgress / 100} height={12} gradient={COLORS.gradientSuccess} />
            </View>
         </Animated.View>
 
@@ -246,7 +244,7 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Up Next</Text>
           {isGeneratingSchedule ? (
             <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
-              <ActivityIndicator color={COLORS.primary} style={{ marginBottom: 8 }} />
+              <ProgressBar progress={100} height={4} gradient={COLORS.gradientAccent} style={{ marginBottom: 12, opacity: 0.8 }} />
               <Text style={{ color: COLORS.accent, fontSize: FONT_SIZES.body, fontWeight: '700' }}>AI is crafting your study plan...</Text>
             </GlassCard>
           ) : generationError && studyPlan.length === 0 ? (
