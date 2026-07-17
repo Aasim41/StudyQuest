@@ -83,6 +83,14 @@ export const FONT_SIZES = {
   display: 48,
 };
 
+export const FONTS = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semiBold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  extraBold: 'Inter_800ExtraBold',
+};
+
 export const BORDER_RADIUS = {
   sm: 8,
   md: 12,

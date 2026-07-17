@@ -6,131 +6,88 @@ import {
   Dimensions,
   TouchableOpacity,
   ScrollView,
-  Modal,
-  Alert,
   ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, useSharedValue, useAnimatedStyle, withSpring, interpolateColor, useAnimatedProps } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { SvgUri } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
-import { auth } from '../../firebaseConfig';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
-import { FloatingParticle, GlassCard, ProgressBar } from '../components/ui';
+import { COLORS, SPACING, FONT_SIZES, FONTS, SHADOWS, BORDER_RADIUS, ANIMATION } from '../theme';
+import { FloatingParticle, GlassCard, ProgressBar, GradientButton } from '../components/ui';
 
 const { width, height } = Dimensions.get('window');
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const QUOTES = [
-  "The secret of getting ahead is getting started.",
-  "It always seems impossible until it's done.",
-  "Don't watch the clock; do what it does. Keep going.",
-  "Success is the sum of small efforts, repeated day-in and day-out.",
-  "The future belongs to those who believe in the beauty of their dreams."
-];
+const QuickActionCard = ({ title, icon, color, onPress, delay }) => (
+  <Animated.View entering={FadeInDown.delay(delay).springify()} style={styles.quickActionContainer}>
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
+      <GlassCard style={styles.quickActionCard}>
+        <LinearGradient
+          colors={[color + '33', color + '00']}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.iconBox, { backgroundColor: color + '33', shadowColor: color }]}>
+          <MaterialCommunityIcons name={icon} size={28} color={color} />
+        </View>
+        <Text style={styles.quickActionTitle}>{title}</Text>
+      </GlassCard>
+    </TouchableOpacity>
+  </Animated.View>
+);
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
-
+  const { userStats, studyPlan, isGeneratingSchedule, generationError } = useUser();
   const [calendarData, setCalendarData] = useState([]);
   const [nextSession, setNextSession] = useState(null);
-  const [todayProgress, setTodayProgress] = useState(0);
-  const [quoteOfTheDay, setQuoteOfTheDay] = useState(QUOTES[0]);
-  const { userStats, studyPlan, saveStatsToFirestore, isGeneratingSchedule, generationError, BADGE_DEFINITIONS } = useUser();
-  
-  // Profile Modal State
-  const [isProfileVisible, setProfileVisible] = useState(false);
+  const [greeting, setGreeting] = useState('');
 
-  const renderBadge = (badgeId, index) => {
-    const badgeDef = BADGE_DEFINITIONS[badgeId];
-    if (!badgeDef) return null;
-    return (
-      <View key={index} style={styles.badgeItem}>
-        <Text style={styles.badgeIcon}>{badgeDef.icon}</Text>
-        <Text style={styles.badgeName}>{badgeDef.name}</Text>
-      </View>
-    );
-  };
-
-  // Scroll Animation
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
-
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 100], [1, 0], Extrapolation.CLAMP);
-    const translateY = interpolate(scrollY.value, [0, 100], [0, -20], Extrapolation.CLAMP);
-    return {
-      opacity,
-      transform: [{ translateY }],
-    };
-  });
+  // XP Ring Animation
+  const progress = useSharedValue(0);
+  const CIRCLE_RADIUS = 45;
+  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
   useEffect(() => {
-    // Random quote for the day
-    const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-    setQuoteOfTheDay(randomQuote);
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Good Morning ☀️');
+    else if (hour < 18) setGreeting('Good Afternoon 🌤');
+    else setGreeting('Good Evening 🌙');
 
     const checkData = async () => {
       try {
         const calStr = await AsyncStorage.getItem('@onboarding_calendar');
         if (calStr) setCalendarData(JSON.parse(calStr));
 
-        if (userStats.lastStudyDate) {
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          const lastDate = new Date(userStats.lastStudyDate);
-          lastDate.setHours(0,0,0,0);
-          
-          const diffTime = Math.abs(today - lastDate);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays > 1 && userStats.streak > 0) {
-            saveStatsToFirestore({ ...userStats, streak: 0 });
-          }
-        }
-
         if (studyPlan && studyPlan.length > 0) {
           const upcoming = studyPlan.find(item => !item.completed);
-          if (upcoming) {
-            setNextSession({
-              subject: upcoming.subject,
-              time: upcoming.time,
-              color: upcoming.color || COLORS.primary,
-              intensity: upcoming.intensity
-            });
-          } else {
-            setNextSession(null);
-          }
-
-          // Calculate daily progress
-          const todayStr = new Date().toISOString().split('T')[0];
-          const todayTasks = studyPlan.filter(t => t.date === todayStr);
-          if (todayTasks.length > 0) {
-            const completed = todayTasks.filter(t => t.completed).length;
-            setTodayProgress((completed / todayTasks.length) * 100);
-          } else {
-            setTodayProgress(0);
-          }
+          setNextSession(upcoming || null);
         }
       } catch (err) {
-        console.warn('Error dashboard data:', err);
+        console.warn('Dashboard data error:', err);
       }
     };
     
     const unsubscribe = navigation.addListener('focus', () => {
       checkData();
+      const targetProgress = userStats.xp / userStats.nextLevelXp;
+      progress.value = withSpring(targetProgress, ANIMATION.springSmooth);
     });
 
     checkData();
+    const targetProgress = userStats.xp / userStats.nextLevelXp;
+    progress.value = withSpring(targetProgress, ANIMATION.springSmooth);
+    
     return unsubscribe;
   }, [navigation, userStats, studyPlan]);
+
+  const animatedCircleProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - progress.value)
+  }));
 
   const markedDates = {};
   calendarData.forEach(event => {
@@ -138,339 +95,367 @@ export default function DashboardScreen() {
     let dotColor = COLORS.accent; 
     if (event.type === 'Exam') dotColor = '#FF4C4C'; 
     else if (event.type === 'Holiday') dotColor = '#2ECC71'; 
-    else if (event.type === 'Fest') dotColor = '#9B59B6'; 
+    else if (event.type === 'Fest') dotColor = COLORS.fest; 
 
     markedDates[event.date] = {
       marked: true,
       dotColor: dotColor,
       customStyles: {
-        container: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4 },
-        text: { color: '#FFF', fontWeight: 'bold' }
+        container: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8 },
+        text: { color: '#FFF', fontFamily: FONTS.bold }
       }
     };
   });
-
-  const handleDayPress = (day) => {
-    const eventsOnDay = calendarData.filter(e => e.date === day.dateString);
-    if (eventsOnDay.length > 0) {
-      const eventNames = eventsOnDay.map(e => `${e.type}: ${e.name}`).join('\n');
-      Alert.alert(day.dateString, eventNames);
-    }
-  };
-
-  const handleLogout = () => {
-    auth.signOut()
-      .then(() => {
-        // AppNavigator will handle auth state changes and re-render the Auth stack
-      })
-      .catch(error => {
-        Alert.alert("Logout Error", error.message);
-      });
-  };
-
-  const displayName = auth.currentUser?.displayName || 'Explorer';
-  const initialLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
-      <FloatingParticle size={180} color={COLORS.primary} x={width * 0.7} y={-40} delay={100} />
-      <FloatingParticle size={120} color={COLORS.accent} x={-20} y={height * 0.4} delay={400} />
-      <FloatingParticle size={80} color={COLORS.streak} x={width * 0.2} y={height * 0.8} delay={700} />
+      
+      {/* Ambient Orbs */}
+      <FloatingParticle size={300} color={COLORS.primary} x={-100} y={-100} delay={0} />
+      <FloatingParticle size={250} color={COLORS.accent} x={width * 0.6} y={height * 0.2} delay={1000} />
 
-      <Animated.ScrollView 
+      <ScrollView 
         contentContainerStyle={styles.scrollContent} 
         showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
       >
-        
-        {/* Header Section */}
-        <Animated.View style={[styles.header, headerAnimatedStyle]} entering={FadeInDown.delay(100).springify()}>
-          <View>
-            <Text style={styles.greeting}>Ready to level up,</Text>
-            <Text style={styles.username}>{displayName.split(' ')[0]}! 🚀</Text>
+        {/* Header */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.userName}>Aasim</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.avatarButton} 
-            onPress={() => setProfileVisible(true)}
-          >
-            {userStats.avatarUrl ? (
-              <SvgUri width="100%" height="100%" uri={userStats.avatarUrl} />
-            ) : (
-              <Text style={styles.avatarLetter}>{initialLetter}</Text>
-            )}
+          <TouchableOpacity style={styles.settingsBtn}>
+            <MaterialCommunityIcons name="cog" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Quote of the Day */}
-        <Animated.View entering={FadeInDown.delay(150).springify()}>
-          <View style={styles.quoteContainer}>
-            <Text style={styles.quoteIcon}>💡</Text>
-            <Text style={styles.quoteText}>"{quoteOfTheDay}"</Text>
-          </View>
-        </Animated.View>
-
         {/* Stats Row */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.statsRow}>
-          <GlassCard style={styles.statCard}>
-            <Text style={styles.statValue}>Lvl {userStats.level}</Text>
-            <Text style={styles.statLabel}>Current Level</Text>
-            <View style={styles.xpBarContainer}>
-              <View style={[styles.xpBarFill, { width: `${(userStats.xp / userStats.nextLevelXp) * 100}%` }]} />
-            </View>
-            <Text style={styles.xpText}>{userStats.xp} / {userStats.nextLevelXp} XP</Text>
-          </GlassCard>
+        <View style={styles.statsRow}>
+          {/* XP Ring Card */}
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.statBox, { flex: 1.2 }]}>
+            <GlassCard style={styles.xpCard}>
+              <View style={styles.xpRingContainer}>
+                <Svg width={110} height={110} viewBox="0 0 110 110">
+                  <Defs>
+                    <SvgLinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+                      <Stop offset="0" stopColor={COLORS.accent} stopOpacity="1" />
+                      <Stop offset="1" stopColor={COLORS.primary} stopOpacity="1" />
+                    </SvgLinearGradient>
+                  </Defs>
+                  <Circle cx="55" cy="55" r={CIRCLE_RADIUS} stroke="rgba(255,255,255,0.1)" strokeWidth="8" fill="none" />
+                  <AnimatedCircle
+                    cx="55" cy="55" r={CIRCLE_RADIUS}
+                    stroke="url(#grad)" strokeWidth="8" fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                    animatedProps={animatedCircleProps}
+                    transform="rotate(-90 55 55)"
+                  />
+                </Svg>
+                <View style={styles.levelCenter}>
+                  <Text style={styles.levelNumber}>{userStats.level}</Text>
+                  <Text style={styles.levelText}>LEVEL</Text>
+                </View>
+              </View>
+              <Text style={styles.xpLabel}>{userStats.xp} / {userStats.nextLevelXp} XP</Text>
+            </GlassCard>
+          </Animated.View>
 
-          <GlassCard style={styles.statCard}>
-            <Text style={styles.statEmoji}>🔥</Text>
-            <Text style={styles.statValue}>{userStats.streak} Days</Text>
-            <Text style={styles.statLabel}>Study Streak</Text>
-          </GlassCard>
-        </Animated.View>
+          {/* Streak Card */}
+          <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.statBox, { flex: 1 }]}>
+            <GlassCard style={styles.streakCard}>
+              <Text style={styles.fireEmoji}>🔥</Text>
+              <Text style={styles.streakNumber}>{userStats.streak}</Text>
+              <Text style={styles.streakLabel}>Day Streak</Text>
+              
+              <View style={styles.dotsRow}>
+                {[1,2,3,4,5,6,7].map((i) => (
+                  <View key={i} style={[styles.streakDot, i <= 4 ? styles.streakDotActive : null]} />
+                ))}
+              </View>
+            </GlassCard>
+          </Animated.View>
+        </View>
 
-        {/* Daily Progress */}
-        <Animated.View entering={FadeInDown.delay(250).springify()} style={styles.section}>
-           <Text style={styles.sectionTitle}>Today's Progress</Text>
-           <View style={styles.dailyProgressContainer}>
-              <Text style={styles.progressLabel}>{Math.round(todayProgress)}% Completed</Text>
-              <ProgressBar progress={todayProgress / 100} height={12} gradient={COLORS.gradientSuccess} />
-           </View>
-        </Animated.View>
-
-        {/* Next Up Session */}
-        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
+        {/* Up Next Card */}
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.section}>
           <Text style={styles.sectionTitle}>Up Next</Text>
           {isGeneratingSchedule ? (
-            <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
-              <ProgressBar progress={100} height={4} gradient={COLORS.gradientAccent} style={{ marginBottom: 12, opacity: 0.8 }} />
-              <Text style={{ color: COLORS.accent, fontSize: FONT_SIZES.body, fontWeight: '700' }}>AI is crafting your study plan...</Text>
-            </GlassCard>
-          ) : generationError && studyPlan.length === 0 ? (
-            <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
-              <Text style={{ color: '#FF4C4C', fontSize: FONT_SIZES.body, fontWeight: '700', marginBottom: 4 }}>⚠️ AI Generation Failed</Text>
-              <Text style={{ color: COLORS.textMuted, fontSize: 12, textAlign: 'center' }}>{generationError}</Text>
+            <GlassCard style={{ padding: SPACING.xl, alignItems: 'center' }}>
+              <ProgressBar progress={100} height={4} gradient={COLORS.gradientAccent} style={{ marginBottom: 16, width: '80%' }} />
+              <Text style={styles.aiGenText}>AI is crafting your study plan...</Text>
             </GlassCard>
           ) : nextSession ? (
-            <LinearGradient
-              colors={COLORS.gradientGlass}
-              style={[styles.nextSessionCard, { borderLeftColor: nextSession.color, borderLeftWidth: 4 }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.subjectName, { color: nextSession.color }]}>{nextSession.subject}</Text>
-                <Text style={styles.intensityText}>{nextSession.intensity || 'Moderate'} Intensity</Text>
-                <Text style={styles.timeText}>{nextSession.time}</Text>
+            <GlassCard style={[styles.upNextCard, { borderLeftColor: nextSession.color || COLORS.primary }]}>
+              <View style={styles.upNextHeader}>
+                <View style={[styles.iconBox, { backgroundColor: (nextSession.color || COLORS.primary) + '22' }]}>
+                  <MaterialCommunityIcons name="book-open-variant" size={24} color={nextSession.color || COLORS.primary} />
+                </View>
+                <View style={styles.upNextInfo}>
+                  <Text style={styles.upNextSubject}>{nextSession.subject}</Text>
+                  <Text style={styles.upNextTime}>{nextSession.time} • {nextSession.intensity || 'Moderate'}</Text>
+                </View>
               </View>
-              <TouchableOpacity 
-                style={styles.startBtn}
-                onPress={() => navigation.navigate('FocusTimer', {
-                  subject: nextSession.subject,
-                  color: nextSession.color
-                })}
-              >
-                <Text style={styles.startBtnText}>Start</Text>
-              </TouchableOpacity>
-            </LinearGradient>
+              <GradientButton 
+                title="Start Session" 
+                colors={COLORS.gradientAccent} 
+                onPress={() => navigation.navigate('FocusTimer', { subject: nextSession.subject, color: nextSession.color })}
+                style={{ marginTop: SPACING.md }}
+              />
+            </GlassCard>
           ) : (
-            <GlassCard style={{ padding: SPACING.lg, alignItems: 'center' }}>
-              <Text style={{ color: COLORS.textMuted, fontSize: FONT_SIZES.body }}>No upcoming classes right now.</Text>
+            <GlassCard style={styles.emptyCard}>
+              <Text style={styles.emptyCardText}>All done for today! 🎉</Text>
             </GlassCard>
           )}
         </Animated.View>
 
-        {/* Academic Calendar Section */}
-        <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.section}>
-          <Text style={styles.sectionTitle}>Academic Calendar</Text>
-          <View style={styles.calendarContainer}>
+        {/* Quick Actions Grid */}
+        <Animated.View entering={FadeInDown.delay(500).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.grid}>
+            <QuickActionCard title="Focus Timer" icon="timer" color={COLORS.primary} delay={500} onPress={() => navigation.navigate('FocusTimer')} />
+            <QuickActionCard title="AI Tutor" icon="robot" color={COLORS.accent} delay={600} onPress={() => navigation.navigate('ChatTutor')} />
+            <QuickActionCard title="StudyTube" icon="play-circle" color="#FF4757" delay={700} onPress={() => navigation.navigate('StudyTube')} />
+            <QuickActionCard title="Leaderboard" icon="trophy" color={COLORS.xp} delay={800} onPress={() => {}} />
+          </View>
+        </Animated.View>
+
+        {/* Calendar */}
+        <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Upcoming Events</Text>
+          <GlassCard style={styles.calendarCard}>
             <Calendar
               style={styles.calendar}
               theme={{
                 backgroundColor: 'transparent',
                 calendarBackground: 'transparent',
-                textSectionTitleColor: COLORS.textSecondary,
+                textSectionTitleColor: COLORS.textMuted,
                 selectedDayBackgroundColor: COLORS.primary,
                 selectedDayTextColor: '#ffffff',
                 todayTextColor: COLORS.accent,
                 dayTextColor: COLORS.textPrimary,
-                textDisabledColor: COLORS.textMuted,
-                dotColor: COLORS.accent,
-                selectedDotColor: '#ffffff',
-                arrowColor: COLORS.accent,
+                textDisabledColor: 'rgba(255,255,255,0.2)',
+                arrowColor: COLORS.primary,
                 monthTextColor: COLORS.textPrimary,
-                indicatorColor: COLORS.accent,
+                indicatorColor: COLORS.primary,
+                textDayFontFamily: FONTS.regular,
+                textMonthFontFamily: FONTS.bold,
+                textDayHeaderFontFamily: FONTS.semiBold,
               }}
-              markingType={'custom'}
               markedDates={markedDates}
-              onDayPress={handleDayPress}
+              markingType={'custom'}
             />
-            <View style={styles.legendContainer}>
-              <View style={styles.legendItem}><View style={[styles.legendDot, {backgroundColor: '#FF4C4C'}]} /><Text style={styles.legendText}>Exam</Text></View>
-              <View style={styles.legendItem}><View style={[styles.legendDot, {backgroundColor: '#2ECC71'}]} /><Text style={styles.legendText}>Holiday</Text></View>
-              <View style={styles.legendItem}><View style={[styles.legendDot, {backgroundColor: '#9B59B6'}]} /><Text style={styles.legendText}>Fest</Text></View>
-              <View style={styles.legendItem}><View style={[styles.legendDot, {backgroundColor: COLORS.accent}]} /><Text style={styles.legendText}>Academic</Text></View>
-            </View>
-          </View>
+          </GlassCard>
         </Animated.View>
-
-      </Animated.ScrollView>
-
-      {/* Profile Modal */}
-      <Modal visible={isProfileVisible} animationType="fade" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Your Profile</Text>
-              <TouchableOpacity onPress={() => setProfileVisible(false)}>
-                <Text style={styles.closeModalText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.profileDetailsContainer}>
-               <View style={styles.largeAvatar}>
-                 {userStats.avatarUrl ? (
-                   <SvgUri width="100%" height="100%" uri={userStats.avatarUrl} />
-                 ) : (
-                   <Text style={styles.largeAvatarText}>{initialLetter}</Text>
-                 )}
-               </View>
-               <TouchableOpacity 
-                 style={styles.editAvatarBtn}
-                 onPress={() => {
-                   setProfileVisible(false);
-                   navigation.navigate('AvatarSelection', { isEditing: true });
-                 }}
-               >
-                 <Text style={styles.editAvatarText}>✎ Edit Avatar</Text>
-               </TouchableOpacity>
-
-               <Text style={styles.profileName}>{displayName}</Text>
-               <Text style={styles.profileEmail}>{auth.currentUser?.email}</Text>
-               
-               {/* Educational Details */}
-               {(userStats.userType || userStats.institute) && (
-                 <View style={styles.educationBadge}>
-                   <Text style={styles.educationText}>
-                     {userStats.userType === 'college' ? '🎓 College Student' : (userStats.userType === 'school' ? '🎒 School Student' : '📚 Learner')}
-                   </Text>
-                   {userStats.institute?.name && (
-                     <Text style={styles.instituteText}>{userStats.institute.name}</Text>
-                   )}
-                   {(userStats.institute?.degree || userStats.institute?.grade) && (
-                     <Text style={styles.degreeText}>
-                       {userStats.institute.degree || userStats.institute.grade}
-                       {userStats.institute.branch ? ` • ${userStats.institute.branch}` : ''}
-                     </Text>
-                   )}
-                 </View>
-               )}
-               <View style={styles.profileInfoContainer}>
-                <View style={styles.profileInfoItem}>
-                  <Text style={styles.profileInfoLabel}>Role</Text>
-                  <Text style={styles.profileInfoValue}>{userStats.userType || 'Student'}</Text>
-                </View>
-                <View style={styles.profileInfoItem}>
-                  <Text style={styles.profileInfoLabel}>Institute</Text>
-                   <Text style={styles.profileInfoValue}>{userStats.institute?.name || "Not Set"}</Text>
-                </View>
-                <View style={styles.profileInfoItem}>
-                  <Text style={styles.profileInfoLabel}>Level</Text>
-                  <Text style={styles.profileInfoValue}>{userStats.level}</Text>
-                </View>
-                <View style={styles.profileInfoItem}>
-                  <Text style={styles.profileInfoLabel}>Total XP</Text>
-                  <Text style={styles.profileInfoValue}>{userStats.xp}</Text>
-                </View>
-              </View>
-
-              {/* Badges Section */}
-              <View style={styles.badgesSection}>
-                <Text style={styles.sectionTitle}>Unlocked Badges</Text>
-                <View style={styles.badgesContainer}>
-                  {userStats.unlockedBadges && userStats.unlockedBadges.length > 0 ? (
-                    userStats.unlockedBadges.map((badgeId, idx) => renderBadge(badgeId, idx))
-                  ) : (
-                    <Text style={styles.noBadgesText}>No badges unlocked yet. Keep studying!</Text>
-                  )}
-                </View>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-              <Text style={styles.logoutBtnText}>Log Out</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
+        
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, paddingBottom: SPACING.xxl * 2 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
-  greeting: { color: COLORS.textSecondary, fontSize: FONT_SIZES.bodyLarge, fontWeight: '500' },
-  username: { color: COLORS.textPrimary, fontSize: FONT_SIZES.heading, fontWeight: '800' },
-  avatarButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.primary, borderWidth: 2, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  avatarLetter: { color: '#FFF', fontSize: 24, fontWeight: '800' },
-  quoteContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.glass, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, marginBottom: SPACING.xxl, borderWidth: 1, borderColor: COLORS.glassBorder },
-  quoteIcon: { fontSize: 20, marginRight: SPACING.sm },
-  quoteText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontWeight: '500', flex: 1, fontStyle: 'italic' },
-  statsRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xxl },
-  statCard: { flex: 1, padding: SPACING.md, alignItems: 'center' },
-  statValue: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '800', marginBottom: 4 },
-  statLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontWeight: '600', marginBottom: SPACING.sm },
-  statEmoji: { fontSize: 28, marginBottom: 8 },
-  xpBarContainer: { width: '100%', height: 6, backgroundColor: COLORS.glassBorder, borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
-  xpBarFill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 3 },
-  xpText: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '700' },
-  section: { marginBottom: SPACING.xxl },
-  sectionTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '800', marginBottom: SPACING.md },
-  dailyProgressContainer: { backgroundColor: COLORS.glass, padding: SPACING.lg, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder },
-  progressLabel: { color: COLORS.textPrimary, fontWeight: '700', marginBottom: SPACING.sm },
-  nextSessionCard: { flexDirection: 'row', alignItems: 'center', padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.glassBorder, ...SHADOWS.glow },
-  subjectName: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  intensityText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.bodyLarge, fontWeight: '700', marginBottom: 6 },
-  timeText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontWeight: '600' },
-  startBtn: { backgroundColor: COLORS.glass, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderRadius: BORDER_RADIUS.pill, borderWidth: 1, borderColor: COLORS.glassBorder, marginLeft: SPACING.md },
-  startBtnText: { color: '#FFF', fontSize: FONT_SIZES.body, fontWeight: '700' },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
-  actionCard: { width: (width - SPACING.xl * 2 - SPACING.md) / 2, backgroundColor: COLORS.glass, padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', justifyContent: 'center', ...SHADOWS.card },
-  actionEmoji: { fontSize: 32, marginBottom: SPACING.sm },
-  actionText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: '700', textAlign: 'center' },
-  calendarContainer: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.glassBorder, padding: SPACING.md, ...SHADOWS.card },
-  calendar: { marginBottom: SPACING.md },
-  legendContainer: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.glassBorder },
-  legendItem: { flexDirection: 'row', alignItems: 'center' },
-  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  legendText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
-  modalContent: { width: '100%', backgroundColor: COLORS.background, borderRadius: BORDER_RADIUS.xl, padding: SPACING.xl, borderWidth: 1, borderColor: COLORS.glassBorder },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl },
-  modalTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.heading, fontWeight: '800' },
-  closeModalText: { color: COLORS.textSecondary, fontSize: 24, fontWeight: 'bold' },
-  profileDetailsContainer: { alignItems: 'center', marginBottom: SPACING.xl },
-  largeAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primary, borderWidth: 3, borderColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, overflow: 'hidden' },
-  largeAvatarText: { color: '#FFF', fontSize: 36, fontWeight: '800' },
-  editAvatarBtn: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: BORDER_RADIUS.pill, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.glassBorder },
-  editAvatarText: { color: COLORS.accent, fontSize: FONT_SIZES.caption, fontWeight: '700' },
-  profileName: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '700', marginBottom: 4 },
-  profileEmail: { color: COLORS.textMuted, fontSize: FONT_SIZES.body, marginBottom: SPACING.md },
-  educationBadge: { backgroundColor: COLORS.glass, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', width: '100%' },
-  educationText: { color: COLORS.accent, fontWeight: '700', fontSize: FONT_SIZES.body, marginBottom: 4 },
-  instituteText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.caption, textAlign: 'center', fontWeight: '600' },
-  degreeText: { color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 2 },
-  profileStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: SPACING.xl },
-  profileStat: { padding: SPACING.md, backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', flex: 1, marginHorizontal: 4 },
-  profileStatVal: { color: COLORS.textPrimary, fontWeight: '700', fontSize: FONT_SIZES.body },
-  logoutBtn: { backgroundColor: '#FF4C4C', padding: SPACING.md, borderRadius: BORDER_RADIUS.md, alignItems: 'center', marginTop: SPACING.xl },
-  logoutBtnText: { color: '#FFF', fontWeight: '800', fontSize: FONT_SIZES.body },
-  badgesSection: { width: '100%', marginTop: SPACING.xl },
-  badgesContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, justifyContent: 'center' },
-  badgeItem: { backgroundColor: 'rgba(255,255,255,0.05)', padding: SPACING.sm, borderRadius: BORDER_RADIUS.sm, alignItems: 'center', width: 80, borderWidth: 1, borderColor: COLORS.glassBorder },
-  badgeIcon: { fontSize: 28, marginBottom: 4 },
-  badgeName: { color: COLORS.textPrimary, fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  noBadgesText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, fontStyle: 'italic', textAlign: 'center' }
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: height * 0.08,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  greeting: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.bodyLarge,
+    color: COLORS.textAccent,
+    marginBottom: 4,
+  },
+  userName: {
+    fontFamily: FONTS.extraBold,
+    fontSize: 42,
+    color: COLORS.textPrimary,
+    letterSpacing: -1,
+  },
+  settingsBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  statBox: {
+    // container flex
+  },
+  xpCard: {
+    alignItems: 'center',
+    padding: SPACING.lg,
+    paddingVertical: SPACING.xl,
+  },
+  xpRingContainer: {
+    width: 110,
+    height: 110,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelCenter: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelNumber: {
+    fontFamily: FONTS.extraBold,
+    fontSize: 32,
+    color: COLORS.textPrimary,
+    lineHeight: 36,
+  },
+  levelText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 2,
+  },
+  xpLabel: {
+    fontFamily: FONTS.semiBold,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    letterSpacing: 1,
+  },
+  streakCard: {
+    alignItems: 'center',
+    padding: SPACING.lg,
+    paddingVertical: SPACING.xl,
+    justifyContent: 'center',
+    height: '100%',
+  },
+  fireEmoji: {
+    fontSize: 36,
+    marginBottom: SPACING.xs,
+  },
+  streakNumber: {
+    fontFamily: FONTS.extraBold,
+    fontSize: 32,
+    color: COLORS.textPrimary,
+  },
+  streakLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 8,
+  },
+  streakDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  streakDotActive: {
+    backgroundColor: COLORS.streak,
+    shadowColor: COLORS.streak,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  section: {
+    marginBottom: SPACING.xl,
+  },
+  sectionTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.subtitle,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  upNextCard: {
+    padding: SPACING.lg,
+    borderLeftWidth: 4,
+  },
+  upNextHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+    ...SHADOWS.glow,
+  },
+  upNextInfo: {
+    flex: 1,
+  },
+  upNextSubject: {
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.bodyLarge,
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  upNextTime: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+  },
+  aiGenText: {
+    color: COLORS.accent, 
+    fontFamily: FONTS.semiBold,
+    fontSize: FONT_SIZES.body,
+  },
+  emptyCard: {
+    padding: SPACING.xl,
+    alignItems: 'center',
+  },
+  emptyCardText: {
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.bodyLarge,
+    color: COLORS.textMuted,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  quickActionContainer: {
+    flexBasis: '47%',
+  },
+  quickActionCard: {
+    padding: SPACING.lg,
+    alignItems: 'flex-start',
+    minHeight: 120,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  quickActionTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textPrimary,
+    marginTop: SPACING.md,
+  },
+  calendarCard: {
+    padding: SPACING.sm,
+  },
+  calendar: {
+    borderRadius: BORDER_RADIUS.md,
+  }
 });

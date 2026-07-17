@@ -65,18 +65,15 @@ export default function LoginScreen({ navigation }) {
   }, []);
 
   // Animation values
-  const mascotTranslateX = useSharedValue(-width);
+  const entranceX = useSharedValue(width);
   const mascotTranslateY = useSharedValue(0);
   const haloOpacity = useSharedValue(0);
-  
-  const formOpacity = useSharedValue(0);
-  const formTranslateY = useSharedValue(height * 0.3);
   
   const buttonScale = useSharedValue(1);
 
   useEffect(() => {
-    // 1. Mascot slides in
-    mascotTranslateX.value = withSpring(0, { damping: 14, stiffness: 80 });
+    // 1. Mascot and form slide in together from right
+    entranceX.value = withSpring(0, { damping: 14, stiffness: 80 });
     
     // Mascot idle breathing
     setTimeout(() => {
@@ -97,10 +94,6 @@ export default function LoginScreen({ navigation }) {
       true
     ));
 
-    // 2. Form slides up
-    formOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
-    formTranslateY.value = withDelay(800, withSpring(0, ANIMATION.springSmooth));
-
     // Button pulse
     buttonScale.value = withRepeat(
       withSequence(
@@ -112,11 +105,12 @@ export default function LoginScreen({ navigation }) {
     );
   }, []);
 
+  const entranceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: entranceX.value }]
+  }));
+
   const mascotStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: mascotTranslateX.value },
-      { translateY: mascotTranslateY.value }
-    ]
+    transform: [{ translateY: mascotTranslateY.value }]
   }));
 
   const haloStyle = useAnimatedStyle(() => ({
@@ -124,10 +118,7 @@ export default function LoginScreen({ navigation }) {
     transform: [{ scale: interpolate(haloOpacity.value, [0.1, 0.4], [0.9, 1.1]) }]
   }));
 
-  const formStyle = useAnimatedStyle(() => ({
-    opacity: formOpacity.value,
-    transform: [{ translateY: formTranslateY.value }]
-  }));
+
 
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }]
@@ -196,8 +187,9 @@ export default function LoginScreen({ navigation }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           
-          {/* Animated Mascot Section */}
-          <View style={styles.mascotSection}>
+          <Animated.View style={entranceStyle}>
+            {/* Animated Mascot Section */}
+            <View style={styles.mascotSection}>
             <Animated.View style={[styles.halo, haloStyle]}>
               <LinearGradient
                 colors={['rgba(108, 92, 231, 0.4)', 'rgba(108, 92, 231, 0)']}
@@ -216,8 +208,8 @@ export default function LoginScreen({ navigation }) {
             </Animated.Text>
           </View>
 
-          {/* Login Form */}
-          <Animated.View style={[styles.formContainer, formStyle]}>
+            {/* Login Form */}
+            <View style={styles.formContainer}>
             <LinearGradient
               colors={COLORS.gradientGlass}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -287,7 +279,7 @@ export default function LoginScreen({ navigation }) {
               <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
                 <Text style={styles.signUpLink}>Sign Up</Text>
               </TouchableOpacity>
-            </Animated.View>
+            </View>
           </Animated.View>
 
         </ScrollView>

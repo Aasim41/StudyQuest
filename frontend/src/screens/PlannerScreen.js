@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence, Layout } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence, withTiming, Layout } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../theme';
+import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS, ANIMATION } from '../theme';
 import { FloatingParticle, ProgressBar } from '../components/ui';
+import LottieView from 'lottie-react-native';
+import * as Haptics from 'expo-haptics';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,6 +41,13 @@ const TopicCard = ({ item, index, onToggle, onEditClick }) => {
 
   const itemColor = item.color || COLORS.primary;
 
+  const textStyle = useAnimatedStyle(() => {
+    return {
+      textDecorationLine: item.completed ? 'line-through' : 'none',
+      opacity: withTiming(item.completed ? 0.5 : 1, { duration: 300 }),
+    };
+  });
+
   return (
     <Animated.View entering={FadeInDown.delay(300 + index * 100).springify()} style={styles.cardContainer}>
       <Animated.View style={animStyle}>
@@ -52,7 +61,7 @@ const TopicCard = ({ item, index, onToggle, onEditClick }) => {
         >
           <TouchableOpacity activeOpacity={0.9} onPress={handlePress} style={{ flex: 1 }}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.subjectName, { color: itemColor }]}>{item.subject}</Text>
+              <Animated.Text style={[styles.subjectName, { color: itemColor }, textStyle]}>{item.subject}</Animated.Text>
               <View style={styles.headerRight}>
                 <Text style={styles.timeText}>{item.time}</Text>
                 {!item.completed && (
@@ -126,7 +135,12 @@ export default function PlannerScreen() {
 
     const isCompleting = item.completed;
 
-    if (isCompleting) {
+      if (isCompleting) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
       const XP_REWARD = 50;
       let newXp = userStats.xp + XP_REWARD;
       let newLevel = userStats.level;
@@ -231,6 +245,22 @@ export default function PlannerScreen() {
     ? topics 
     : topics.filter(t => t.day && t.day.substring(0, 3) === activeFilter.substring(0, 3));
 
+  const fabScale = useSharedValue(1);
+  useEffect(() => {
+    fabScale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 1000 }),
+        withTiming(1, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const fabAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fabScale.value }]
+  }));
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -303,7 +333,7 @@ export default function PlannerScreen() {
         </Animated.View>
       )}
 
-      <Animated.View entering={FadeInDown.delay(800).springify()} style={styles.fabContainer}>
+      <Animated.View entering={FadeInDown.delay(800).springify()} style={[styles.fabContainer, fabAnimatedStyle]}>
         <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={handleRegenerate}>
           <LinearGradient colors={COLORS.gradientAccent} style={styles.fabGradient}>
             <Text style={styles.fabIcon}>✨</Text>
@@ -364,17 +394,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, marginBottom: SPACING.md },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  dateText: { fontSize: FONT_SIZES.caption, fontWeight: '700', color: COLORS.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  title: { fontSize: FONT_SIZES.heading, fontWeight: '800', color: COLORS.textPrimary },
+  dateText: { fontFamily: FONTS.bold, fontSize: FONT_SIZES.caption, color: COLORS.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  title: { fontFamily: FONTS.extraBold, fontSize: FONT_SIZES.heading, color: COLORS.textPrimary },
   progressCircle: { width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.glass, borderWidth: 2, borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
-  progressText: { color: '#FFF', fontWeight: '700', fontSize: FONT_SIZES.caption },
+  progressText: { color: '#FFF', fontFamily: FONTS.bold, fontSize: FONT_SIZES.caption },
   progressBarBg: { height: 6, backgroundColor: COLORS.glassBorder, borderRadius: 3, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 3 },
   filtersContainer: { marginBottom: SPACING.md },
   filtersScroll: { paddingHorizontal: SPACING.xl, gap: SPACING.sm },
   filterPill: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.pill, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder },
   filterPillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filterText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: FONT_SIZES.body },
+  filterText: { color: COLORS.textSecondary, fontFamily: FONTS.semiBold, fontSize: FONT_SIZES.body },
   filterTextActive: { color: '#FFF' },
   listContainer: { flex: 1 },
   listContent: { paddingHorizontal: SPACING.xl, gap: SPACING.md },
@@ -383,36 +413,36 @@ const styles = StyleSheet.create({
   topicCardCompleted: { opacity: 0.6 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
-  subjectName: { fontSize: FONT_SIZES.bodyLarge, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  timeText: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, fontWeight: '600', marginRight: 10 },
+  subjectName: { fontFamily: FONTS.extraBold, fontSize: FONT_SIZES.bodyLarge, textTransform: 'uppercase', letterSpacing: 0.5 },
+  timeText: { fontFamily: FONTS.semiBold, fontSize: FONT_SIZES.caption, color: COLORS.textMuted, marginRight: 10 },
   editBtn: { padding: 4 },
   editIcon: { fontSize: 14 },
   intensityBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, marginBottom: SPACING.sm },
-  intensityText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  intensityText: { fontFamily: FONTS.bold, fontSize: 10, textTransform: 'uppercase' },
   checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: COLORS.textMuted, alignItems: 'center', justifyContent: 'center' },
-  checkIcon: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  checkIcon: { color: '#FFF', fontSize: 12, fontFamily: FONTS.extraBold },
   startFocusBtn: { backgroundColor: COLORS.glass, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.pill, borderWidth: 1, borderColor: COLORS.glassBorder, marginLeft: SPACING.md },
-  startFocusText: { color: '#FFF', fontSize: FONT_SIZES.caption, fontWeight: '700' },
+  startFocusText: { color: '#FFF', fontSize: FONT_SIZES.caption, fontFamily: FONTS.bold },
   fabContainer: { position: 'absolute', bottom: SPACING.xl, right: SPACING.xl },
   fab: { borderRadius: 30, overflow: 'hidden' },
   fabGradient: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
   fabIcon: { fontSize: 24 },
   levelUpOverlay: { position: 'absolute', top: '30%', left: SPACING.xl, right: SPACING.xl, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: BORDER_RADIUS.xl, padding: SPACING.xxl, alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent },
   levelUpEmoji: { fontSize: 64, marginBottom: SPACING.md },
-  levelUpTitle: { fontSize: FONT_SIZES.hero, fontWeight: '900', color: COLORS.accent, marginBottom: SPACING.sm },
-  levelUpSub: { fontSize: FONT_SIZES.subtitle, fontWeight: '700', color: '#FFF' },
+  levelUpTitle: { fontFamily: FONTS.extraBold, fontSize: FONT_SIZES.hero, color: COLORS.accent, marginBottom: SPACING.sm },
+  levelUpSub: { fontFamily: FONTS.bold, fontSize: FONT_SIZES.subtitle, color: '#FFF' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: COLORS.background, borderTopLeftRadius: BORDER_RADIUS.xl, borderTopRightRadius: BORDER_RADIUS.xl, padding: SPACING.xl, borderWidth: 1, borderColor: COLORS.glassBorder },
-  modalTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontWeight: '800', marginBottom: SPACING.lg },
-  inputLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, marginBottom: 4, fontWeight: '600' },
+  modalTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.subtitle, fontFamily: FONTS.extraBold, marginBottom: SPACING.lg },
+  inputLabel: { color: COLORS.textSecondary, fontSize: FONT_SIZES.caption, marginBottom: 4, fontFamily: FONTS.semiBold },
   modalInput: { backgroundColor: COLORS.glass, color: COLORS.textPrimary, borderRadius: BORDER_RADIUS.md, padding: SPACING.md, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.glassBorder },
   intensityPicker: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.xl },
   intBtn: { flex: 1, padding: SPACING.sm, backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.sm, alignItems: 'center', borderWidth: 1, borderColor: COLORS.glassBorder },
   intBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  intBtnText: { color: COLORS.textSecondary, fontWeight: '700', fontSize: FONT_SIZES.caption },
+  intBtnText: { color: COLORS.textSecondary, fontFamily: FONTS.bold, fontSize: FONT_SIZES.caption },
   modalActions: { flexDirection: 'row', gap: SPACING.md },
   modalCancel: { flex: 1, padding: SPACING.md, alignItems: 'center', backgroundColor: COLORS.glass, borderRadius: BORDER_RADIUS.md },
-  modalCancelText: { color: COLORS.textSecondary, fontWeight: '700' },
+  modalCancelText: { color: COLORS.textSecondary, fontFamily: FONTS.bold },
   modalSave: { flex: 1, padding: SPACING.md, alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md },
-  modalSaveText: { color: '#FFF', fontWeight: '700' }
+  modalSaveText: { color: '#FFF', fontFamily: FONTS.bold }
 });

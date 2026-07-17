@@ -13,7 +13,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle } from 'react-native-svg';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
+import * as Haptics from 'expo-haptics';
+import LottieView from 'lottie-react-native';
+import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
 import LevelUpModal from '../components/ui/LevelUpModal';
 import { useUser } from '../context/UserContext';
@@ -41,6 +43,7 @@ export default function FocusTimerScreen({ route, navigation }) {
   // Gamification State
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [newLevel, setNewLevel] = useState(1);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
@@ -78,6 +81,10 @@ export default function FocusTimerScreen({ route, navigation }) {
     setIsActive(false);
     
     if (mode === 'focus') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+
       const durationMins = Math.floor(focusDuration / 60);
       setCompletedSessions((prev) => prev + 1);
       
@@ -92,12 +99,14 @@ export default function FocusTimerScreen({ route, navigation }) {
       setMode('break');
       setTimeLeft(breakDuration);
     } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMode('focus');
       setTimeLeft(focusDuration);
     }
   };
 
   const toggleTimer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsActive(!isActive);
     if (!isActive) {
       pulseScale.value = withRepeat(
@@ -110,9 +119,13 @@ export default function FocusTimerScreen({ route, navigation }) {
     }
   };
 
-  const skipSession = () => handleSessionComplete();
+  const skipSession = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    handleSessionComplete();
+  };
 
   const resetTimer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsActive(false);
     pulseScale.value = 1;
     progress.value = 1;
@@ -145,6 +158,15 @@ export default function FocusTimerScreen({ route, navigation }) {
     <View style={styles.container}>
       <StatusBar style="light" />
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
+
+      {showConfetti && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+           {/* Fallback to text particles for confetti since lottie might need a local JSON */}
+           <FloatingParticle size={20} color="#FFD700" x={width * 0.2} y={height * 0.4} delay={0} />
+           <FloatingParticle size={15} color="#FF4C4C" x={width * 0.5} y={height * 0.3} delay={100} />
+           <FloatingParticle size={25} color="#2ECC71" x={width * 0.8} y={height * 0.5} delay={200} />
+        </View>
+      )}
 
       <FloatingParticle size={120} color={activeColor} x={width * 0.8} y={-20} delay={200} />
       <FloatingParticle size={150} color={COLORS.accent} x={-40} y={height * 0.7} delay={500} />
@@ -311,21 +333,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeText: {
+    fontFamily: FONTS.extraBold,
+    fontSize: FONT_SIZES.title,
     color: COLORS.textPrimary,
-    fontSize: FONT_SIZES.subtitle,
-    fontWeight: '700',
+    letterSpacing: 1,
   },
-  topicContainer: {
-    alignItems: 'center',
-    marginTop: SPACING.xl,
-    paddingHorizontal: SPACING.xl,
+  subjectBadge: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.pill,
+    borderWidth: 1,
+    marginBottom: SPACING.sm,
   },
   subjectText: {
+    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.caption,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: SPACING.sm,
   },
   topicTitle: {
     fontSize: FONT_SIZES.heading,
@@ -384,7 +408,7 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZES.body,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   sessionsContainer: {
     flexDirection: 'row',
@@ -415,7 +439,7 @@ const styles = StyleSheet.create({
   settingsTitle: {
     fontSize: FONT_SIZES.title,
     color: '#FFF',
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     marginBottom: SPACING.xl,
     textAlign: 'center',
   },
@@ -423,7 +447,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.body,
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   durationRow: {
     flexDirection: 'row',
@@ -446,7 +470,7 @@ const styles = StyleSheet.create({
   },
   durationText: {
     color: COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   durationTextActive: {
     color: '#FFF',
@@ -459,9 +483,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: 40, // iPhone bottom safe area
   },
-  closeSettingsTxt: {
+  closeSettingsText: {
     color: '#FFF',
-    fontWeight: '800',
+    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.bodyLarge,
   }
 });
