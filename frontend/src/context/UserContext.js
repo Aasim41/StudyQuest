@@ -238,9 +238,9 @@ export const UserProvider = ({ children }) => {
   };
 
   const unlockBadge = async (badgeId) => {
-    if (!userStats.unlockedBadges) userStats.unlockedBadges = [];
-    if (!userStats.unlockedBadges.includes(badgeId) && BADGE_DEFINITIONS[badgeId]) {
-      const newBadges = [...userStats.unlockedBadges, badgeId];
+    const currentBadges = userStats.unlockedBadges || [];
+    if (!currentBadges.includes(badgeId) && BADGE_DEFINITIONS[badgeId]) {
+      const newBadges = [...currentBadges, badgeId];
       const newStats = { ...userStats, unlockedBadges: newBadges };
       setUserStats(newStats);
       

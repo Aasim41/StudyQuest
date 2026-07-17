@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
@@ -372,7 +373,7 @@ export default function DashboardScreen() {
                 </View>
                 <View style={styles.profileInfoItem}>
                   <Text style={styles.profileInfoLabel}>Institute</Text>
-                  <Text style={styles.profileInfoValue}>{userStats.institute || "Not Set"}</Text>
+                   <Text style={styles.profileInfoValue}>{userStats.institute?.name || "Not Set"}</Text>
                 </View>
                 <View style={styles.profileInfoItem}>
                   <Text style={styles.profileInfoLabel}>Level</Text>

@@ -5,7 +5,7 @@ import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../theme';
 import { useUser } from '../context/UserContext';
-import { Ionicons } from '@expo/vector-icons';
+
 
 export default function ChatTutorScreen({ navigation }) {
   const { userStats, studyPlan, BADGE_DEFINITIONS } = useUser();

@@ -27,13 +27,13 @@ export default function ScheduleGenerationScreen({ navigation }) {
     // 1. Trigger the actual generation in the background
     generateScheduleInBackground();
 
-    // 2. Wait 10 seconds for the user to see the cool animation, then redirect
+    // 2. Wait 2 seconds for the user to see the cool animation, then redirect
     const timer = setTimeout(() => {
       setStatus('Finalizing setup...');
       setTimeout(() => {
         handleComplete();
       }, 1000);
-    }, 10000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);

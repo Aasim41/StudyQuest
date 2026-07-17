@@ -1,13 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, useSharedValue, withSpring, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, withSpring, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../theme';
 import { useUser } from '../context/UserContext';
-import { useEffect } from 'react';
-
-const { width, height } = Dimensions.get('window');
 
 const { width, height } = Dimensions.get('window');
 

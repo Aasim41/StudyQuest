@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withTiming,
   withSpring,
   withRepeat,
@@ -22,6 +23,8 @@ const TIMER_SIZE = width * 0.7;
 const STROKE_WIDTH = 12;
 const RADIUS = (TIMER_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = RADIUS * 2 * Math.PI;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function FocusTimerScreen({ route, navigation }) {
   const { topic = 'Calculus: Derivatives', subject = 'Mathematics', color = COLORS.primary } = route.params || {};
@@ -116,7 +119,7 @@ export default function FocusTimerScreen({ route, navigation }) {
     setTimeLeft(mode === 'focus' ? focusDuration : breakDuration);
   };
 
-  const animatedProps = useAnimatedStyle(() => {
+  const animatedProps = useAnimatedProps(() => {
     return {
       strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
     };

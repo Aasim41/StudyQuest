@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence, Layout } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, ANIMATION } from '../theme';
 import { FloatingParticle } from '../components/ui';
-import { auth, db } from '../../firebaseConfig';
+import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
@@ -249,7 +249,7 @@ export default function PlannerScreen() {
           </View>
         </View>
         <View style={styles.progressBarBg}>
-          <Animated.View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} layout={withSpring} />
+          <Animated.View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} layout={Layout.springify()} />
         </View>
       </View>
 
