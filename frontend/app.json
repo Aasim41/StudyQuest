@@ -26,8 +26,7 @@
     "plugins": [
       "expo-font",
       "expo-splash-screen",
-      "expo-status-bar",
-      "@react-native-google-signin/google-signin"
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

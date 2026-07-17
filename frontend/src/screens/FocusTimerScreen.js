@@ -294,9 +294,6 @@ export default function FocusTimerScreen({ route, navigation }) {
   );
 }
 
-// Wrap Circle for Reanimated
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

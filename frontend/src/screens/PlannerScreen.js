@@ -135,12 +135,9 @@ export default function PlannerScreen() {
 
     const isCompleting = item.completed;
 
-      if (isCompleting) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
+    if (isCompleting) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
       const XP_REWARD = 50;
       let newXp = userStats.xp + XP_REWARD;
       let newLevel = userStats.level;
@@ -170,7 +167,10 @@ export default function PlannerScreen() {
       await saveStatsToFirestore({ 
         ...userStats, xp: newXp, level: newLevel, nextLevelXp, streak: newStreak, lastStudyDate: todayStr
       });
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+
     await updateStudyPlan(newTopics);
   };
 

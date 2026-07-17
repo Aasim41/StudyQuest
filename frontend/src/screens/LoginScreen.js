@@ -272,6 +272,7 @@ export default function LoginScreen({ navigation }) {
                 />
               </Animated.View>
             </LinearGradient>
+            </View>
 
             {/* Sign Up Link */}
             <Animated.View entering={FadeIn.delay(1800).duration(600)} style={styles.signUpContainer}>
@@ -279,7 +280,7 @@ export default function LoginScreen({ navigation }) {
               <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
                 <Text style={styles.signUpLink}>Sign Up</Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </Animated.View>
 
         </ScrollView>
