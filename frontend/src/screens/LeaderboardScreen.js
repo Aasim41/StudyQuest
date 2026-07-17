@@ -5,7 +5,7 @@ import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { collection, query, orderBy, limit, getDocs, startAfter } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
+import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle, GlassCard } from '../components/ui';
 
 const { width, height } = Dimensions.get('window');
@@ -181,9 +181,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, marginBottom: SPACING.md },
   backButton: { marginBottom: SPACING.md },
-  backText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.bodyLarge, fontWeight: '600' },
-  title: { fontSize: FONT_SIZES.hero, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.xs },
-  subtitle: { fontSize: FONT_SIZES.body, color: COLORS.textSecondary },
+  backText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.bodyLarge, fontFamily: FONTS.semiBold },
+  title: { fontSize: FONT_SIZES.hero, fontFamily: FONTS.extraBold, color: COLORS.textPrimary, marginBottom: SPACING.xs },
+  subtitle: { fontSize: FONT_SIZES.body, color: COLORS.textSecondary, fontFamily: FONTS.regular },
   loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: SPACING.xl, paddingBottom: 100 },
   userCard: { 
@@ -201,14 +201,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108, 92, 231, 0.1)',
   },
   rankContainer: { width: 40, alignItems: 'center', justifyContent: 'center' },
-  rankText: { fontSize: 20, fontWeight: '800', color: COLORS.textSecondary },
+  rankText: { fontSize: 20, fontFamily: FONTS.extraBold, color: COLORS.textSecondary },
   avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
   avatarEmoji: { fontSize: 24 },
-  avatarLetter: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  avatarLetter: { fontSize: 20, fontFamily: FONTS.extraBold, color: '#FFF' },
   userInfo: { flex: 1 },
-  userName: { fontSize: FONT_SIZES.body, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 2 },
-  userLevel: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, fontWeight: '600' },
+  userName: { fontSize: FONT_SIZES.body, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: 2 },
+  userLevel: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, fontFamily: FONTS.semiBold },
   xpContainer: { alignItems: 'flex-end', justifyContent: 'center' },
-  xpText: { fontSize: FONT_SIZES.subtitle, fontWeight: '900', color: COLORS.accent },
-  xpLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, marginTop: -2 },
+  xpText: { fontSize: FONT_SIZES.subtitle, fontFamily: FONTS.extraBold, color: COLORS.accent },
+  xpLabel: { fontSize: 10, fontFamily: FONTS.bold, color: COLORS.textMuted, marginTop: -2 },
 });

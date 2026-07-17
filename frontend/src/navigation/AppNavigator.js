@@ -35,6 +35,8 @@ import YouTubePlayerScreen from '../screens/YouTubePlayerScreen';
 import SavedVideosScreen from '../screens/SavedVideosScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import ChatTutorScreen from '../screens/ChatTutorScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import AchievementsScreen from '../screens/AchievementsScreen';
 import FloatingTutor from '../components/FloatingTutor';
 
 const Stack = createNativeStackNavigator();
@@ -175,6 +177,14 @@ const MainStack = () => (
         name="ChatTutor" 
         component={ChatTutorScreen} 
         options={{ presentation: 'modal' }}
+      />
+      <Stack.Screen 
+        name="Leaderboard" 
+        component={LeaderboardScreen} 
+      />
+      <Stack.Screen 
+        name="Achievements" 
+        component={AchievementsScreen} 
       />
     </Stack.Navigator>
     <FloatingTutor />

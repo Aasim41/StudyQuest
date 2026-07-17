@@ -212,6 +212,39 @@ export default function DashboardScreen() {
           )}
         </Animated.View>
 
+        {/* Daily Challenges */}
+        <Animated.View entering={FadeInDown.delay(450).springify()} style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Daily Quests</Text>
+            <Text style={styles.sectionSubtitle}>Reset in 12h</Text>
+          </View>
+          <GlassCard style={styles.questsCard}>
+            <View style={styles.questRow}>
+              <View style={[styles.questCheckbox, styles.questCheckboxDone]}>
+                <Text style={styles.checkIcon}>✓</Text>
+              </View>
+              <View style={styles.questInfo}>
+                <Text style={styles.questTitleDone}>Complete 2 Focus Sessions</Text>
+                <Text style={styles.questRewardDone}>+50 XP</Text>
+              </View>
+            </View>
+            <View style={styles.questRow}>
+              <View style={styles.questCheckbox} />
+              <View style={styles.questInfo}>
+                <Text style={styles.questTitle}>Score 80%+ in a Quiz</Text>
+                <Text style={styles.questReward}>+100 XP</Text>
+              </View>
+            </View>
+            <View style={[styles.questRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <View style={styles.questCheckbox} />
+              <View style={styles.questInfo}>
+                <Text style={styles.questTitle}>Study for 2 hours</Text>
+                <Text style={styles.questReward}>+150 XP</Text>
+              </View>
+            </View>
+          </GlassCard>
+        </Animated.View>
+
         {/* Quick Actions Grid */}
         <Animated.View entering={FadeInDown.delay(500).springify()} style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -219,7 +252,8 @@ export default function DashboardScreen() {
             <QuickActionCard title="Focus Timer" icon="timer" color={COLORS.primary} delay={500} onPress={() => navigation.navigate('FocusTimer')} />
             <QuickActionCard title="AI Tutor" icon="robot" color={COLORS.accent} delay={600} onPress={() => navigation.navigate('ChatTutor')} />
             <QuickActionCard title="StudyTube" icon="play-circle" color="#FF4757" delay={700} onPress={() => navigation.navigate('StudyTube')} />
-            <QuickActionCard title="Leaderboard" icon="trophy" color={COLORS.xp} delay={800} onPress={() => {}} />
+            <QuickActionCard title="Leaderboard" icon="trophy" color={COLORS.xp} delay={800} onPress={() => navigation.navigate('Leaderboard')} />
+            <QuickActionCard title="Badges" icon="medal" color="#FFD700" delay={900} onPress={() => navigation.navigate('Achievements')} />
           </View>
         </Animated.View>
 
@@ -378,13 +412,80 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   section: {
-    marginBottom: SPACING.xl,
+    marginTop: SPACING.xl,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: SPACING.md,
   },
   sectionTitle: {
-    fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.subtitle,
-    color: COLORS.textPrimary,
+    fontFamily: FONTS.extraBold,
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  sectionSubtitle: {
+    fontSize: FONT_SIZES.caption,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.accent,
+  },
+  questsCard: {
+    padding: SPACING.lg,
+  },
+  questRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: SPACING.md,
     marginBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  questCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: COLORS.textMuted,
+    marginRight: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  questCheckboxDone: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  checkIcon: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: FONTS.extraBold,
+  },
+  questInfo: {
+    flex: 1,
+  },
+  questTitle: {
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.body,
+  },
+  questTitleDone: {
+    color: COLORS.textMuted,
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.body,
+    textDecorationLine: 'line-through',
+  },
+  questReward: {
+    color: COLORS.xp,
+    fontFamily: FONTS.extraBold,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  questRewardDone: {
+    color: COLORS.textMuted,
+    fontFamily: FONTS.extraBold,
+    fontSize: 10,
+    marginTop: 2,
   },
   upNextCard: {
     padding: SPACING.lg,

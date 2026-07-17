@@ -1,32 +1,34 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, useSharedValue, withSpring, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, withSpring, useAnimatedStyle, withTiming, Easing, withDelay } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../theme';
+import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
 import { useUser } from '../context/UserContext';
+import { GlassCard, ProgressBar } from '../components/ui';
 
 const { width, height } = Dimensions.get('window');
 
-const BarChartItem = ({ label, value, maxValue, index }) => {
-  const heightAnim = useSharedValue(0);
-
+const HeatmapSquare = ({ intensity, index }) => {
+  const scale = useSharedValue(0);
+  
   useEffect(() => {
-    const targetHeight = (value / maxValue) * 150;
-    heightAnim.value = withTiming(targetHeight, { duration: 1000, easing: Easing.out(Easing.exp) });
+    scale.value = withDelay(index * 20, withSpring(1));
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({
-    height: heightAnim.value,
+    transform: [{ scale: scale.value }]
   }));
 
+  // intensity 0-4
+  let bgColor = 'rgba(255,255,255,0.05)';
+  if (intensity === 1) bgColor = '#0e4429';
+  if (intensity === 2) bgColor = '#006d32';
+  if (intensity === 3) bgColor = '#26a641';
+  if (intensity >= 4) bgColor = '#39d353';
+
   return (
-    <View style={styles.barColumn}>
-      <View style={styles.barContainer}>
-        <Animated.View style={[styles.barFill, animStyle]} />
-      </View>
-      <Text style={styles.barLabel}>{label}</Text>
-    </View>
+    <Animated.View style={[styles.heatmapSquare, animStyle, { backgroundColor: bgColor }]} />
   );
 };
 
@@ -36,14 +38,25 @@ export default function AnalyticsScreen() {
   
   const chartData = subjects.length > 0 
     ? subjects.map(sub => userStats.studyMinutesPerSubject[sub])
-    : [0, 0, 0, 0, 0]; // Empty state
+    : [0, 0, 0, 0, 0];
     
-  const chartLabels = subjects.length > 0 
-    ? subjects.map(sub => sub.length > 4 ? sub.substring(0, 4) + '.' : sub)
-    : ['Math', 'Sci', 'Eng', 'Hist', 'Art'];
+  const totalStudyMins = chartData.reduce((a, b) => a + b, 0);
+  const totalHours = Math.floor(totalStudyMins / 60);
+  const avgSession = totalStudyMins > 0 ? Math.round(totalStudyMins / (userStats.level * 2 || 1)) : 0; // estimate
 
-  const maxStudyTime = Math.max(...chartData, 60);
-  const totalStudyTime = chartData.reduce((a, b) => a + b, 0);
+  // Generate 28 dummy days for heatmap
+  const [heatmapData, setHeatmapData] = useState([]);
+  useEffect(() => {
+    const dummy = Array.from({ length: 28 }).map(() => Math.floor(Math.random() * 5));
+    // Ensure the last day has activity
+    dummy[27] = Math.max(1, Math.floor(Math.random() * 5));
+    setHeatmapData(dummy);
+  }, []);
+
+  const cols = [];
+  for (let i = 0; i < 28; i += 4) {
+    cols.push(heatmapData.slice(i, i + 4));
+  }
 
   return (
     <View style={styles.container}>
@@ -52,58 +65,83 @@ export default function AnalyticsScreen() {
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <Text style={styles.headerSub}>Your Performance Dashboard</Text>
+        <Text style={styles.headerSub}>Your Learning Journey</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Top Stats Cards */}
-        <View style={styles.statsRow}>
-          <Animated.View entering={FadeInDown.delay(100).springify()} style={[styles.statCard, { marginRight: SPACING.sm }]}>
-            <LinearGradient colors={COLORS.gradientGlass} style={styles.statGradient}>
-              <Text style={styles.statIcon}>🔥</Text>
-              <Text style={styles.statValue}>{userStats.streak || 0}</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
-            </LinearGradient>
-          </Animated.View>
-          
-          <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.statCard, { marginLeft: SPACING.sm }]}>
-            <LinearGradient colors={COLORS.gradientGlass} style={styles.statGradient}>
-              <Text style={styles.statIcon}>⭐</Text>
-              <Text style={styles.statValue}>{userStats.xp || 0}</Text>
-              <Text style={styles.statLabel}>Total XP</Text>
-            </LinearGradient>
-          </Animated.View>
-        </View>
+        {/* Hero Stats */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.heroStatsContainer}>
+          <GlassCard style={styles.heroStatCard}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 71, 87, 0.2)' }]}>
+              <Text style={{fontSize: 20}}>⏱️</Text>
+            </View>
+            <View>
+              <Text style={styles.heroStatValue}>{totalHours}<Text style={styles.heroStatUnit}>h</Text></Text>
+              <Text style={styles.heroStatLabel}>Total Studied</Text>
+            </View>
+          </GlassCard>
 
-        {/* Weekly Chart */}
-        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.chartCard}>
-          <LinearGradient colors={COLORS.gradientGlass} style={styles.chartGradient}>
-            <View style={styles.chartHeader}>
-              <Text style={styles.chartTitle}>Study Time (Subjects)</Text>
-              <Text style={styles.chartTotal}>{Math.floor(totalStudyTime/60)}h {totalStudyTime%60}m</Text>
+          <GlassCard style={styles.heroStatCard}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(46, 204, 113, 0.2)' }]}>
+              <Text style={{fontSize: 20}}>📈</Text>
             </View>
-            
-            <View style={styles.barsWrapper}>
-              {chartData.map((val, i) => (
-                <BarChartItem key={i} label={chartLabels[i]} value={val} maxValue={maxStudyTime} index={i} />
-              ))}
+            <View>
+              <Text style={styles.heroStatValue}>{avgSession}<Text style={styles.heroStatUnit}>m</Text></Text>
+              <Text style={styles.heroStatLabel}>Avg Session</Text>
             </View>
-          </LinearGradient>
+          </GlassCard>
         </Animated.View>
 
-        {/* Level Progress */}
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.progressCard}>
-          <LinearGradient colors={COLORS.gradientGlass} style={styles.progressGradient}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressTitle}>Level {userStats.level || 1}</Text>
-              <Text style={styles.progressDetail}>{userStats.xp} / {userStats.nextLevelXp} XP</Text>
+        {/* Heatmap */}
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Activity Heatmap</Text>
+          <GlassCard style={styles.heatmapCard}>
+            <View style={styles.heatmapGrid}>
+              {cols.map((col, cIndex) => (
+                <View key={cIndex} style={styles.heatmapCol}>
+                  {col.map((intensity, rIndex) => (
+                    <HeatmapSquare key={rIndex} intensity={intensity} index={cIndex * 4 + rIndex} />
+                  ))}
+                </View>
+              ))}
             </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${Math.min(((userStats.xp || 0) / (userStats.nextLevelXp || 100)) * 100, 100)}%` }]} />
+            <View style={styles.heatmapLegend}>
+              <Text style={styles.legendText}>Less</Text>
+              <View style={[styles.legendBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#0e4429' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#006d32' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#26a641' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#39d353' }]} />
+              <Text style={styles.legendText}>More</Text>
             </View>
-            <Text style={styles.progressHint}>Keep studying to reach Level {(userStats.level || 1) + 1}!</Text>
-          </LinearGradient>
+          </GlassCard>
+        </Animated.View>
+
+        {/* Subject Breakdown */}
+        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Subject Breakdown</Text>
+          <GlassCard style={styles.breakdownCard}>
+            {subjects.length > 0 ? (
+              subjects.map((sub, idx) => {
+                const mins = userStats.studyMinutesPerSubject[sub];
+                const pct = (mins / totalStudyMins) * 100;
+                const colors = [COLORS.primary, COLORS.accent, '#2ECC71', '#F39C12', '#E74C3C'];
+                const color = colors[idx % colors.length];
+                return (
+                  <View key={sub} style={styles.breakdownRow}>
+                    <View style={styles.breakdownInfo}>
+                      <Text style={styles.breakdownSub}>{sub}</Text>
+                      <Text style={styles.breakdownMins}>{Math.floor(mins/60)}h {mins%60}m</Text>
+                    </View>
+                    <ProgressBar progress={pct/100} height={8} gradient={[color, color]} style={{ width: '60%' }} />
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyText}>No subjects studied yet. Complete a focus session!</Text>
+            )}
+          </GlassCard>
         </Animated.View>
 
         <View style={{ height: 100 }} />
@@ -115,34 +153,32 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, paddingBottom: SPACING.md },
-  headerTitle: { fontSize: FONT_SIZES.heading, fontWeight: '800', color: '#FFF' },
-  headerSub: { fontSize: FONT_SIZES.body, color: COLORS.accent, fontWeight: '600', marginTop: 4 },
+  headerTitle: { fontSize: FONT_SIZES.heading, fontFamily: FONTS.extraBold, color: '#FFF', letterSpacing: -0.5 },
+  headerSub: { fontSize: FONT_SIZES.body, color: COLORS.accent, fontFamily: FONTS.semiBold, marginTop: 4 },
   scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 60, gap: SPACING.lg },
   
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  statCard: { flex: 1, borderRadius: BORDER_RADIUS.lg, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.glassBorder },
-  statGradient: { padding: SPACING.lg, alignItems: 'center' },
-  statIcon: { fontSize: 32, marginBottom: 8 },
-  statValue: { fontSize: FONT_SIZES.title, fontWeight: '800', color: '#FFF', marginBottom: 4 },
-  statLabel: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, fontWeight: '600', textTransform: 'uppercase' },
+  heroStatsContainer: { flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.sm },
+  heroStatCard: { flex: 1, padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  heroStatValue: { fontSize: 24, fontFamily: FONTS.extraBold, color: '#FFF' },
+  heroStatUnit: { fontSize: 16, fontFamily: FONTS.semiBold, color: COLORS.textMuted },
+  heroStatLabel: { fontSize: FONT_SIZES.caption, fontFamily: FONTS.semiBold, color: COLORS.textSecondary },
 
-  chartCard: { borderRadius: BORDER_RADIUS.xl, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.glassBorder },
-  chartGradient: { padding: SPACING.lg },
-  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl },
-  chartTitle: { fontSize: FONT_SIZES.bodyLarge, fontWeight: '700', color: '#FFF' },
-  chartTotal: { fontSize: FONT_SIZES.bodyLarge, fontWeight: '800', color: COLORS.primary },
-  barsWrapper: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 150, paddingTop: 20 },
-  barColumn: { alignItems: 'center', flex: 1 },
-  barContainer: { height: 130, width: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
-  barFill: { width: '100%', backgroundColor: COLORS.primary, borderRadius: 6 },
-  barLabel: { marginTop: 8, fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
+  section: { marginTop: SPACING.sm },
+  sectionTitle: { fontSize: FONT_SIZES.subtitle, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: SPACING.md },
+  
+  heatmapCard: { padding: SPACING.lg },
+  heatmapGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  heatmapCol: { gap: 6 },
+  heatmapSquare: { width: 14, height: 14, borderRadius: 3 },
+  heatmapLegend: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: SPACING.lg, gap: 6 },
+  legendBox: { width: 10, height: 10, borderRadius: 2 },
+  legendText: { fontSize: 10, fontFamily: FONTS.semiBold, color: COLORS.textMuted, marginHorizontal: 4 },
 
-  progressCard: { borderRadius: BORDER_RADIUS.lg, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.glassBorder },
-  progressGradient: { padding: SPACING.lg },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  progressTitle: { fontSize: FONT_SIZES.subtitle, fontWeight: '800', color: '#FFF' },
-  progressDetail: { fontSize: FONT_SIZES.caption, color: COLORS.accent, fontWeight: '700' },
-  progressBarBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden', marginBottom: SPACING.md },
-  progressBarFill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 4 },
-  progressHint: { fontSize: FONT_SIZES.caption, color: COLORS.textMuted, textAlign: 'center' }
+  breakdownCard: { padding: SPACING.lg, gap: SPACING.lg },
+  breakdownRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  breakdownInfo: { flex: 1, marginRight: SPACING.md },
+  breakdownSub: { fontSize: FONT_SIZES.body, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+  breakdownMins: { fontSize: FONT_SIZES.caption, fontFamily: FONTS.semiBold, color: COLORS.textSecondary, marginTop: 2 },
+  emptyText: { fontSize: FONT_SIZES.body, fontFamily: FONTS.regular, color: COLORS.textMuted, textAlign: 'center', marginVertical: SPACING.md }
 });
