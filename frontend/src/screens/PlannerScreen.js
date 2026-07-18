@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence, withTiming, Layout } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -301,9 +301,9 @@ export default function PlannerScreen() {
           <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 20 }}>
             {isGeneratingSchedule ? (
               <>
-                <ProgressBar progress={100} height={4} gradient={COLORS.gradientAccent} style={{ marginBottom: 16, width: '80%' }} />
-                <Text style={{ color: COLORS.accent, fontSize: 16, fontWeight: 'bold' }}>AI is building your master schedule...</Text>
-                <Text style={{ color: COLORS.textMuted, fontSize: 14, marginTop: 8, textAlign: 'center' }}>This usually takes a few seconds.</Text>
+                <ActivityIndicator size="large" color={COLORS.accent} style={{ marginBottom: 16 }} />
+                <Text style={{ color: COLORS.accent, fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>AI is building your schedule...</Text>
+                <Text style={{ color: COLORS.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>Our AI is analyzing your syllabus, timetable, and calendar to create a personalized study plan. This usually takes 10-30 seconds.</Text>
               </>
             ) : generationError ? (
               <>

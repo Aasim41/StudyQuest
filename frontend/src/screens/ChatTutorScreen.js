@@ -36,6 +36,14 @@ export default function ChatTutorScreen({ navigation }) {
       // Fetch the API key from environment variables for security
       const API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
       
+      if (!API_KEY) {
+        setTimeout(() => {
+          setMessages(prev => [...prev, { role: 'assistant', content: "I'm your AI Study Buddy! It looks like my brain isn't fully wired up yet (missing GROQ API Key in .env), but I'm here to cheer you on! You've got this! 🚀" }]);
+          setIsLoading(false);
+        }, 1500);
+        return;
+      }
+      
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {

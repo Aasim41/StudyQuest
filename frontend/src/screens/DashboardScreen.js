@@ -6,7 +6,8 @@ import {
   Dimensions,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn, useSharedValue, useAnimatedStyle, withSpring, interpolateColor, useAnimatedProps } from 'react-native-reanimated';
@@ -15,6 +16,7 @@ import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 're
 import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SPACING, FONT_SIZES, FONTS, SHADOWS, BORDER_RADIUS, ANIMATION } from '../theme';
@@ -124,12 +126,37 @@ export default function DashboardScreen() {
         <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.userName}>Aasim</Text>
+            <Text style={styles.userName}>{auth.currentUser?.displayName || 'Student'}</Text>
           </View>
-          <TouchableOpacity style={styles.settingsBtn}>
-            <MaterialCommunityIcons name="cog" size={24} color={COLORS.textSecondary} />
+          <TouchableOpacity 
+            style={styles.profileBtn}
+            onPress={() => navigation.navigate('AvatarSelection', { isEditing: true })}
+          >
+            {userStats?.avatarUrl ? (
+              <Image 
+                source={{ uri: userStats.avatarUrl.replace('/svg?', '/png?') }} 
+                style={{ width: 44, height: 44, borderRadius: 22 }} 
+              />
+            ) : (
+              <MaterialCommunityIcons name="account" size={32} color={COLORS.textSecondary} />
+            )}
           </TouchableOpacity>
         </Animated.View>
+
+        {/* Schedule Generation Progress Banner */}
+        {isGeneratingSchedule && (
+          <Animated.View entering={FadeInDown.delay(150).springify()} style={{
+            flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0, 210, 255, 0.1)',
+            borderWidth: 1, borderColor: 'rgba(0, 210, 255, 0.3)', borderRadius: 12,
+            padding: 12, marginHorizontal: SPACING.lg, marginBottom: SPACING.md,
+          }}>
+            <ActivityIndicator size="small" color={COLORS.accent} style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: COLORS.accent, fontSize: 13, fontWeight: '700' }}>Generating your study plan...</Text>
+              <Text style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 2 }}>Check the Planner tab for progress</Text>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
@@ -313,20 +340,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   userName: {
+    fontSize: FONT_SIZES.hero,
     fontFamily: FONTS.extraBold,
-    fontSize: 42,
     color: COLORS.textPrimary,
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
-  settingsBtn: {
+  profileBtn: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
   },
   statsRow: {
     flexDirection: 'row',

@@ -194,7 +194,7 @@ export default function AvatarSelectionScreen() {
     clothesColor: '3c4f5c',
   });
 
-  // Parse existing avatar URL if editing
+  // Parse existing avatar URL when editing
   useEffect(() => {
     if (isEditing && userStats?.avatarUrl) {
       try {
@@ -274,10 +274,10 @@ export default function AvatarSelectionScreen() {
     setTimeout(() => setLoading(false), 400);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    await saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
-    setSaving(false);
+  const handleSave = () => {
+    // Fire and forget: update context and start Firestore save in background
+    saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
+    
     if (isEditing) {
       navigation.goBack();
     } else {

@@ -177,9 +177,15 @@ export const UserProvider = ({ children }) => {
           studyMinutesPerSubject: data.studyMinutesPerSubject || {},
         });
         // Sync onboarding flag from Firestore (survives reinstalls)
-        if (data.onboardingComplete) {
+        // Also treat having an avatarUrl as proof that onboarding was completed
+        // (covers the case where the flag wasn't saved due to a crash)
+        if (data.onboardingComplete || data.avatarUrl) {
           setOnboardingComplete(true);
           AsyncStorage.setItem('@onboardingComplete', 'true').catch(() => {});
+          // Also persist the flag to Firestore if it was missing
+          if (!data.onboardingComplete && data.avatarUrl) {
+            setDoc(doc(db, 'users', auth.currentUser.uid), { onboardingComplete: true }, { merge: true }).catch(() => {});
+          }
         }
       }
     } catch (e) {
