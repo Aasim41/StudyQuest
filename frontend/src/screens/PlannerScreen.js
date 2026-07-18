@@ -12,6 +12,7 @@ import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -327,7 +328,7 @@ export default function PlannerScreen() {
 
       {showLevelUp && (
         <Animated.View entering={FadeInDown.springify()} style={styles.levelUpOverlay}>
-          <Text style={styles.levelUpEmoji}>🎉</Text>
+          <MaterialCommunityIcons name="party-popper" size={64} color={COLORS.accent} style={{ marginBottom: SPACING.md }} />
           <Text style={styles.levelUpTitle}>LEVEL UP!</Text>
           <Text style={styles.levelUpSub}>You reached Level {userStats.level}</Text>
         </Animated.View>
@@ -428,7 +429,6 @@ const styles = StyleSheet.create({
   fabGradient: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
   fabIcon: { fontSize: 24 },
   levelUpOverlay: { position: 'absolute', top: '30%', left: SPACING.xl, right: SPACING.xl, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: BORDER_RADIUS.xl, padding: SPACING.xxl, alignItems: 'center', borderWidth: 2, borderColor: COLORS.accent },
-  levelUpEmoji: { fontSize: 64, marginBottom: SPACING.md },
   levelUpTitle: { fontFamily: FONTS.extraBold, fontSize: FONT_SIZES.hero, color: COLORS.accent, marginBottom: SPACING.sm },
   levelUpSub: { fontFamily: FONTS.bold, fontSize: FONT_SIZES.subtitle, color: '#FFF' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },

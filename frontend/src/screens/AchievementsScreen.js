@@ -6,17 +6,18 @@ import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS } from '../theme';
 import { useUser } from '../context/UserContext';
 import { GlassCard } from '../components/ui';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 // Dummy achievement data
 const ACHIEVEMENTS = [
-  { id: 1, title: 'First Step', desc: 'Complete 1 focus session', icon: '🌱', reqXP: 0 },
-  { id: 2, title: 'On Fire', desc: 'Reach a 3-day streak', icon: '🔥', reqXP: 100 },
-  { id: 3, title: 'Scholar', desc: 'Reach Level 5', icon: '🎓', reqXP: 500 },
-  { id: 4, title: 'Deep Work', desc: 'Focus for 2 hours straight', icon: '🧠', reqXP: 800 },
-  { id: 5, title: 'Master', desc: 'Reach Level 10', icon: '👑', reqXP: 1500 },
-  { id: 6, title: 'Night Owl', desc: 'Study after midnight', icon: '🦉', reqXP: 2000 },
+  { id: 1, title: 'First Step', desc: 'Complete 1 focus session', icon: 'sprout', reqXP: 0 },
+  { id: 2, title: 'On Fire', desc: 'Reach a 3-day streak', icon: 'fire', reqXP: 100 },
+  { id: 3, title: 'Scholar', desc: 'Reach Level 5', icon: 'school', reqXP: 500 },
+  { id: 4, title: 'Deep Work', desc: 'Focus for 2 hours straight', icon: 'head-lightbulb', reqXP: 800 },
+  { id: 5, title: 'Master', desc: 'Reach Level 10', icon: 'crown', reqXP: 1500 },
+  { id: 6, title: 'Night Owl', desc: 'Study after midnight', icon: 'owl', reqXP: 2000 },
 ];
 
 export default function AchievementsScreen() {
@@ -41,9 +42,11 @@ export default function AchievementsScreen() {
               <Animated.View key={item.id} entering={FadeInDown.delay(index * 100).springify()} style={styles.cardContainer}>
                 <GlassCard style={[styles.badgeCard, !unlocked && styles.lockedCard]}>
                   <View style={[styles.iconWrapper, !unlocked && styles.lockedIconWrapper]}>
-                    <Text style={[styles.icon, !unlocked && { opacity: 0.3 }]}>
-                      {unlocked ? item.icon : '🔒'}
-                    </Text>
+                    {unlocked ? (
+                      <MaterialCommunityIcons name={item.icon} size={32} color={COLORS.textPrimary} />
+                    ) : (
+                      <MaterialCommunityIcons name="lock" size={32} color={COLORS.textPrimary} style={{ opacity: 0.3 }} />
+                    )}
                   </View>
                   <Text style={[styles.title, !unlocked && styles.lockedText]} numberOfLines={1}>{item.title}</Text>
                   <Text style={[styles.desc, !unlocked && styles.lockedText]} numberOfLines={2}>{item.desc}</Text>
@@ -74,7 +77,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#FFD700',
   },
   lockedIconWrapper: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' },
-  icon: { fontSize: 32 },
   title: { fontSize: FONT_SIZES.body, fontFamily: FONTS.bold, color: '#FFF', textAlign: 'center', marginBottom: 4 },
   desc: { fontSize: 10, fontFamily: FONTS.semiBold, color: COLORS.textSecondary, textAlign: 'center' },
   lockedText: { color: COLORS.textMuted },

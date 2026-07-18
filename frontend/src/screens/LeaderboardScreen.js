@@ -7,6 +7,7 @@ import { collection, query, orderBy, limit, getDocs, startAfter } from 'firebase
 import { auth, db } from '../../firebaseConfig';
 import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle, GlassCard } from '../components/ui';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 const PAGE_SIZE = 15;
@@ -89,14 +90,14 @@ export default function LeaderboardScreen({ navigation }) {
   const renderItem = useCallback(({ item, index }) => {
     const isMe = item.id === auth.currentUser?.uid;
     const rank = index + 1;
-    let rankEmoji = '';
+    let rankNode = null;
     let cardColor = COLORS.glass;
     let borderColor = COLORS.glassBorder;
 
-    if (rank === 1) { rankEmoji = '🥇'; borderColor = '#FFD700'; cardColor = 'rgba(255, 215, 0, 0.1)'; }
-    else if (rank === 2) { rankEmoji = '🥈'; borderColor = '#C0C0C0'; cardColor = 'rgba(192, 192, 192, 0.1)'; }
-    else if (rank === 3) { rankEmoji = '🥉'; borderColor = '#CD7F32'; cardColor = 'rgba(205, 127, 50, 0.1)'; }
-    else { rankEmoji = `#${rank}`; }
+    if (rank === 1) { rankNode = <MaterialCommunityIcons name="medal" size={24} color="#FFD700" />; borderColor = '#FFD700'; cardColor = 'rgba(255, 215, 0, 0.1)'; }
+    else if (rank === 2) { rankNode = <MaterialCommunityIcons name="medal" size={24} color="#C0C0C0" />; borderColor = '#C0C0C0'; cardColor = 'rgba(192, 192, 192, 0.1)'; }
+    else if (rank === 3) { rankNode = <MaterialCommunityIcons name="medal" size={24} color="#CD7F32" />; borderColor = '#CD7F32'; cardColor = 'rgba(205, 127, 50, 0.1)'; }
+    else { rankNode = <Text style={styles.rankText}>#{rank}</Text>; }
 
     const initialLetter = item.displayName ? item.displayName.charAt(0).toUpperCase() : 'S';
 
@@ -108,11 +109,11 @@ export default function LeaderboardScreen({ navigation }) {
           { backgroundColor: cardColor, borderColor: borderColor }
         ]}>
           <View style={styles.rankContainer}>
-            <Text style={styles.rankText}>{rankEmoji}</Text>
+            {rankNode}
           </View>
           <View style={[styles.avatarPlaceholder, isMe && { borderColor: COLORS.accent, borderWidth: 2 }]}>
             {item.avatar ? (
-               <Text style={styles.avatarEmoji}>{item.avatar}</Text>
+               <MaterialCommunityIcons name="account" size={24} color={COLORS.textPrimary} />
             ) : (
                <Text style={[styles.avatarLetter, isMe && { color: COLORS.accent }]}>{initialLetter}</Text>
             )}
@@ -203,7 +204,6 @@ const styles = StyleSheet.create({
   rankContainer: { width: 40, alignItems: 'center', justifyContent: 'center' },
   rankText: { fontSize: 20, fontFamily: FONTS.extraBold, color: COLORS.textSecondary },
   avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
-  avatarEmoji: { fontSize: 24 },
   avatarLetter: { fontSize: 20, fontFamily: FONTS.extraBold, color: '#FFF' },
   userInfo: { flex: 1 },
   userName: { fontSize: FONT_SIZES.body, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: 2 },

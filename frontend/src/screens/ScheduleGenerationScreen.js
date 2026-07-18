@@ -8,6 +8,7 @@ import { FloatingParticle, GradientButton } from '../components/ui';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import API_BASE from '../config/apiConfig';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,7 +61,7 @@ export default function ScheduleGenerationScreen({ navigation }) {
 
       <View style={styles.content}>
         <Animated.View style={[styles.pulseCircle, pulseStyle]}>
-          <Text style={styles.emoji}>✨</Text>
+          <MaterialCommunityIcons name="auto-fix" size={50} color={COLORS.primary} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).springify()} style={{ alignItems: 'center' }}>
@@ -77,7 +78,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
   pulseCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(108, 92, 231, 0.2)', borderWidth: 2, borderColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xxl, ...SHADOWS.glow },
-  emoji: { fontSize: 50 },
   title: { fontSize: FONT_SIZES.hero, fontWeight: '800', color: COLORS.textPrimary, marginBottom: SPACING.sm, textAlign: 'center' },
   subtitle: { fontSize: FONT_SIZES.bodyLarge, color: COLORS.textSecondary, textAlign: 'center' },
   forceButton: { marginTop: SPACING.xxl, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.3)' },

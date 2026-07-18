@@ -166,7 +166,7 @@ export default function DashboardScreen() {
           {/* Streak Card */}
           <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.statBox, { flex: 1 }]}>
             <GlassCard style={styles.streakCard}>
-              <Text style={styles.fireEmoji}>🔥</Text>
+              <MaterialCommunityIcons name="fire" size={36} color={COLORS.streak} style={{ marginBottom: SPACING.xs }} />
               <Text style={styles.streakNumber}>{userStats.streak}</Text>
               <Text style={styles.streakLabel}>Day Streak</Text>
               
@@ -206,9 +206,9 @@ export default function DashboardScreen() {
               />
             </GlassCard>
           ) : (
-            <GlassCard style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>All done for today! 🎉</Text>
-            </GlassCard>
+              <Text style={styles.emptyCardText}>
+                All done for today! <MaterialCommunityIcons name="party-popper" size={FONT_SIZES.bodyLarge} color={COLORS.textMuted} />
+              </Text>
           )}
         </Animated.View>
 
@@ -377,10 +377,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xl,
     justifyContent: 'center',
     height: '100%',
-  },
-  fireEmoji: {
-    fontSize: 36,
-    marginBottom: SPACING.xs,
   },
   streakNumber: {
     fontFamily: FONTS.extraBold,

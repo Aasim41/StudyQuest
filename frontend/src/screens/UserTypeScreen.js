@@ -20,13 +20,14 @@ import Animated, {
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, SHADOWS, ANIMATION } from '../theme';
 import { GradientButton, FloatingParticle } from '../components/ui';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
 const USER_TYPES = [
   {
     id: 'college',
-    emoji: '🏫',
+    icon: 'school',
     title: 'College Student',
     subtitle: 'BTech, BSc, BCA, MBA...',
     description: 'Complex schedule with lectures, labs & fests',
@@ -35,7 +36,7 @@ const USER_TYPES = [
   },
   {
     id: 'school',
-    emoji: '📚',
+    icon: 'book-open-variant',
     title: 'School Student',
     subtitle: 'Class 9 – 12',
     description: 'Standard school hours & board prep',
@@ -44,7 +45,7 @@ const USER_TYPES = [
   },
   {
     id: 'coaching',
-    emoji: '🎯',
+    icon: 'bullseye-arrow',
     title: 'Coaching / Competitive',
     subtitle: 'JEE, NEET, UPSC, CAT...',
     description: 'Intensive prep with target exam dates',
@@ -87,7 +88,7 @@ const TypeCard = ({ item, index, selected, onSelect }) => {
         >
           <View style={styles.cardRow}>
             <View style={[styles.emojiContainer, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={styles.emoji}>{item.emoji}</Text>
+              <MaterialCommunityIcons name={item.icon} size={28} color={isSelected ? '#FFF' : COLORS.textPrimary} />
             </View>
             <View style={styles.cardTextContainer}>
               <Text style={[styles.cardTitle, isSelected && { color: '#FFF' }]}>
@@ -246,9 +247,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
-  },
-  emoji: {
-    fontSize: 28,
   },
   cardTextContainer: {
     flex: 1,

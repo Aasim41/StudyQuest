@@ -29,6 +29,7 @@ import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, SHADOWS, ANIMATION } from '
 import { GradientButton, FloatingParticle } from '../components/ui';
 import { auth } from '../../firebaseConfig';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -154,7 +155,7 @@ export default function SignupScreen({ navigation }) {
               end={{ x: 1, y: 1 }}
               style={styles.logoGradient}
             >
-              <Text style={styles.logoEmoji}>🚀</Text>
+              <MaterialCommunityIcons name="rocket-launch" size={38} color="#FFF" />
             </LinearGradient>
           </Animated.View>
 
@@ -314,7 +315,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...SHADOWS.glow,
   },
-  logoEmoji: { fontSize: 38 },
   titleText: {
     fontSize: FONT_SIZES.hero,
     fontWeight: '800',

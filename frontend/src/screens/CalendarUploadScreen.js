@@ -8,6 +8,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { GradientButton, FloatingParticle } from '../components/ui';
 import API_BASE from '../config/apiConfig';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -103,7 +104,7 @@ export default function CalendarUploadScreen({ navigation }) {
                 </View>
               ) : (
                 <>
-                  <Text style={styles.cardEmoji}>📅</Text>
+                  <MaterialCommunityIcons name="calendar-month" size={64} color={COLORS.textPrimary} style={{ marginBottom: SPACING.md }} />
                   <Text style={styles.cardTitle}>Upload Calendar</Text>
                   <Text style={styles.cardSubtitle}>Tap to browse (PDF or Image)</Text>
                 </>
@@ -134,7 +135,6 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: SPACING.xl, justifyContent: 'center' },
   uploadCard: { borderRadius: BORDER_RADIUS.xl, overflow: 'hidden', ...SHADOWS.glow, marginBottom: SPACING.xl },
   cardGradient: { padding: SPACING.xl, alignItems: 'center', justifyContent: 'center', minHeight: 250, borderWidth: 1, borderColor: COLORS.glassBorder },
-  cardEmoji: { fontSize: 64, marginBottom: SPACING.md },
   cardTitle: { fontSize: FONT_SIZES.title, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
   cardSubtitle: { fontSize: FONT_SIZES.body, color: COLORS.textMuted },
   loadingContainer: { alignItems: 'center', justifyContent: 'center' },

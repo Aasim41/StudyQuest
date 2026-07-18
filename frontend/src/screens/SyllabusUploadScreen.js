@@ -9,6 +9,7 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
 import { FloatingParticle } from '../components/ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -113,7 +114,7 @@ export default function SyllabusUploadScreen({ navigation }) {
                 </View>
               ) : (
                 <>
-                  <Text style={styles.cardEmoji}>📚</Text>
+                  <MaterialCommunityIcons name="bookshelf" size={64} color={COLORS.textPrimary} style={{ marginBottom: SPACING.md }} />
                   <Text style={styles.cardTitle}>Upload Syllabus</Text>
                   <Text style={styles.cardSubtitle}>Tap to browse (PDF or Image)</Text>
                 </>
@@ -144,7 +145,6 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: SPACING.xl, justifyContent: 'center' },
   uploadCard: { borderRadius: BORDER_RADIUS.xl, overflow: 'hidden', ...SHADOWS.glow, marginBottom: SPACING.xl },
   cardGradient: { padding: SPACING.xl, alignItems: 'center', justifyContent: 'center', minHeight: 250, borderWidth: 1, borderColor: COLORS.glassBorder },
-  cardEmoji: { fontSize: 64, marginBottom: SPACING.md },
   cardTitle: { fontSize: FONT_SIZES.title, fontWeight: '700', color: COLORS.textPrimary, marginBottom: SPACING.xs },
   cardSubtitle: { fontSize: FONT_SIZES.body, color: COLORS.textMuted },
   loadingContainer: { alignItems: 'center', justifyContent: 'center' },

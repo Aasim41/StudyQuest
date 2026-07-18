@@ -27,6 +27,7 @@ import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE from '../config/apiConfig';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -267,7 +268,7 @@ export default function InstituteSearchScreen({ navigation, route }) {
         {isCollege && selected && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.selectedCard}>
             <LinearGradient colors={COLORS.gradientAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.selectedGradient}>
-              <Text style={styles.selectedEmoji}>✅</Text>
+              <MaterialCommunityIcons name="check-circle" size={24} color="#FFF" style={{ marginRight: SPACING.md }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.selectedName}>{selected.name}</Text>
                 <Text style={styles.selectedState}>{selected.state}</Text>
@@ -384,7 +385,6 @@ const styles = StyleSheet.create({
   clearText: { color: COLORS.textMuted, fontSize: 16, padding: 4 },
   selectedCard: { marginHorizontal: SPACING.xl, marginBottom: SPACING.md },
   selectedGradient: { flexDirection: 'row', alignItems: 'center', borderRadius: BORDER_RADIUS.lg, padding: SPACING.md, ...SHADOWS.glow },
-  selectedEmoji: { fontSize: 24, marginRight: SPACING.md },
   selectedName: { fontSize: FONT_SIZES.bodyLarge, fontWeight: '700', color: '#FFF' },
   selectedState: { fontSize: FONT_SIZES.caption, color: 'rgba(255,255,255,0.8)' },
   resultsContent: { paddingHorizontal: SPACING.xl, paddingBottom: 20 },

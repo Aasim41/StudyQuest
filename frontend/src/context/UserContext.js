@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import API_BASE from '../config/apiConfig';
 
@@ -128,6 +128,10 @@ export const UserProvider = ({ children }) => {
       setOnboardingComplete(true);
       // Fire-and-forget storage so it doesn't block the UI
       AsyncStorage.setItem('@onboardingComplete', 'true').catch(e => console.warn('Failed to save onboarding complete', e));
+      // Also persist to Firestore so it survives reinstalls
+      if (auth.currentUser) {
+        setDoc(doc(db, 'users', auth.currentUser.uid), { onboardingComplete: true }, { merge: true }).catch(e => console.warn('Failed to save onboarding to Firestore', e));
+      }
     } catch (e) {
       console.warn('Failed to set onboarding complete', e);
     }
@@ -172,6 +176,11 @@ export const UserProvider = ({ children }) => {
           unlockedBadges: data.unlockedBadges || [],
           studyMinutesPerSubject: data.studyMinutesPerSubject || {},
         });
+        // Sync onboarding flag from Firestore (survives reinstalls)
+        if (data.onboardingComplete) {
+          setOnboardingComplete(true);
+          AsyncStorage.setItem('@onboardingComplete', 'true').catch(() => {});
+        }
       }
     } catch (e) {
       console.warn('Failed to load firestore stats', e);
@@ -191,7 +200,7 @@ export const UserProvider = ({ children }) => {
     setUserStats(newStats);
     if (!auth.currentUser) return;
     try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), newStats);
+      await setDoc(doc(db, 'users', auth.currentUser.uid), newStats, { merge: true });
     } catch (e) {
       console.warn('Failed to sync stats to firestore', e);
     }
@@ -247,7 +256,7 @@ export const UserProvider = ({ children }) => {
       // Update Firestore
       if (auth.currentUser) {
         try {
-          await updateDoc(doc(db, 'users', auth.currentUser.uid), { unlockedBadges: newBadges });
+          await setDoc(doc(db, 'users', auth.currentUser.uid), { unlockedBadges: newBadges }, { merge: true });
         } catch (e) {
           console.warn('Failed to unlock badge', e);
         }
@@ -287,7 +296,7 @@ export const UserProvider = ({ children }) => {
 
     if (auth.currentUser) {
       try {
-        await updateDoc(doc(db, 'users', auth.currentUser.uid), newStats);
+        await setDoc(doc(db, 'users', auth.currentUser.uid), newStats, { merge: true });
       } catch (e) {
         console.warn('Failed to save study session stats', e);
       }

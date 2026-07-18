@@ -26,8 +26,9 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, SHADOWS, ANIMATION } from '../theme';
+import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, FONTS, SHADOWS, ANIMATION } from '../theme';
 import { GradientButton, FloatingParticle } from '../components/ui';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../../firebaseConfig';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import API_BASE from '../config/apiConfig';
@@ -198,7 +199,9 @@ export default function LoginScreen({ navigation }) {
               />
             </Animated.View>
             <Animated.View style={[styles.mascotContainer, mascotStyle]}>
-              <Text style={styles.mascotEmoji}>🧑‍🎓</Text>
+              <View style={styles.mascotCircle}>
+                <MaterialCommunityIcons name="account-school" size={52} color="#FFF" />
+              </View>
             </Animated.View>
             <Animated.Text entering={FadeIn.delay(1200).duration(800)} style={styles.greetingText}>
               {greeting}
@@ -247,7 +250,7 @@ export default function LoginScreen({ navigation }) {
                     onBlur={() => setFocusedField(null)}
                   />
                   <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
-                    <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+                    <MaterialCommunityIcons name={showPassword ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
                   </TouchableOpacity>
                 </View>
                 {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
@@ -323,15 +326,24 @@ const styles = StyleSheet.create({
   mascotContainer: {
     marginBottom: SPACING.md,
   },
-  mascotEmoji: {
-    fontSize: 80,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 10 },
-    textShadowRadius: 15,
+  mascotCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(108, 92, 231, 0.3)',
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
   },
   greetingText: {
     fontSize: FONT_SIZES.hero,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.5,
@@ -340,7 +352,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.bodyLarge,
     color: COLORS.accent,
     textAlign: 'center',
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     marginTop: 4,
   },
   formContainer: {
@@ -403,9 +415,6 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: SPACING.sm,
     marginRight: 4,
-  },
-  eyeText: {
-    fontSize: 16,
   },
   errorText: {
     color: COLORS.error,

@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, SHADOWS, BORDER_RADIUS } from '../theme';
 import { FloatingParticle } from '../components/ui';
 import { useUser } from '../context/UserContext';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -87,7 +88,7 @@ export default function SavedVideosScreen() {
 
       {savedVideos.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📂</Text>
+          <MaterialCommunityIcons name="folder-open" size={64} color={COLORS.textPrimary} style={{ marginBottom: SPACING.md }} />
           <Text style={styles.emptyTitle}>Nothing here yet</Text>
           <Text style={styles.emptySubtitle}>Save videos from StudyTube to access them anytime.</Text>
         </View>
@@ -117,7 +118,6 @@ const styles = StyleSheet.create({
   headerTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.hero, fontWeight: '800' },
   headerSubtitle: { color: COLORS.textSecondary, fontSize: FONT_SIZES.bodyLarge, fontWeight: '500' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl },
-  emptyEmoji: { fontSize: 64, marginBottom: SPACING.md },
   emptyTitle: { color: COLORS.textPrimary, fontSize: FONT_SIZES.title, fontWeight: '800', marginBottom: SPACING.sm },
   emptySubtitle: { color: COLORS.textSecondary, fontSize: FONT_SIZES.body, textAlign: 'center', lineHeight: 22 },
   feedContent: { paddingHorizontal: SPACING.md, paddingBottom: 100 },
