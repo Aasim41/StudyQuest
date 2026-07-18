@@ -105,7 +105,6 @@ const MainTabNavigator = () => (
           intensity={80} 
           style={StyleSheet.absoluteFill} 
           pointerEvents="none"
-          experimentalBlurMethod="dimezisBlurView"
         />
       ),
       tabBarShowLabel: false,
