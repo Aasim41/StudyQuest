@@ -210,8 +210,10 @@ export default function AppNavigator() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        loadFirestoreStats();
-        loadLocalStudyPlan();
+        // MUST await these so onboardingComplete is set from Firestore
+        // BEFORE the loading screen goes away
+        await loadFirestoreStats();
+        await loadLocalStudyPlan();
       } else {
         setUser(null);
       }

@@ -66,27 +66,50 @@ export default function LoginScreen({ navigation }) {
   }, []);
 
   // Animation values
-  const entranceX = useSharedValue(width);
+  const entranceX = useSharedValue(width + 50);
+  const walkBounce = useSharedValue(0);
   const mascotTranslateY = useSharedValue(0);
   const haloOpacity = useSharedValue(0);
-  
+  const formOpacity = useSharedValue(0);
+  const formTranslateY = useSharedValue(40);
   const buttonScale = useSharedValue(1);
 
   useEffect(() => {
-    // 1. Mascot and form slide in together from right
-    entranceX.value = withSpring(0, { damping: 14, stiffness: 80 });
-    
-    // Mascot idle breathing
+    // 1. Character walks in from the right with bouncing steps
+    entranceX.value = withTiming(0, { duration: 1200, easing: Easing.out(Easing.cubic) });
+
+    // Walk bounce: rapid up-down bouncing that simulates walking steps
+    walkBounce.value = withSequence(
+      // 6 walking "steps" — each is a quick dip down then back up
+      withTiming(-12, { duration: 100, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+      withTiming(-14, { duration: 100, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+      withTiming(-12, { duration: 100, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+      withTiming(-14, { duration: 100, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+      withTiming(-10, { duration: 100, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+      withTiming(-8, { duration: 100, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+    );
+
+    // 2. After walking finishes (~1.2s), character settles into idle breathing
     setTimeout(() => {
       mascotTranslateY.value = withRepeat(
         withTiming(-8, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
-    }, 1000);
+    }, 1300);
+
+    // 3. Form fades in after character arrives (character "brings" the form)
+    formOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
+    formTranslateY.value = withDelay(800, withSpring(0, { damping: 16, stiffness: 90 }));
 
     // Halo pulse
-    haloOpacity.value = withDelay(400, withRepeat(
+    haloOpacity.value = withDelay(1200, withRepeat(
       withSequence(
         withTiming(0.4, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
         withTiming(0.1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
@@ -106,20 +129,27 @@ export default function LoginScreen({ navigation }) {
     );
   }, []);
 
-  const entranceStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: entranceX.value }]
+  // Character walks across screen (translateX + bounce)
+  const mascotWalkStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: entranceX.value },
+      { translateY: walkBounce.value + mascotTranslateY.value },
+    ]
   }));
 
-  const mascotStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: mascotTranslateY.value }]
+  // Form slides in behind the character
+  const formEntranceStyle = useAnimatedStyle(() => ({
+    opacity: formOpacity.value,
+    transform: [{ translateY: formTranslateY.value }]
   }));
 
   const haloStyle = useAnimatedStyle(() => ({
     opacity: haloOpacity.value,
-    transform: [{ scale: interpolate(haloOpacity.value, [0.1, 0.4], [0.9, 1.1]) }]
+    transform: [
+      { translateX: entranceX.value },
+      { scale: interpolate(haloOpacity.value, [0.1, 0.4], [0.9, 1.1]) },
+    ]
   }));
-
-
 
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }]
@@ -188,9 +218,8 @@ export default function LoginScreen({ navigation }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           
-          <Animated.View style={entranceStyle}>
-            {/* Animated Mascot Section */}
-            <View style={styles.mascotSection}>
+          {/* Animated Mascot — walks in independently */}
+          <View style={styles.mascotSection}>
             <Animated.View style={[styles.halo, haloStyle]}>
               <LinearGradient
                 colors={['rgba(108, 92, 231, 0.4)', 'rgba(108, 92, 231, 0)']}
@@ -198,7 +227,7 @@ export default function LoginScreen({ navigation }) {
                 borderRadii={150}
               />
             </Animated.View>
-            <Animated.View style={[styles.mascotContainer, mascotStyle]}>
+            <Animated.View style={[styles.mascotContainer, mascotWalkStyle]}>
               <View style={styles.mascotCircle}>
                 <MaterialCommunityIcons name="account-school" size={52} color="#FFF" />
               </View>
@@ -211,15 +240,15 @@ export default function LoginScreen({ navigation }) {
             </Animated.Text>
           </View>
 
-            {/* Login Form */}
-            <View style={styles.formContainer}>
+          {/* Login Form — slides up after character arrives */}
+          <Animated.View style={[styles.formContainer, formEntranceStyle]}>
             <LinearGradient
               colors={COLORS.gradientGlass}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.formGlass}
             >
               {/* Email Input */}
-              <Animated.View entering={FadeInDown.delay(1000).springify()} style={styles.inputGroup}>
+              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
                   style={getInputStyle('email')}
@@ -233,10 +262,10 @@ export default function LoginScreen({ navigation }) {
                   onBlur={() => setFocusedField(null)}
                 />
                 {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-              </Animated.View>
+              </View>
 
               {/* Password Input */}
-              <Animated.View entering={FadeInDown.delay(1100).springify()} style={styles.inputGroup}>
+              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Password</Text>
                 <View style={[styles.passwordContainer, focusedField === 'password' && styles.inputFocused, errors.password && styles.inputError]}>
                   <TextInput
@@ -254,17 +283,15 @@ export default function LoginScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
                 {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-              </Animated.View>
+              </View>
 
               {/* Forgot Password */}
-              <Animated.View entering={FadeInDown.delay(1200).springify()}>
-                <TouchableOpacity style={styles.forgotButton} onPress={handleForgotPassword}>
-                  <Text style={styles.forgotText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              </Animated.View>
+              <TouchableOpacity style={styles.forgotButton} onPress={handleForgotPassword}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
 
               {/* Login Button */}
-              <Animated.View entering={FadeInDown.delay(1300).springify()} style={buttonStyle}>
+              <Animated.View style={buttonStyle}>
                 <GradientButton 
                   title={!serverReady ? "Waking Server..." : "Login to Quest"}
                   onPress={handleLogin}
@@ -275,15 +302,14 @@ export default function LoginScreen({ navigation }) {
                 />
               </Animated.View>
             </LinearGradient>
-            </View>
+          </Animated.View>
 
-            {/* Sign Up Link */}
-            <Animated.View entering={FadeIn.delay(1800).duration(600)} style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-                <Text style={styles.signUpLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </Animated.View>
+          {/* Sign Up Link */}
+          <Animated.View entering={FadeIn.delay(1800).duration(600)} style={styles.signUpContainer}>
+            <Text style={styles.signUpText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.signUpLink}>Sign Up</Text>
+            </TouchableOpacity>
           </Animated.View>
 
         </ScrollView>
