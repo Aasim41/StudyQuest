@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
   ScrollView,
   FlatList,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { SvgUri } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
@@ -339,7 +339,10 @@ export default function AvatarSelectionScreen() {
           {loading ? (
             <ActivityIndicator size="large" color={COLORS.primary} />
           ) : (
-            <SvgUri width="150" height="150" uri={currentAvatarUrl} />
+            <Image 
+              source={{ uri: currentAvatarUrl.replace('/svg?', '/png?') }} 
+              style={{ width: 150, height: 150 }} 
+            />
           )}
         </View>
         <TouchableOpacity style={styles.randomizeBtn} onPress={randomize}>
