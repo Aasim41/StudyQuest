@@ -8,60 +8,42 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, useAnimatedProps } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withDelay,
+  Easing,
+  FadeInDown,
+} from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
-import { Calendar } from 'react-native-calendars';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
-import { COLORS, SPACING, FONT_SIZES, FONTS, SHADOWS, BORDER_RADIUS, ANIMATION } from '../theme';
-import { FloatingParticle, GlassCard, ProgressBar } from '../components/ui';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, FONTS } from '../theme';
+import { ModernButton, ModernCard, MinimalProgress, GSAPStagger } from '../components/ui';
 import { ACADEMIC_CALENDAR } from '../config/academicCalendar';
 
 const { width } = Dimensions.get('window');
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-const QuickActionCard = ({ title, icon, color, onPress, delay }) => (
-  <Animated.View entering={FadeInDown.delay(delay).springify()} style={styles.quickActionContainer}>
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
-      <GlassCard style={styles.quickActionCard}>
-        <LinearGradient
-          colors={[color + '33', color + '00']}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={[styles.iconBox, { backgroundColor: color + '33', shadowColor: color }]}>
-          <MaterialCommunityIcons name={icon} size={28} color={color} />
-        </View>
-        <Text style={styles.quickActionTitle}>{title}</Text>
-      </GlassCard>
-    </TouchableOpacity>
-  </Animated.View>
-);
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const { userStats, timetable, attendanceRecords, markClassAttendance } = useUser();
   const [greeting, setGreeting] = useState('');
 
-  // XP Ring Animation
-  const progress = useSharedValue(0);
-  const CIRCLE_RADIUS = 45;
-  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
-
-  // Get current date details
+  // Date and day calculations
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
   const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const currentDayShort = daysShort[today.getDay()];
 
-  // Check JUET academic calendar status for today
+  // JUET Academic suspension & fest checks
   const suspensionInfo = useMemo(() => ACADEMIC_CALENDAR.isClassSuspended(todayStr), [todayStr]);
   const festInfo = useMemo(() => ACADEMIC_CALENDAR.isFestOrDicey(todayStr), [todayStr]);
 
-  // Classes scheduled for today
+  // Today's classes from timetable
   const todaysClasses = useMemo(() => {
     if (!timetable || !Array.isArray(timetable)) return [];
     return timetable.filter(item => item.day === currentDayShort);
@@ -80,415 +62,592 @@ export default function DashboardScreen() {
     return total > 0 ? (attended / total) * 100 : 0;
   }, [attendanceRecords]);
 
+  // GSAP-like Hero & Gauge Spring animation
+  const gaugeScale = useSharedValue(0.9);
+  const gaugeOpacity = useSharedValue(0);
+  const cardStagger = useSharedValue(20);
+
   useEffect(() => {
     const hour = today.getHours();
-    if (hour < 12) setGreeting('Good Morning ☀️');
-    else if (hour < 18) setGreeting('Good Afternoon 🌤');
-    else setGreeting('Good Evening 🌙');
+    if (hour < 12) setGreeting('Good morning');
+    else if (hour < 18) setGreeting('Good afternoon');
+    else setGreeting('Good evening');
 
-    const targetProgress = (userStats.xp || 0) / (userStats.nextLevelXp || 1000);
-    progress.value = withSpring(targetProgress, ANIMATION.springSmooth);
+    // Orchestrated GSAP entry
+    gaugeOpacity.value = withTiming(1, { duration: 400 });
+    gaugeScale.value = withSpring(1, { damping: 14, stiffness: 120 });
+    cardStagger.value = withSpring(0, { damping: 16, stiffness: 100 });
   }, [userStats]);
 
-  const animatedCircleProps = useAnimatedProps(() => ({
-    strokeDashoffset: CIRCLE_CIRCUMFERENCE * (1 - progress.value)
+  const gaugeAnimStyle = useAnimatedStyle(() => ({
+    opacity: gaugeOpacity.value,
+    transform: [{ scale: gaugeScale.value }],
   }));
 
-  // Marked dates on Calendar for JUET
-  const markedDates = useMemo(() => {
-    const map = {};
-
-    // Holidays
-    ACADEMIC_CALENDAR.holidays.forEach(h => {
-      map[h.date] = {
-        marked: true,
-        dotColor: '#2ECC71',
-        customStyles: {
-          container: { backgroundColor: 'rgba(46, 204, 113, 0.15)', borderRadius: 8 },
-          text: { color: '#2ECC71', fontWeight: '800' }
-        }
-      };
-    });
-
-    // Exams
-    ACADEMIC_CALENDAR.events.forEach(e => {
-      if (e.isExam) {
-        map[e.startDate] = {
-          marked: true,
-          dotColor: '#FF4C4C',
-          customStyles: {
-            container: { backgroundColor: 'rgba(255, 76, 76, 0.2)', borderRadius: 8 },
-            text: { color: '#FF4C4C', fontWeight: '800' }
-          }
-        };
-      }
-    });
-
-    // Today highlighted
-    map[todayStr] = {
-      ...(map[todayStr] || {}),
-      selected: true,
-      selectedColor: COLORS.accent,
-    };
-
-    return map;
-  }, [todayStr]);
+  const getStatusColor = (percent) => {
+    if (percent >= 75) return '#2ECC71';
+    if (percent >= 70) return '#F1C40F';
+    return '#E74C3C';
+  };
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
-      <FloatingParticle size={300} color={COLORS.primary} x={-100} y={-100} delay={0} />
-      <FloatingParticle size={250} color={COLORS.accent} x={width * 0.6} y={height * 0.2} delay={1000} />
+      {/* Subtle modern top glow */}
+      <View style={styles.ambientTopGlow} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+        {/* ─── SLEEK HEADER ──────────────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
           <View style={{ flex: 1 }}>
-            <View style={styles.institutionChip}>
-              <Text style={styles.institutionChipText}>JUET GUNA • ODD SEM 2026</Text>
+            <View style={styles.institutionBadge}>
+              <Text style={styles.institutionBadgeText}>JUET GUNA • ODD SEM 2026</Text>
             </View>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.userName}>{auth.currentUser?.displayName || 'Student'}</Text>
+            <Text style={styles.greetingText}>{greeting},</Text>
+            <Text style={styles.userNameText}>{auth.currentUser?.displayName || 'Student'}</Text>
           </View>
 
           <TouchableOpacity
-            style={styles.profileBtn}
+            style={styles.avatarTouch}
+            activeOpacity={0.8}
             onPress={() => navigation.navigate('AvatarSelection', { isEditing: true })}
           >
             {userStats?.avatarUrl ? (
               <Image
                 source={{ uri: userStats.avatarUrl.replace('/svg?', '/png?') }}
-                style={{ width: 48, height: 48, borderRadius: 24 }}
+                style={styles.avatarImg}
               />
             ) : (
-              <MaterialCommunityIcons name="account" size={32} color={COLORS.textSecondary} />
+              <View style={styles.avatarPlaceholder}>
+                <MaterialCommunityIcons name="account" size={26} color={COLORS.textSecondary} />
+              </View>
             )}
           </TouchableOpacity>
         </Animated.View>
 
-        {/* JUET Suspension Alert Banner if applicable */}
+        {/* ─── JUET SUSPENSION / FEST BANNER ─────────────────────────────────────── */}
         {suspensionInfo.suspended && (
-          <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.suspensionBanner}>
-            <MaterialCommunityIcons name="information" size={20} color="#FF6B35" style={{ marginRight: 8 }} />
+          <Animated.View entering={FadeInDown.delay(100).duration(350)} style={styles.alertBanner}>
+            <MaterialCommunityIcons name="information" size={18} color="#FF6B35" style={{ marginRight: 8 }} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.suspensionTitle}>Classes Suspended Today</Text>
-              <Text style={styles.suspensionSub}>{suspensionInfo.reason} • No regular classes scheduled</Text>
+              <Text style={styles.alertTitle}>Classes Suspended Today</Text>
+              <Text style={styles.alertSub}>{suspensionInfo.reason} • No attendance counted</Text>
             </View>
           </Animated.View>
         )}
 
         {festInfo.isDicey && (
-          <Animated.View entering={FadeInDown.delay(150).springify()} style={[styles.suspensionBanner, { borderColor: COLORS.fest, backgroundColor: 'rgba(255, 107, 129, 0.1)' }]}>
-            <MaterialCommunityIcons name="party-popper" size={20} color={COLORS.fest} style={{ marginRight: 8 }} />
+          <Animated.View entering={FadeInDown.delay(100).duration(350)} style={[styles.alertBanner, { borderColor: '#9B59B6' }]}>
+            <MaterialCommunityIcons name="party-popper" size={18} color="#9B59B6" style={{ marginRight: 8 }} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.suspensionTitle, { color: COLORS.fest }]}>JYC Technical Fest</Text>
-              <Text style={styles.suspensionSub}>Classes are dicey today! Use the Cancelled button if professors take off.</Text>
+              <Text style={[styles.alertTitle, { color: '#9B59B6' }]}>JYC Technical Fest</Text>
+              <Text style={styles.alertSub}>Classes are dicey. Mark as Off if professors don't lecture.</Text>
             </View>
           </Animated.View>
         )}
 
-        {/* Attendance Summary Banner (Tappable to go to Attendance Hub) */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.attendanceSummaryCard}>
-          <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Planner')}>
-            <LinearGradient colors={['rgba(0, 210, 255, 0.15)', 'rgba(108, 92, 231, 0.15)']} style={styles.summaryGradient}>
-              <View style={styles.summaryLeft}>
-                <Text style={styles.summaryLabel}>OVERALL ATTENDANCE</Text>
-                <Text style={[styles.summaryPercent, { color: overallAttendancePercent >= 70 ? '#2ECC71' : '#E74C3C' }]}>
+        {/* ─── MODERN MINIMAL ATTENDANCE HERO CARD (GSAP animated) ────────────────── */}
+        <Animated.View style={[styles.heroCardWrapper, gaugeAnimStyle]}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.heroCard}
+            onPress={() => navigation.navigate('Planner')}
+          >
+            <View style={styles.heroCardTop}>
+              <View>
+                <Text style={styles.heroOverline}>TOTAL ATTENDANCE</Text>
+                <Text style={[styles.heroBigPercent, { color: getStatusColor(overallAttendancePercent) }]}>
                   {overallAttendancePercent.toFixed(1)}%
                 </Text>
-                <Text style={styles.summaryCriteria}>
-                  {overallAttendancePercent >= 70 ? '✅ Above JUET 70% Criteria' : '⚠️ Below 70% Criteria!'}
+              </View>
+              <View style={styles.criteriaTag}>
+                <Text style={[styles.criteriaTagText, { color: getStatusColor(overallAttendancePercent) }]}>
+                  {overallAttendancePercent >= 70 ? '70% TARGET MET' : 'CRITICAL DETENTION RISK'}
                 </Text>
               </View>
+            </View>
 
-              <View style={styles.summaryRight}>
-                <View style={styles.hubBtn}>
-                  <Text style={styles.hubBtnText}>Open Hub 🧮</Text>
-                </View>
+            <View style={styles.progressBox}>
+              <MinimalProgress
+                progress={overallAttendancePercent / 100}
+                color={getStatusColor(overallAttendancePercent)}
+                height={5}
+              />
+            </View>
+
+            <View style={styles.heroFooter}>
+              <Text style={styles.heroFooterText}>
+                JUET Rule: Minimum 70% required to write T-3 exams.
+              </Text>
+              <View style={styles.hubLinkRow}>
+                <Text style={styles.hubLinkText}>Open Calculator</Text>
+                <MaterialCommunityIcons name="arrow-right" size={14} color={COLORS.accent} />
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Stats Row: XP Ring & Streak */}
+        {/* ─── STREAK & LEVEL STATS (Minimalist duo) ─────────────────────────────── */}
         <View style={styles.statsRow}>
-          <Animated.View entering={FadeInDown.delay(250).springify()} style={[styles.statBox, { flex: 1.2 }]}>
-            <GlassCard style={styles.xpCard}>
-              <View style={styles.circleContainer}>
-                <Svg width={CIRCLE_RADIUS * 2} height={CIRCLE_RADIUS * 2}>
-                  <Defs>
-                    <SvgLinearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <Stop offset="0%" stopColor={COLORS.accent} />
-                      <Stop offset="100%" stopColor={COLORS.primary} />
-                    </SvgLinearGradient>
-                  </Defs>
-                  <Circle
-                    cx={CIRCLE_RADIUS}
-                    cy={CIRCLE_RADIUS}
-                    r={CIRCLE_RADIUS - 6}
-                    stroke="rgba(255,255,255,0.08)"
-                    strokeWidth={8}
-                    fill="transparent"
-                  />
-                  <AnimatedCircle
-                    cx={CIRCLE_RADIUS}
-                    cy={CIRCLE_RADIUS}
-                    r={CIRCLE_RADIUS - 6}
-                    stroke="url(#progressGrad)"
-                    strokeWidth={8}
-                    fill="transparent"
-                    strokeDasharray={CIRCLE_CIRCUMFERENCE}
-                    strokeLinecap="round"
-                    animatedProps={animatedCircleProps}
-                    transform={`rotate(-90 ${CIRCLE_RADIUS} ${CIRCLE_RADIUS})`}
-                  />
-                </Svg>
-                <View style={styles.circleInner}>
-                  <Text style={styles.levelText}>LVL</Text>
-                  <Text style={styles.levelNumber}>{userStats.level || 1}</Text>
-                </View>
-              </View>
-              <View style={styles.xpInfo}>
-                <Text style={styles.xpLabel}>TOTAL XP</Text>
-                <Text style={styles.xpValue}>{userStats.xp || 0} / {userStats.nextLevelXp || 1000}</Text>
-              </View>
-            </GlassCard>
-          </Animated.View>
+          <ModernCard style={styles.statMiniCard}>
+            <View style={styles.statIconCircle}>
+              <MaterialCommunityIcons name="lightning-bolt" size={20} color="#00D2FF" />
+            </View>
+            <View>
+              <Text style={styles.statMiniLabel}>LEVEL</Text>
+              <Text style={styles.statMiniVal}>{userStats.level || 1} <Text style={styles.statMiniSub}>({userStats.xp || 0} XP)</Text></Text>
+            </View>
+          </ModernCard>
 
-          <Animated.View entering={FadeInDown.delay(300).springify()} style={[styles.statBox, { flex: 0.8 }]}>
-            <GlassCard style={styles.streakCard}>
-              <View style={styles.streakIconBox}>
-                <MaterialCommunityIcons name="fire" size={32} color={COLORS.streak} />
-              </View>
-              <Text style={styles.streakCount}>{userStats.streak || 0}</Text>
-              <Text style={styles.streakLabel}>Day Streak</Text>
-            </GlassCard>
-          </Animated.View>
+          <ModernCard style={styles.statMiniCard}>
+            <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255,107,53,0.15)' }]}>
+              <MaterialCommunityIcons name="fire" size={20} color="#FF6B35" />
+            </View>
+            <View>
+              <Text style={styles.statMiniLabel}>STREAK</Text>
+              <Text style={styles.statMiniVal}>{userStats.streak || 0} <Text style={styles.statMiniSub}>Days</Text></Text>
+            </View>
+          </ModernCard>
         </View>
 
-        {/* ─── TODAY'S JUET CLASSES SECTION ────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Today's Classes ({currentDayShort})</Text>
-            <Text style={styles.sectionSubCount}>{todaysClasses.length} Scheduled</Text>
-          </View>
+        {/* ─── TODAY'S CLASSES (GSAP Staggered Cards) ────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Today's Schedule ({currentDayShort})</Text>
+          <Text style={styles.sectionCount}>{todaysClasses.length} Classes</Text>
+        </View>
 
-          {todaysClasses.length === 0 ? (
-            <GlassCard style={styles.noClassesCard}>
-              <MaterialCommunityIcons name="party-popper" size={40} color={COLORS.accent} style={{ marginBottom: 8 }} />
-              <Text style={styles.noClassesTitle}>No classes scheduled today!</Text>
-              <Text style={styles.noClassesSub}>Enjoy your day off or review your subject attendance in the Hub.</Text>
-            </GlassCard>
-          ) : (
-            todaysClasses.map((item, index) => {
+        {todaysClasses.length === 0 ? (
+          <ModernCard style={styles.emptyScheduleCard}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={36} color={COLORS.textMuted} style={{ marginBottom: 8 }} />
+            <Text style={styles.emptyScheduleTitle}>No Classes Scheduled Today</Text>
+            <Text style={styles.emptyScheduleSub}>Enjoy your time off or simulate bunks in the Attendance Hub.</Text>
+          </ModernCard>
+        ) : (
+          <GSAPStagger delay={150} stagger={70}>
+            {todaysClasses.map((item, index) => {
               const currentStatus = attendanceRecords?.[item.subject]?.history?.[todayStr]?.[item.id];
               return (
-                <GlassCard key={item.id || index} style={styles.classCard}>
-                  <View style={styles.classCardHeader}>
+                <View key={item.id || index} style={styles.classCard}>
+                  <View style={styles.classTopRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.classSubject} numberOfLines={1}>{item.subject}</Text>
-                      <Text style={styles.classTime}>
+                      <Text style={styles.classSlot}>
                         {item.time} • <Text style={styles.classType}>{item.type || 'Lecture'}</Text>
                       </Text>
                     </View>
+
                     {currentStatus && (
                       <View style={[
-                        styles.statusBadge,
-                        currentStatus === 'present' ? styles.statusBadgePresent :
-                        currentStatus === 'absent' ? styles.statusBadgeAbsent : styles.statusBadgeCancelled
+                        styles.badgeStatus,
+                        currentStatus === 'present' ? styles.badgePresent :
+                        currentStatus === 'absent' ? styles.badgeAbsent : styles.badgeOff
                       ]}>
-                        <Text style={styles.statusBadgeText}>
-                          {currentStatus.toUpperCase()}
+                        <Text style={styles.badgeStatusText}>
+                          {currentStatus === 'present' ? 'PRESENT' : currentStatus === 'absent' ? 'BUNKED' : 'OFF'}
                         </Text>
                       </View>
                     )}
                   </View>
 
-                  {/* Action Buttons: Present, Absent, Cancelled */}
-                  <View style={styles.attendanceActionButtons}>
+                  {/* GSAP-like Instant Action buttons */}
+                  <View style={styles.actionBtnRow}>
                     <TouchableOpacity
-                      style={[styles.attBtn, currentStatus === 'present' && styles.attBtnPresentActive]}
+                      activeOpacity={0.8}
+                      style={[styles.btnAction, currentStatus === 'present' && styles.btnActionPresentActive]}
                       onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'present')}
                     >
-                      <MaterialCommunityIcons name="check-circle" size={18} color={currentStatus === 'present' ? '#FFF' : '#2ECC71'} />
-                      <Text style={[styles.attBtnText, currentStatus === 'present' && styles.attBtnTextActive]}>
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={currentStatus === 'present' ? '#FFF' : '#2ECC71'}
+                      />
+                      <Text style={[styles.btnActionText, currentStatus === 'present' && styles.btnActionTextActive]}>
                         Present (+25 XP)
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.attBtn, currentStatus === 'absent' && styles.attBtnAbsentActive]}
+                      activeOpacity={0.8}
+                      style={[styles.btnAction, currentStatus === 'absent' && styles.btnActionAbsentActive]}
                       onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'absent')}
                     >
-                      <MaterialCommunityIcons name="close-circle" size={18} color={currentStatus === 'absent' ? '#FFF' : '#E74C3C'} />
-                      <Text style={[styles.attBtnText, currentStatus === 'absent' && styles.attBtnTextActive]}>
-                        Absent / Bunk
+                      <MaterialCommunityIcons
+                        name="close"
+                        size={16}
+                        color={currentStatus === 'absent' ? '#FFF' : '#E74C3C'}
+                      />
+                      <Text style={[styles.btnActionText, currentStatus === 'absent' && styles.btnActionTextActive]}>
+                        Absent
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.attBtnSmall, currentStatus === 'cancelled' && styles.attBtnCancelledActive]}
+                      activeOpacity={0.8}
+                      style={[styles.btnActionCompact, currentStatus === 'cancelled' && styles.btnActionOffActive]}
                       onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'cancelled')}
                     >
-                      <MaterialCommunityIcons name="cancel" size={16} color={currentStatus === 'cancelled' ? '#FFF' : COLORS.textMuted} />
-                      <Text style={[styles.attBtnSmallText, currentStatus === 'cancelled' && styles.attBtnTextActive]}>
+                      <Text style={[styles.btnActionCompactText, currentStatus === 'cancelled' && styles.btnActionTextActive]}>
                         Off
                       </Text>
                     </TouchableOpacity>
                   </View>
-                </GlassCard>
+                </View>
               );
-            })
-          )}
-        </Animated.View>
+            })}
+          </GSAPStagger>
+        )}
 
-        {/* Quick Actions Grid */}
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Access</Text>
-          <View style={styles.grid}>
-            <QuickActionCard title="Attendance Hub" icon="calculator" color={COLORS.accent} delay={400} onPress={() => navigation.navigate('Planner')} />
-            <QuickActionCard title="Focus Timer" icon="timer" color={COLORS.primary} delay={500} onPress={() => navigation.navigate('FocusTimer')} />
-            <QuickActionCard title="AI Tutor" icon="robot" color="#FF6B35" delay={600} onPress={() => navigation.navigate('ChatTutor')} />
-            <QuickActionCard title="Achievements" icon="medal" color="#FFD700" delay={700} onPress={() => navigation.navigate('Achievements')} />
-          </View>
-        </Animated.View>
-
-        {/* JUET Academic Calendar */}
-        <Animated.View entering={FadeInDown.delay(500).springify()} style={styles.section}>
-          <Text style={styles.sectionTitle}>JUET Academic Calendar (Odd Sem 2026)</Text>
-          <GlassCard style={styles.calendarCard}>
-            <Calendar
-              style={styles.calendar}
-              theme={{
-                backgroundColor: 'transparent',
-                calendarBackground: 'transparent',
-                textSectionTitleColor: COLORS.textMuted,
-                selectedDayBackgroundColor: COLORS.accent,
-                selectedDayTextColor: '#000',
-                todayTextColor: COLORS.accent,
-                dayTextColor: COLORS.textPrimary,
-                textDisabledColor: 'rgba(255,255,255,0.2)',
-                arrowColor: COLORS.accent,
-                monthTextColor: COLORS.textPrimary,
-                indicatorColor: COLORS.accent,
-                textDayFontFamily: FONTS.regular,
-                textMonthFontFamily: FONTS.bold,
-                textDayHeaderFontFamily: FONTS.semiBold,
-              }}
-              markedDates={markedDates}
-              markingType={'custom'}
-            />
-            <View style={styles.calendarLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#2ECC71' }]} />
-                <Text style={styles.legendText}>Holiday</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#FF4C4C' }]} />
-                <Text style={styles.legendText}>Exam / T-1 / T-2 / T-3</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: COLORS.accent }]} />
-                <Text style={styles.legendText}>Today</Text>
-              </View>
-            </View>
-          </GlassCard>
-        </Animated.View>
-
-        <View style={{ height: 120 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: 60, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  institutionChip: { backgroundColor: 'rgba(0,210,255,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BORDER_RADIUS.pill, alignSelf: 'flex-start', marginBottom: 4, borderWidth: 1, borderColor: 'rgba(0,210,255,0.25)' },
-  institutionChipText: { color: '#00D2FF', fontSize: 10, fontWeight: '800' },
-  greeting: { fontSize: FONT_SIZES.body, color: COLORS.textMuted },
-  userName: { fontSize: 24, fontWeight: '900', color: COLORS.textPrimary },
-  profileBtn: { padding: 4, borderRadius: 28, borderWidth: 2, borderColor: COLORS.accent },
+  container: {
+    flex: 1,
+    backgroundColor: '#07070F',
+  },
+  ambientTopGlow: {
+    position: 'absolute',
+    top: 0,
+    left: width * 0.2,
+    width: width * 0.6,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(108, 92, 231, 0.08)',
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: 65,
+    paddingBottom: 40,
+  },
 
-  suspensionBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,107,53,0.12)', borderWidth: 1, borderColor: '#FF6B35', borderRadius: BORDER_RADIUS.md, padding: 12, marginBottom: SPACING.md },
-  suspensionTitle: { color: '#FF6B35', fontSize: 13, fontWeight: '800' },
-  suspensionSub: { color: COLORS.textSecondary, fontSize: 11, marginTop: 2 },
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  institutionBadge: {
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.2)',
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  institutionBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D2FF',
+    letterSpacing: 0.5,
+  },
+  greetingText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  userNameText: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: COLORS.textPrimary,
+    letterSpacing: -0.5,
+  },
+  avatarTouch: {
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 2,
+  },
+  avatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  // Attendance summary card
-  attendanceSummaryCard: { borderRadius: BORDER_RADIUS.xl, overflow: 'hidden', ...SHADOWS.glow, marginBottom: SPACING.lg },
-  summaryGradient: { padding: SPACING.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: BORDER_RADIUS.xl },
-  summaryLeft: { flex: 1 },
-  summaryLabel: { fontSize: 10, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 1.5 },
-  summaryPercent: { fontSize: 36, fontWeight: '900', marginVertical: 2 },
-  summaryCriteria: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
-  summaryRight: { marginLeft: 12 },
-  hubBtn: { backgroundColor: COLORS.accent, paddingHorizontal: 14, paddingVertical: 10, borderRadius: BORDER_RADIUS.pill },
-  hubBtnText: { color: '#000', fontSize: 13, fontWeight: '900' },
+  // Alert
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 53, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.4)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 12,
+    marginBottom: SPACING.md,
+  },
+  alertTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FF6B35',
+  },
+  alertSub: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+
+  // Hero Card
+  heroCardWrapper: {
+    marginBottom: SPACING.md,
+  },
+  heroCard: {
+    backgroundColor: '#0F0F1E',
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: SPACING.lg,
+    ...SHADOWS.card,
+  },
+  heroCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  heroOverline: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 1.2,
+  },
+  heroBigPercent: {
+    fontSize: 42,
+    fontWeight: '900',
+    letterSpacing: -1,
+    marginVertical: 2,
+  },
+  criteriaTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  criteriaTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  progressBox: {
+    marginVertical: SPACING.md,
+  },
+  heroFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: SPACING.sm,
+  },
+  heroFooterText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    flex: 1,
+  },
+  hubLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  hubLinkText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.accent,
+    marginRight: 4,
+  },
 
   // Stats Row
-  statsRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg },
-  statBox: { minHeight: 110 },
-  xpCard: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
-  circleContainer: { width: 90, height: 90, justifyContent: 'center', alignItems: 'center' },
-  circleInner: { position: 'absolute', alignItems: 'center' },
-  levelText: { fontSize: 10, fontWeight: '800', color: COLORS.textMuted },
-  levelNumber: { fontSize: 20, fontWeight: '900', color: '#FFF' },
-  xpInfo: { marginLeft: 12, flex: 1 },
-  xpLabel: { fontSize: 10, fontWeight: '800', color: COLORS.textMuted, letterSpacing: 1 },
-  xpValue: { fontSize: 14, fontWeight: '800', color: COLORS.accent, marginTop: 2 },
+  statsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  statMiniCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#0F0F1E',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  statIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  statMiniLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+  },
+  statMiniVal: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFF',
+  },
+  statMiniSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
 
-  streakCard: { alignItems: 'center', justifyContent: 'center', padding: SPACING.md },
-  streakIconBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,107,53,0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  streakCount: { fontSize: 22, fontWeight: '900', color: '#FFF' },
-  streakLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted },
+  // Section Header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
 
-  // Section
-  section: { marginBottom: SPACING.xl },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary },
-  sectionSubCount: { fontSize: 12, fontWeight: '700', color: COLORS.accent },
+  // Empty Schedule
+  emptyScheduleCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xl,
+    backgroundColor: '#0F0F1E',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  emptyScheduleTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  emptyScheduleSub: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
 
-  // Classes list
-  noClassesCard: { padding: SPACING.xl, alignItems: 'center', justifyContent: 'center' },
-  noClassesTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 4 },
-  noClassesSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', lineHeight: 18 },
+  // Class Card
+  classCard: {
+    backgroundColor: '#0F0F1E',
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  classTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING.sm,
+  },
+  classSubject: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  classSlot: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  classType: {
+    color: COLORS.accent,
+    fontWeight: '700',
+  },
+  badgeStatus: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgePresent: {
+    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+  },
+  badgeAbsent: {
+    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+  },
+  badgeOff: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  badgeStatusText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
 
-  classCard: { padding: SPACING.md, marginBottom: SPACING.md },
-  classCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.sm },
-  classSubject: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
-  classTime: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  classType: { color: COLORS.accent, fontWeight: '700' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: BORDER_RADIUS.sm },
-  statusBadgePresent: { backgroundColor: 'rgba(46,204,113,0.2)' },
-  statusBadgeAbsent: { backgroundColor: 'rgba(231,76,60,0.2)' },
-  statusBadgeCancelled: { backgroundColor: 'rgba(255,255,255,0.1)' },
-  statusBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFF' },
-
-  attendanceActionButtons: { flexDirection: 'row', gap: 6, marginTop: 4 },
-  attBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 6, borderRadius: BORDER_RADIUS.sm, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  attBtnPresentActive: { backgroundColor: '#2ECC71', borderColor: '#2ECC71' },
-  attBtnAbsentActive: { backgroundColor: '#E74C3C', borderColor: '#E74C3C' },
-  attBtnSmall: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: BORDER_RADIUS.sm, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', flexDirection: 'row', alignItems: 'center' },
-  attBtnCancelledActive: { backgroundColor: '#555', borderColor: '#777' },
-  attBtnText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, marginLeft: 4 },
-  attBtnSmallText: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginLeft: 2 },
-  attBtnTextActive: { color: '#FFF', fontWeight: '800' },
-
-  // Quick Action Grid
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
-  quickActionContainer: { width: (width - SPACING.lg * 2 - SPACING.md) / 2 },
-  quickActionCard: { padding: SPACING.md, alignItems: 'center', justifyContent: 'center', height: 95 },
-  iconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  quickActionTitle: { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary },
-
-  // Calendar Card
-  calendarCard: { padding: SPACING.md, borderRadius: BORDER_RADIUS.xl },
-  calendar: { borderRadius: BORDER_RADIUS.lg },
-  calendarLegend: { flexDirection: 'row', justifyContent: 'space-around', marginTop: SPACING.sm, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: SPACING.sm },
-  legendItem: { flexDirection: 'row', alignItems: 'center' },
-  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  legendText: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
+  // Action Button Row
+  actionBtnRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  btnAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#16162A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  btnActionPresentActive: {
+    backgroundColor: '#2ECC71',
+    borderColor: '#2ECC71',
+  },
+  btnActionAbsentActive: {
+    backgroundColor: '#E74C3C',
+    borderColor: '#E74C3C',
+  },
+  btnActionCompact: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#16162A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnActionOffActive: {
+    backgroundColor: '#444',
+    borderColor: '#666',
+  },
+  btnActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+  },
+  btnActionCompactText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
+  btnActionTextActive: {
+    color: '#FFF',
+    fontWeight: '900',
+  },
 });

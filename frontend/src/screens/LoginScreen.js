@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,147 +19,106 @@ import Animated, {
   withDelay,
   withSequence,
   withRepeat,
-  interpolate,
   Easing,
   FadeIn,
   FadeInDown,
 } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, FONTS, SHADOWS, ANIMATION } from '../theme';
-import { GradientButton, FloatingParticle } from '../components/ui';
+import { COLORS, SPACING, BORDER_RADIUS, FONT_SIZES, FONTS, SHADOWS } from '../theme';
+import { ModernButton, ModernCard, GSAPStagger } from '../components/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../../firebaseConfig';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import API_BASE from '../config/apiConfig';
 
-const { width, height } = Dimensions.get('window');
-
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [serverReady, setServerReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [focusedField, setFocusedField] = useState(null);
-  const [greeting, setGreeting] = useState('');
+  const [greeting, setGreeting] = useState('Welcome back');
 
-  // Wake up Render backend & set greeting
   useEffect(() => {
-    const wakeServer = async () => {
-      try {
-        await fetch(`${API_BASE}/api/health`);
-        setServerReady(true);
-      } catch (err) {
-        setTimeout(wakeServer, 5000);
-      }
-    };
-    wakeServer();
-
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good Morning ☀️');
-    else if (hour < 18) setGreeting('Good Afternoon 🌤');
-    else setGreeting('Good Evening 🌙');
+    if (hour < 12) setGreeting('Good morning ☀️');
+    else if (hour < 18) setGreeting('Good afternoon 🌤');
+    else setGreeting('Good evening 🌙');
+
+    // Wake up backend
+    fetch(`${API_BASE}/api/health`).catch(() => {});
   }, []);
 
-  // Animation values
-  const entranceX = useSharedValue(width + 50);
-  const walkBounce = useSharedValue(0);
-  const mascotTranslateY = useSharedValue(0);
-  const haloOpacity = useSharedValue(0);
-  const formOpacity = useSharedValue(0);
-  const formTranslateY = useSharedValue(40);
-  const buttonScale = useSharedValue(1);
+  // GSAP-like Timed Character Walk-in & Physics
+  const mascotX = useSharedValue(-width * 0.7);
+  const mascotBob = useSharedValue(0);
+  const mascotScale = useSharedValue(0.7);
+  const cardScale = useSharedValue(0.95);
+  const cardOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(35);
 
   useEffect(() => {
-    // 1. Character walks in from the right with bouncing steps
-    entranceX.value = withTiming(0, { duration: 1200, easing: Easing.out(Easing.cubic) });
+    // 1. GSAP-style character walking in from left with bounce steps
+    mascotX.value = withTiming(0, {
+      duration: 1100,
+      easing: Easing.bezier(0.25, 1, 0.5, 1),
+    });
+    mascotScale.value = withSpring(1, { damping: 12, stiffness: 120 });
 
-    // Walk bounce: rapid up-down bouncing that simulates walking steps
-    walkBounce.value = withSequence(
-      // 6 walking "steps" — each is a quick dip down then back up
-      withTiming(-12, { duration: 100, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
-      withTiming(-14, { duration: 100, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
-      withTiming(-12, { duration: 100, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
-      withTiming(-14, { duration: 100, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
-      withTiming(-10, { duration: 100, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
-      withTiming(-8, { duration: 100, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 100, easing: Easing.in(Easing.quad) }),
+    // Step bobs (6 fluid steps)
+    mascotBob.value = withSequence(
+      withTiming(-12, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 90, easing: Easing.in(Easing.quad) }),
+      withTiming(-14, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 90, easing: Easing.in(Easing.quad) }),
+      withTiming(-12, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 90, easing: Easing.in(Easing.quad) }),
+      withTiming(-10, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 90, easing: Easing.in(Easing.quad) }),
+      withTiming(-8, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 90, easing: Easing.in(Easing.quad) })
     );
 
-    // 2. After walking finishes (~1.2s), character settles into idle breathing
+    // 2. Idle floating breath after walking completes
     setTimeout(() => {
-      mascotTranslateY.value = withRepeat(
-        withTiming(-8, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      mascotBob.value = withRepeat(
+        withTiming(-8, { duration: 1600, easing: Easing.inOut(Easing.ease) }),
         -1,
         true
       );
-    }, 1300);
+    }, 1200);
 
-    // 3. Form fades in after character arrives (character "brings" the form)
-    formOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
-    formTranslateY.value = withDelay(800, withSpring(0, { damping: 16, stiffness: 90 }));
-
-    // Halo pulse
-    haloOpacity.value = withDelay(1200, withRepeat(
-      withSequence(
-        withTiming(0.4, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    ));
-
-    // Button pulse
-    buttonScale.value = withRepeat(
-      withSequence(
-        withTiming(1.02, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
+    // 3. Staggered card entrance: Character "delivers" the sleek login card
+    cardOpacity.value = withDelay(700, withTiming(1, { duration: 450 }));
+    cardTranslateY.value = withDelay(700, withSpring(0, { damping: 16, stiffness: 110 }));
+    cardScale.value = withDelay(700, withSpring(1, { damping: 14, stiffness: 130 }));
   }, []);
 
-  // Character walks across screen (translateX + bounce)
-  const mascotWalkStyle = useAnimatedStyle(() => ({
+  const mascotAnimStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: entranceX.value },
-      { translateY: walkBounce.value + mascotTranslateY.value },
-    ]
+      { translateX: mascotX.value },
+      { translateY: mascotBob.value },
+      { scale: mascotScale.value },
+    ],
   }));
 
-  // Form slides in behind the character
-  const formEntranceStyle = useAnimatedStyle(() => ({
-    opacity: formOpacity.value,
-    transform: [{ translateY: formTranslateY.value }]
-  }));
-
-  const haloStyle = useAnimatedStyle(() => ({
-    opacity: haloOpacity.value,
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    opacity: cardOpacity.value,
     transform: [
-      { translateX: entranceX.value },
-      { scale: interpolate(haloOpacity.value, [0.1, 0.4], [0.9, 1.1]) },
-    ]
-  }));
-
-  const buttonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }]
+      { translateY: cardTranslateY.value },
+      { scale: cardScale.value },
+    ],
   }));
 
   const validate = () => {
     const newErrors = {};
     if (!email.trim()) newErrors.email = 'Email is required';
-    else if (!/^\S+@\S+\.\S+$/.test(email)) newErrors.email = 'Invalid email format';
+    else if (!/\S+@\S+\.\S+/.test(email.trim())) newErrors.email = 'Invalid email address';
     if (!password) newErrors.password = 'Password is required';
-    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    else if (password.length < 6) newErrors.password = 'At least 6 characters required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -171,151 +129,167 @@ export default function LoginScreen({ navigation }) {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (error) {
-      let message = 'Login failed. Please try again.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') message = 'Invalid email or password.';
-      else if (error.code === 'auth/invalid-email') message = 'Invalid email address.';
-      else if (error.code === 'auth/too-many-requests') message = 'Too many attempts. Try again later.';
-      Alert.alert('Login Error', message);
+      let msg = 'Failed to sign in. Please check your credentials.';
+      if (error.code === 'auth/user-not-found') msg = 'No account found with this email.';
+      else if (error.code === 'auth/wrong-password') msg = 'Incorrect password.';
+      else if (error.code === 'auth/invalid-credential') msg = 'Invalid credentials. Check email & password.';
+      Alert.alert('Sign In Failed', msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
-      Alert.alert('Forgot Password', 'Please enter a valid email address in the email field to reset your password.');
+    if (!email.trim()) {
+      Alert.alert('Reset Password', 'Enter your email address above first.');
       return;
     }
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      Alert.alert('Password Reset', 'A password reset link has been sent to your email.');
+      Alert.alert('Check Your Inbox', 'Password reset instructions have been sent.');
     } catch (error) {
       Alert.alert('Error', error.message);
     }
   };
 
-  const getInputStyle = (field) => [
-    styles.input,
-    focusedField === field && styles.inputFocused,
-    errors[field] && styles.inputError,
-  ];
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={COLORS.gradientOnboarding}
-        style={StyleSheet.absoluteFill}
-      />
+      {/* Modern Minimal Grid lines / Subtle ambient */}
+      <View style={styles.gridOverlay} />
 
-      {/* Floating Particles */}
-      <FloatingParticle size={150} color={COLORS.accent} x={-30} y={height * 0.2} delay={200} />
-      <FloatingParticle size={100} color={COLORS.primary} x={width * 0.7} y={height * 0.6} delay={800} />
-      <FloatingParticle size={60} color={COLORS.streak} x={width * 0.2} y={height * 0.8} delay={1200} />
-
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          
-          {/* Animated Mascot — walks in independently */}
-          <View style={styles.mascotSection}>
-            <Animated.View style={[styles.halo, haloStyle]}>
-              <LinearGradient
-                colors={['rgba(108, 92, 231, 0.4)', 'rgba(108, 92, 231, 0)']}
-                style={StyleSheet.absoluteFill}
-                borderRadii={150}
-              />
-            </Animated.View>
-            <Animated.View style={[styles.mascotContainer, mascotWalkStyle]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ─── CHARACTER MASCOT HERO (GSAP-like fluid walk-in) ───────────────────── */}
+          <View style={styles.heroSection}>
+            <Animated.View style={[styles.mascotBox, mascotAnimStyle]}>
               <View style={styles.mascotCircle}>
-                <MaterialCommunityIcons name="account-school" size={52} color="#FFF" />
+                <MaterialCommunityIcons name="account-school" size={46} color="#00D2FF" />
               </View>
             </Animated.View>
-            <Animated.Text entering={FadeIn.delay(1200).duration(800)} style={styles.greetingText}>
-              {greeting}
-            </Animated.Text>
-            <Animated.Text entering={FadeIn.delay(1600).duration(800)} style={styles.typingText}>
-              Let's get you signed in!
-            </Animated.Text>
+
+            <Animated.View entering={FadeIn.delay(900).duration(500)} style={styles.greetingBox}>
+              <Text style={styles.greetingText}>{greeting}</Text>
+              <Text style={styles.heroSubText}>Sign in to your JUET Attendance Portal</Text>
+            </Animated.View>
           </View>
 
-          {/* Login Form — slides up after character arrives */}
-          <Animated.View style={[styles.formContainer, formEntranceStyle]}>
-            <LinearGradient
-              colors={COLORS.gradientGlass}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.formGlass}
-            >
+          {/* ─── SLEEK MODERN LOGIN CARD ────────────────────────────────────────── */}
+          <Animated.View style={[styles.cardWrapper, cardAnimStyle]}>
+            <View style={styles.sleekCard}>
               {/* Email Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <TextInput
-                  style={getInputStyle('email')}
-                  placeholder="your@email.com"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={email}
-                  onChangeText={(text) => { setEmail(text); setErrors(prev => ({ ...prev, email: null })); }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  onFocus={() => setFocusedField('email')}
-                  onBlur={() => setFocusedField(null)}
-                />
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>COLLEGE EMAIL</Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    focusedField === 'email' && styles.inputFocused,
+                    errors.email && styles.inputError,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="email-outline"
+                    size={20}
+                    color={focusedField === 'email' ? COLORS.accent : COLORS.textMuted}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="student@juetguna.in"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={email}
+                    onChangeText={t => {
+                      setEmail(t);
+                      if (errors.email) setErrors(prev => ({ ...prev, email: null }));
+                    }}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
                 {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
 
               {/* Password Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Password</Text>
-                <View style={[styles.passwordContainer, focusedField === 'password' && styles.inputFocused, errors.password && styles.inputError]}>
+              <View style={styles.fieldGroup}>
+                <View style={styles.passwordHeaderRow}>
+                  <Text style={styles.fieldLabel}>PASSWORD</Text>
+                  <TouchableOpacity onPress={handleForgotPassword}>
+                    <Text style={styles.forgotLink}>Forgot?</Text>
+                  </TouchableOpacity>
+                </View>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    focusedField === 'password' && styles.inputFocused,
+                    errors.password && styles.inputError,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="lock-outline"
+                    size={20}
+                    color={focusedField === 'password' ? COLORS.accent : COLORS.textMuted}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
-                    style={styles.passwordInput}
+                    style={styles.textInput}
                     placeholder="••••••••"
                     placeholderTextColor={COLORS.textMuted}
                     value={password}
-                    onChangeText={(text) => { setPassword(text); setErrors(prev => ({ ...prev, password: null })); }}
-                    secureTextEntry={!showPassword}
+                    onChangeText={t => {
+                      setPassword(t);
+                      if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+                    }}
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
+                    secureTextEntry={!showPassword}
                   />
-                  <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
-                    <MaterialCommunityIcons name={showPassword ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(prev => !prev)}
+                    style={styles.eyeBtn}
+                  >
+                    <MaterialCommunityIcons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={COLORS.textMuted}
+                    />
                   </TouchableOpacity>
                 </View>
                 {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               </View>
 
-              {/* Forgot Password */}
-              <TouchableOpacity style={styles.forgotButton} onPress={handleForgotPassword}>
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
+              {/* Action Button */}
+              <ModernButton
+                title={loading ? 'Signing in...' : 'Sign In ➔'}
+                onPress={handleLogin}
+                loading={loading}
+                style={styles.submitBtn}
+              />
 
-              {/* Login Button */}
-              <Animated.View style={buttonStyle}>
-                <GradientButton 
-                  title={!serverReady ? "Waking Server..." : "Login to Quest"}
-                  onPress={handleLogin}
-                  loading={loading}
-                  disabled={!serverReady || loading}
-                  colors={COLORS.gradientAccent}
-                  style={styles.loginButton}
-                />
-              </Animated.View>
-            </LinearGradient>
+              {/* Sign up prompt */}
+              <View style={styles.signupPromptRow}>
+                <Text style={styles.promptText}>New student? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                  <Text style={styles.signupLink}>Create account</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </Animated.View>
 
-          {/* Sign Up Link */}
-          <Animated.View entering={FadeIn.delay(1800).duration(600)} style={styles.signUpContainer}>
-            <Text style={styles.signUpText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.signUpLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </Animated.View>
-
+          {/* Minimal footer */}
+          <Text style={styles.footerNote}>JUET GUNA • ATTENDANCE PORTAL V2.0</Text>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <Text style={styles.versionBadge}>v2.0</Text>
     </View>
   );
 }
@@ -323,167 +297,160 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#07070F',
+  },
+  gridOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.03,
+    backgroundColor: 'transparent',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: height * 0.1,
-    paddingBottom: SPACING.xxl,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: 80,
+    paddingBottom: 40,
+    minHeight: '100%',
     justifyContent: 'center',
   },
-  mascotSection: {
+
+  // Hero Section
+  heroSection: {
     alignItems: 'center',
     marginBottom: SPACING.xl,
-    minHeight: 180,
-    justifyContent: 'flex-end',
   },
-  halo: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    bottom: 20,
-    alignSelf: 'center',
-  },
-  mascotContainer: {
+  mascotBox: {
     marginBottom: SPACING.md,
   },
   mascotCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(108, 92, 231, 0.3)',
-    borderWidth: 2,
-    borderColor: COLORS.accent,
-    justifyContent: 'center',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#121226',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 210, 255, 0.4)',
     alignItems: 'center',
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-    elevation: 10,
+    justifyContent: 'center',
+    ...SHADOWS.card,
+  },
+  greetingBox: {
+    alignItems: 'center',
   },
   greetingText: {
-    fontSize: FONT_SIZES.hero,
-    fontFamily: FONTS.extraBold,
+    fontSize: 26,
+    fontWeight: '900',
     color: COLORS.textPrimary,
-    textAlign: 'center',
     letterSpacing: -0.5,
   },
-  typingText: {
-    fontSize: FONT_SIZES.bodyLarge,
-    color: COLORS.accent,
-    textAlign: 'center',
-    fontFamily: FONTS.semiBold,
+  heroSubText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
     marginTop: 4,
+    fontWeight: '500',
   },
-  formContainer: {
+
+  // Sleek Card
+  cardWrapper: {
     width: '100%',
   },
-  formGlass: {
+  sleekCard: {
+    backgroundColor: '#0F0F1E',
     borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: SPACING.xl,
-    ...SHADOWS.glow,
+    ...SHADOWS.card,
   },
-  inputGroup: {
+
+  fieldGroup: {
     marginBottom: SPACING.lg,
   },
-  inputLabel: {
-    fontSize: FONT_SIZES.caption,
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  passwordHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  forgotLink: {
+    fontSize: 12,
+    color: COLORS.accent,
     fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    marginBottom: 8,
   },
-  input: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 14,
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  passwordContainer: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: '#080814',
     borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 14,
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    height: 52,
   },
   inputFocused: {
-    borderColor: COLORS.primary,
-    backgroundColor: 'rgba(108, 92, 231, 0.1)',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    borderColor: COLORS.accent,
+    backgroundColor: '#0A0A1C',
   },
   inputError: {
     borderColor: COLORS.error,
   },
-  eyeButton: {
-    padding: SPACING.sm,
-    marginRight: 4,
+  inputIcon: {
+    marginRight: 10,
+  },
+  textInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  eyeBtn: {
+    padding: 6,
   },
   errorText: {
     color: COLORS.error,
-    fontSize: FONT_SIZES.caption,
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+    marginLeft: 4,
   },
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: SPACING.xl,
+
+  submitBtn: {
+    marginTop: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+    height: 52,
+    borderRadius: BORDER_RADIUS.md,
   },
-  forgotText: {
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZES.caption,
-    fontWeight: '700',
-  },
-  loginButton: {
-    width: '100%',
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
-    ...SHADOWS.glow,
-  },
-  signUpContainer: {
+
+  signupPromptRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: SPACING.xl,
+    alignItems: 'center',
+    marginTop: SPACING.lg,
   },
-  signUpText: {
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZES.body,
+  promptText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
   },
-  signUpLink: {
-    color: COLORS.primary,
-    fontSize: FONT_SIZES.body,
-    fontWeight: '700',
+  signupLink: {
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: '800',
   },
-  versionBadge: {
-    position: 'absolute',
-    bottom: SPACING.md,
-    right: SPACING.xl,
-    color: 'rgba(255,255,255,0.3)',
+
+  footerNote: {
+    textAlign: 'center',
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-  }
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.2)',
+    letterSpacing: 1.5,
+    marginTop: SPACING.xxl,
+  },
 });
