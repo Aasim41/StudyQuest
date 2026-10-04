@@ -10,3 +10,7 @@ backend/testDb.js
 backend/deployRules.js
 logs.zip
 logs_dir/
+__pycache__/
+*.pyc
+dist/
+.expo/

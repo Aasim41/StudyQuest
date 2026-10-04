@@ -4,6 +4,18 @@ import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import API_BASE from '../config/apiConfig';
+import {
+  filterTimetableForBatch,
+  getDistinctSubjectsForBatch,
+  ALL_BATCHES,
+  BATCH_GROUPS,
+} from '../config/masterTimetable';
+import {
+  setupNotificationCategories,
+  NOTIFICATION_ACTIONS,
+  scheduleSmartEngagementNotifications,
+  testTriggerClassEndNotification,
+} from '../services/notificationService';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -23,6 +35,7 @@ export const UserProvider = ({ children }) => {
     level: 1, xp: 0, nextLevelXp: 1000, streak: 0, 
     lastStudyDate: null, avatarUrl: null, unlockedBadges: [], studyMinutesPerSubject: {} 
   });
+  const [userBatch, setUserBatchState] = useState('B31');
   const [studyPlan, setStudyPlan] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState({});
@@ -93,14 +106,41 @@ export const UserProvider = ({ children }) => {
     };
     init();
     
-    // Request notification permissions
-    const requestPermissions = async () => {
+    // Request notification permissions and register interactive categories
+    const setupNotifications = async () => {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') {
         console.warn('Notification permissions not granted');
       }
+      await setupNotificationCategories();
     };
-    requestPermissions();
+    setupNotifications();
+
+    // Listen for direct interactive actions tapped on notification shade (Present / Absent / Off)
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      try {
+        const actionId = response.actionIdentifier;
+        const data = response.notification?.request?.content?.data;
+        if (!data || data.type !== 'class_end') return;
+
+        const { subject, dateStr, classId } = data;
+        if (!subject || !classId) return;
+
+        if (actionId === NOTIFICATION_ACTIONS.PRESENT) {
+          markClassAttendance(subject, dateStr, classId, 'present');
+        } else if (actionId === NOTIFICATION_ACTIONS.ABSENT) {
+          markClassAttendance(subject, dateStr, classId, 'absent');
+        } else if (actionId === NOTIFICATION_ACTIONS.CANCELLED) {
+          markClassAttendance(subject, dateStr, classId, 'cancelled');
+        }
+      } catch (err) {
+        console.warn('Error processing notification response action:', err);
+      }
+    });
+
+    return () => {
+      responseSubscription.remove();
+    };
   }, []);
 
   const scheduleStudyNotifications = async (plan) => {
@@ -146,14 +186,32 @@ export const UserProvider = ({ children }) => {
         setStudyPlan(JSON.parse(planStr));
       }
 
+      const batchStr = await AsyncStorage.getItem('@userBatch');
+      const activeBatch = batchStr || 'B31';
+      setUserBatchState(activeBatch);
+
       const timetableStr = await AsyncStorage.getItem('@timetable');
       if (timetableStr) {
         setTimetable(JSON.parse(timetableStr));
+      } else {
+        const initialTt = filterTimetableForBatch(activeBatch);
+        setTimetable(initialTt);
+        AsyncStorage.setItem('@timetable', JSON.stringify(initialTt)).catch(() => {});
       }
 
       const attendanceStr = await AsyncStorage.getItem('@attendanceRecords');
       if (attendanceStr) {
         setAttendanceRecords(JSON.parse(attendanceStr));
+      } else {
+        const initialTt = filterTimetableForBatch(activeBatch);
+        const initialRecords = {};
+        initialTt.forEach(item => {
+          if (item.subject && !initialRecords[item.subject]) {
+            initialRecords[item.subject] = { attended: 0, missed: 0, total: 0, history: {} };
+          }
+        });
+        setAttendanceRecords(initialRecords);
+        AsyncStorage.setItem('@attendanceRecords', JSON.stringify(initialRecords)).catch(() => {});
       }
       
       const videosStr = await AsyncStorage.getItem('@savedVideos');
@@ -176,6 +234,11 @@ export const UserProvider = ({ children }) => {
       const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
+        if (data.userBatch) {
+          setUserBatchState(data.userBatch);
+          AsyncStorage.setItem('@userBatch', data.userBatch).catch(() => {});
+        }
+
         setUserStats({
           level: data.level || 1,
           xp: data.xp || 0,
@@ -192,6 +255,9 @@ export const UserProvider = ({ children }) => {
         if (data.timetable && Array.isArray(data.timetable)) {
           setTimetable(data.timetable);
           AsyncStorage.setItem('@timetable', JSON.stringify(data.timetable)).catch(() => {});
+        } else {
+          const initialTt = filterTimetableForBatch(data.userBatch || 'B31');
+          setTimetable(initialTt);
         }
 
         if (data.attendanceRecords && typeof data.attendanceRecords === 'object') {
@@ -213,6 +279,20 @@ export const UserProvider = ({ children }) => {
       }
     } catch (e) {
       console.warn('Failed to load firestore stats', e);
+    }
+  };
+
+  const switchBatch = async (newBatch) => {
+    try {
+      setUserBatchState(newBatch);
+      await AsyncStorage.setItem('@userBatch', newBatch);
+      if (auth.currentUser) {
+        setDoc(doc(db, 'users', auth.currentUser.uid), { userBatch: newBatch }, { merge: true }).catch(() => {});
+      }
+      const newTimetable = filterTimetableForBatch(newBatch);
+      await saveTimetable(newTimetable);
+    } catch (e) {
+      console.warn('Failed to switch batch', e);
     }
   };
 
@@ -491,6 +571,13 @@ export const UserProvider = ({ children }) => {
       userStats,
       loadFirestoreStats,
       saveStatsToFirestore,
+      userBatch,
+      switchBatch,
+      ALL_BATCHES,
+      BATCH_GROUPS,
+      getDistinctSubjectsForBatch,
+      filterTimetableForBatch,
+      testTriggerClassEndNotification,
       studyPlan,
       loadLocalStudyPlan,
       updateStudyPlan,

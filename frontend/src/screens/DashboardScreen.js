@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Modal,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -25,13 +26,26 @@ import { useUser } from '../context/UserContext';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, FONTS } from '../theme';
 import { ModernButton, ModernCard, MinimalProgress, GSAPStagger } from '../components/ui';
 import { ACADEMIC_CALENDAR } from '../config/academicCalendar';
+import {
+  scheduleClassEndNotifications,
+  testTriggerClassEndNotification,
+} from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
-  const { userStats, timetable, attendanceRecords, markClassAttendance } = useUser();
+  const {
+    userStats,
+    timetable,
+    attendanceRecords,
+    markClassAttendance,
+    userBatch,
+    switchBatch,
+    BATCH_GROUPS,
+  } = useUser();
   const [greeting, setGreeting] = useState('');
+  const [batchModalVisible, setBatchModalVisible] = useState(false);
 
   // Date and day calculations
   const today = useMemo(() => new Date(), []);
@@ -48,6 +62,13 @@ export default function DashboardScreen() {
     if (!timetable || !Array.isArray(timetable)) return [];
     return timetable.filter(item => item.day === currentDayShort);
   }, [timetable, currentDayShort]);
+
+  // Schedule class-end interactive notifications for today's classes
+  useEffect(() => {
+    if (todaysClasses && todaysClasses.length > 0) {
+      scheduleClassEndNotifications(todaysClasses, todayStr);
+    }
+  }, [todaysClasses, todayStr]);
 
   // Overall attendance calculation
   const overallAttendancePercent = useMemo(() => {
@@ -101,8 +122,19 @@ export default function DashboardScreen() {
         {/* ─── SLEEK HEADER ──────────────────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
           <View style={{ flex: 1 }}>
-            <View style={styles.institutionBadge}>
-              <Text style={styles.institutionBadgeText}>JUET GUNA • ODD SEM 2026</Text>
+            <View style={styles.institutionRow}>
+              <View style={styles.institutionBadge}>
+                <Text style={styles.institutionBadgeText}>JUET GUNA • ODD SEM 2026</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.batchPill}
+                activeOpacity={0.8}
+                onPress={() => setBatchModalVisible(true)}
+              >
+                <MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
+                <Text style={styles.batchPillText}>Batch: <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{userBatch || 'B31'}</Text></Text>
+                <MaterialCommunityIcons name="menu-down" size={14} color="#00D2FF" />
+              </TouchableOpacity>
             </View>
             <Text style={styles.greetingText}>{greeting},</Text>
             <Text style={styles.userNameText}>{auth.currentUser?.displayName || 'Student'}</Text>
@@ -213,8 +245,21 @@ export default function DashboardScreen() {
 
         {/* ─── TODAY'S CLASSES (GSAP Staggered Cards) ────────────────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today's Schedule ({currentDayShort})</Text>
-          <Text style={styles.sectionCount}>{todaysClasses.length} Classes</Text>
+          <View>
+            <Text style={styles.sectionTitle}>Today's Schedule ({currentDayShort})</Text>
+            <Text style={styles.sectionCount}>{todaysClasses.length} Classes Scheduled</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.testNotificationBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              const sampleClass = todaysClasses[0] || { subject: 'Database Systems (DBMS)', room: 'LT1' };
+              testTriggerClassEndNotification(sampleClass.subject, sampleClass.room);
+            }}
+          >
+            <MaterialCommunityIcons name="bell-ring-outline" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
+            <Text style={styles.testNotificationText}>Test Notification</Text>
+          </TouchableOpacity>
         </View>
 
         {todaysClasses.length === 0 ? (
@@ -227,13 +272,40 @@ export default function DashboardScreen() {
           <GSAPStagger delay={150} stagger={70}>
             {todaysClasses.map((item, index) => {
               const currentStatus = attendanceRecords?.[item.subject]?.history?.[todayStr]?.[item.id];
+              const isLab = item.isLab || item.sessionType === 'P' || item.subject.toLowerCase().includes('lab');
+
               return (
-                <View key={item.id || index} style={styles.classCard}>
+                <View key={item.id || index} style={[styles.classCard, isLab && styles.classCardLab]}>
                   <View style={styles.classTopRow}>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <View style={styles.classBadgeRow}>
+                        {isLab ? (
+                          <View style={styles.badgeLab}>
+                            <MaterialCommunityIcons name="flask-outline" size={11} color="#00D2FF" style={{ marginRight: 3 }} />
+                            <Text style={styles.badgeLabText}>PRACTICAL • 2 HRS</Text>
+                          </View>
+                        ) : item.sessionType === 'T' ? (
+                          <View style={styles.badgeTut}>
+                            <MaterialCommunityIcons name="book-open-variant" size={11} color="#F1C40F" style={{ marginRight: 3 }} />
+                            <Text style={styles.badgeTutText}>TUTORIAL</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.badgeLec}>
+                            <MaterialCommunityIcons name="account-tie-voice" size={11} color="#A29BFE" style={{ marginRight: 3 }} />
+                            <Text style={styles.badgeLecText}>LECTURE</Text>
+                          </View>
+                        )}
+                        {item.room ? (
+                          <View style={styles.badgeRoom}>
+                            <MaterialCommunityIcons name="map-marker-outline" size={11} color={COLORS.textSecondary} style={{ marginRight: 2 }} />
+                            <Text style={styles.badgeRoomText}>{item.room}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+
                       <Text style={styles.classSubject} numberOfLines={1}>{item.subject}</Text>
                       <Text style={styles.classSlot}>
-                        {item.time} • <Text style={styles.classType}>{item.type || 'Lecture'}</Text>
+                        {item.time} {item.roomLocation ? `• ${item.roomLocation}` : ''}
                       </Text>
                     </View>
 
@@ -300,6 +372,62 @@ export default function DashboardScreen() {
 
         <View style={{ height: 110 }} />
       </ScrollView>
+
+      {/* ─── BATCH SELECTION MODAL ──────────────────────────────────────────────── */}
+      <Modal
+        visible={batchModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBatchModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.batchModalCard}>
+            <View style={styles.batchModalHeader}>
+              <View>
+                <Text style={styles.batchModalTitle}>Select Your College Batch</Text>
+                <Text style={styles.batchModalSub}>Filters your exact timetable, theory & 2-hr lab courses</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setBatchModalVisible(false)}
+              >
+                <MaterialCommunityIcons name="close" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {BATCH_GROUPS && Object.entries(BATCH_GROUPS).map(([groupKey, batchList]) => (
+                <View key={groupKey} style={styles.batchGroupSection}>
+                  <Text style={styles.batchGroupTitle}>{`GROUP ${groupKey} (${batchList.join(', ')})`}</Text>
+                  <View style={styles.batchGrid}>
+                    {batchList.map(batchCode => {
+                      const isSelected = (userBatch === batchCode);
+                      return (
+                        <TouchableOpacity
+                          key={batchCode}
+                          activeOpacity={0.8}
+                          style={[styles.batchCard, isSelected && styles.batchCardActive]}
+                          onPress={async () => {
+                            await switchBatch(batchCode);
+                            setBatchModalVisible(false);
+                          }}
+                        >
+                          <Text style={[styles.batchCardText, isSelected && styles.batchCardTextActive]}>
+                            {batchCode}
+                          </Text>
+                          {isSelected && (
+                            <MaterialCommunityIcons name="check-circle" size={14} color="#00D2FF" style={{ marginLeft: 4 }} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -648,6 +776,193 @@ const styles = StyleSheet.create({
   },
   btnActionTextActive: {
     color: '#FFF',
+    fontWeight: '900',
+  },
+
+  // Institution Row & Batch Pill
+  institutionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  batchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  batchPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+
+  // Test Notification Button
+  testNotificationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  testNotificationText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D2FF',
+  },
+
+  // Badges & Class Card Lab
+  classCardLab: {
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+    backgroundColor: '#0A0F1E',
+  },
+  classBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  badgeLab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+  },
+  badgeLabText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00D2FF',
+    letterSpacing: 0.5,
+  },
+  badgeTut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(241, 196, 15, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(241, 196, 15, 0.3)',
+  },
+  badgeTutText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#F1C40F',
+    letterSpacing: 0.5,
+  },
+  badgeLec: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(162, 155, 254, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(162, 155, 254, 0.3)',
+  },
+  badgeLecText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#A29BFE',
+    letterSpacing: 0.5,
+  },
+  badgeRoom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  badgeRoomText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  batchModalCard: {
+    backgroundColor: '#0D0D18',
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  batchModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  batchModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+  },
+  batchModalSub: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    padding: 6,
+  },
+  batchGroupSection: {
+    marginBottom: SPACING.md,
+  },
+  batchGroupTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D2FF',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  batchGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  batchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#131322',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 70,
+    justifyContent: 'center',
+  },
+  batchCardActive: {
+    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+    borderColor: '#00D2FF',
+  },
+  batchCardText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  batchCardTextActive: {
+    color: '#00D2FF',
     fontWeight: '900',
   },
 });

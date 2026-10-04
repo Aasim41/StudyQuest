@@ -27,7 +27,8 @@ import { useUser } from '../context/UserContext';
 const { width } = Dimensions.get('window');
 
 export default function PlannerScreen() {
-  const { timetable, attendanceRecords, updateManualAttendance } = useUser();
+  const { timetable, attendanceRecords, updateManualAttendance, userBatch } = useUser();
+  const [activeTab, setActiveTab] = useState('ALL'); // 'ALL' | 'THEORY' | 'LABS'
 
   // Distinct subjects from timetable + records
   const subjectsList = useMemo(() => {
@@ -44,6 +45,38 @@ export default function PlannerScreen() {
     }
     return Array.from(set);
   }, [timetable, attendanceRecords]);
+
+  // Categorize into Theory (L+T) and Labs (2 hrs)
+  const categorizedSubjects = useMemo(() => {
+    const list = subjectsList.map(name => {
+      const isLab = name.toLowerCase().includes('lab') || (timetable || []).some(t => t.subject === name && (t.isLab || t.sessionType === 'P'));
+      const weeklyItems = (timetable || []).filter(t => t.subject === name);
+      const lectures = weeklyItems.filter(t => t.sessionType === 'L').length;
+      const tutorials = weeklyItems.filter(t => t.sessionType === 'T').length;
+      const labs = weeklyItems.filter(t => t.sessionType === 'P').length;
+
+      return {
+        name,
+        isLab,
+        lectures,
+        tutorials,
+        labs,
+        weeklyTotal: weeklyItems.length,
+      };
+    });
+
+    return {
+      all: list,
+      theory: list.filter(s => !s.isLab),
+      labs: list.filter(s => s.isLab),
+    };
+  }, [subjectsList, timetable]);
+
+  const displayedSubjects = useMemo(() => {
+    if (activeTab === 'THEORY') return categorizedSubjects.theory;
+    if (activeTab === 'LABS') return categorizedSubjects.labs;
+    return categorizedSubjects.all;
+  }, [activeTab, categorizedSubjects]);
 
   // Overall attendance calculations
   const overallStats = useMemo(() => {
@@ -122,6 +155,9 @@ export default function PlannerScreen() {
     const currentPercent = total > 0 ? (attended / total) * 100 : 0;
     const target = targetCriteria;
 
+    const isLab = selectedSubject.toLowerCase().includes('lab') ||
+      (timetable || []).some(t => t.subject === selectedSubject && (t.isLab || t.sessionType === 'P'));
+
     let safeBunks = 0;
     let classesNeeded = 0;
 
@@ -140,12 +176,14 @@ export default function PlannerScreen() {
     const simulatedPercent = simulatedTotal > 0 ? (attended / simulatedTotal) * 100 : 0;
 
     const weeklyCount = (timetable || []).filter(item => item.subject === selectedSubject).length;
-    const estimatedRemainingClasses = weeklyCount * 8;
+    // For lab: 1 turn per week (about 8 remaining weeks in semester). For theory: weeklyCount * 8
+    const estimatedRemainingClasses = isLab ? 8 : (weeklyCount * 8);
     const maxPossibleTotal = total + estimatedRemainingClasses;
     const maxPossibleAttended = attended + estimatedRemainingClasses;
     const maxPossiblePercent = maxPossibleTotal > 0 ? (maxPossibleAttended / maxPossibleTotal) * 100 : 100;
 
     return {
+      isLab,
       attended,
       total,
       currentPercent,
@@ -214,18 +252,53 @@ export default function PlannerScreen() {
         {/* ─── SUBJECT CARDS SECTION ─────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Course Breakdown</Text>
-          <Text style={styles.sectionCount}>{subjectsList.length} Courses</Text>
+          <Text style={styles.sectionCount}>{displayedSubjects.length} Courses</Text>
         </View>
 
-        {subjectsList.length === 0 ? (
+        {/* ─── CATEGORY FILTER PILLS ──────────────────────────────────────────────── */}
+        <View style={styles.tabFilterRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.tabFilterPill, activeTab === 'ALL' && styles.tabFilterPillActive]}
+            onPress={() => setActiveTab('ALL')}
+          >
+            <Text style={[styles.tabFilterText, activeTab === 'ALL' && styles.tabFilterTextActive]}>
+              All ({categorizedSubjects.all.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.tabFilterPill, activeTab === 'THEORY' && styles.tabFilterPillActive]}
+            onPress={() => setActiveTab('THEORY')}
+          >
+            <Text style={[styles.tabFilterText, activeTab === 'THEORY' && styles.tabFilterTextActive]}>
+              Theory [L+T] ({categorizedSubjects.theory.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[styles.tabFilterPill, activeTab === 'LABS' && styles.tabFilterPillActive]}
+            onPress={() => setActiveTab('LABS')}
+          >
+            <Text style={[styles.tabFilterText, activeTab === 'LABS' && styles.tabFilterTextActive]}>
+              Labs [2 hrs] ({categorizedSubjects.labs.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {displayedSubjects.length === 0 ? (
           <ModernCard style={styles.emptyCard}>
             <MaterialCommunityIcons name="clipboard-text-clock" size={36} color={COLORS.textMuted} style={{ marginBottom: 8 }} />
-            <Text style={styles.emptyTitle}>No Courses Configured</Text>
-            <Text style={styles.emptySub}>Upload your timetable to automatically populate your subjects.</Text>
+            <Text style={styles.emptyTitle}>No Courses Found</Text>
+            <Text style={styles.emptySub}>No subjects found under the selected category.</Text>
           </ModernCard>
         ) : (
           <GSAPStagger delay={100} stagger={60}>
-            {subjectsList.map((subject, index) => {
+            {displayedSubjects.map((item, index) => {
+              const subject = item.name;
+              const isLab = item.isLab;
               const rec = attendanceRecords?.[subject] || { attended: 0, total: 0, missed: 0 };
               const percent = rec.total > 0 ? (rec.attended / rec.total) * 100 : 0;
               const color = getStatusColor(percent);
@@ -235,17 +308,38 @@ export default function PlannerScreen() {
                 quickBunkText = 'No attendance recorded';
               } else if (percent >= 70) {
                 const safe = Math.floor((100 * rec.attended - 70 * rec.total) / 70);
-                quickBunkText = safe > 0 ? `Can bunk ${safe} ${safe === 1 ? 'class' : 'classes'}` : 'Right at 70% threshold';
+                const safeWord = isLab ? (safe === 1 ? 'lab turn' : 'lab turns') : (safe === 1 ? 'class' : 'classes');
+                quickBunkText = safe > 0 ? `Can bunk ${safe} ${safeWord}` : 'Right at 70% threshold';
               } else {
                 const need = Math.ceil((70 * rec.total - 100 * rec.attended) / (100 - 70));
-                quickBunkText = `Need next ${need} classes for 70%`;
+                const needWord = isLab ? (need === 1 ? 'lab turn' : 'lab turns') : (need === 1 ? 'class' : 'classes');
+                quickBunkText = `Need next ${need} ${needWord} for 70%`;
               }
 
               return (
-                <View key={subject} style={styles.courseCard}>
+                <View key={subject} style={[styles.courseCard, isLab && styles.courseCardLab]}>
                   <View style={styles.courseTop}>
                     <View style={{ flex: 1, marginRight: 8 }}>
+                      <View style={styles.cardHeaderBadgeRow}>
+                        {isLab ? (
+                          <View style={styles.badgeLab}>
+                            <MaterialCommunityIcons name="flask-outline" size={11} color="#00D2FF" style={{ marginRight: 3 }} />
+                            <Text style={styles.badgeLabText}>PRACTICAL • 2 HRS</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.badgeTheory}>
+                            <MaterialCommunityIcons name="book-open-page-variant" size={11} color="#A29BFE" style={{ marginRight: 3 }} />
+                            <Text style={styles.badgeTheoryText}>THEORY (L+T COMBINED)</Text>
+                          </View>
+                        )}
+                      </View>
+
                       <Text style={styles.courseName} numberOfLines={1}>{subject}</Text>
+                      <Text style={styles.courseScheduleDetail}>
+                        {isLab
+                          ? '1 Lab Turn / Week (2 Contact Hours)'
+                          : `${item.lectures} Lectures + ${item.tutorials} Tutorials / Week`}
+                      </Text>
                       <Text style={[styles.bunkLabel, { color }]}>{quickBunkText}</Text>
                     </View>
                     <View style={[styles.percentBadge, { borderColor: color }]}>
@@ -315,6 +409,25 @@ export default function PlannerScreen() {
 
             {calcData && (
               <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Lab vs Theory Specific Banner */}
+                {calcData.isLab ? (
+                  <View style={styles.modalTypeBannerLab}>
+                    <MaterialCommunityIcons name="flask-outline" size={15} color="#00D2FF" style={{ marginRight: 6 }} />
+                    <Text style={styles.modalTypeBannerLabText}>
+                      <Text style={{ fontWeight: '800', color: '#00D2FF' }}>PRACTICAL (2 CONTACT HOURS): </Text>
+                      Labs meet once weekly (~12–14 turns/sem). Missing 1 lab turn causes a ~7–8% attendance drop.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.modalTypeBannerTheory}>
+                    <MaterialCommunityIcons name="book-open-page-variant" size={15} color="#A29BFE" style={{ marginRight: 6 }} />
+                    <Text style={styles.modalTypeBannerTheoryText}>
+                      <Text style={{ fontWeight: '800', color: '#A29BFE' }}>THEORY (L+T COMBINED): </Text>
+                      Lectures and Tutorials combine together towards your JUET 70% detention criteria.
+                    </Text>
+                  </View>
+                )}
+
                 {/* Standing Summary */}
                 <View style={styles.summaryBar}>
                   <View style={styles.summaryCol}>
@@ -364,14 +477,28 @@ export default function PlannerScreen() {
                     <>
                       <Text style={styles.outcomeTitle}>Safe to Skip</Text>
                       <Text style={styles.outcomeBody}>
-                        You can safely bunk the next <Text style={{ color: '#2ECC71', fontWeight: '900', fontSize: 16 }}>{calcData.safeBunks}</Text> classes and still stay above <Text style={{ fontWeight: '800' }}>{targetCriteria}%</Text>.
+                        You can safely bunk the next{' '}
+                        <Text style={{ color: '#2ECC71', fontWeight: '900', fontSize: 16 }}>
+                          {calcData.safeBunks}
+                        </Text>{' '}
+                        {calcData.isLab
+                          ? (calcData.safeBunks === 1 ? 'lab turn (2 hrs)' : 'lab turns (2 hrs each)')
+                          : (calcData.safeBunks === 1 ? 'class' : 'classes')}{' '}
+                        and still stay above <Text style={{ fontWeight: '800' }}>{targetCriteria}%</Text>.
                       </Text>
                     </>
                   ) : (
                     <>
                       <Text style={[styles.outcomeTitle, { color: '#E74C3C' }]}>Detention Risk</Text>
                       <Text style={styles.outcomeBody}>
-                        You must attend the next <Text style={{ color: '#E74C3C', fontWeight: '900', fontSize: 16 }}>{calcData.classesNeeded}</Text> classes consecutively to reach <Text style={{ fontWeight: '800' }}>{targetCriteria}%</Text>.
+                        You must attend the next{' '}
+                        <Text style={{ color: '#E74C3C', fontWeight: '900', fontSize: 16 }}>
+                          {calcData.classesNeeded}
+                        </Text>{' '}
+                        {calcData.isLab
+                          ? (calcData.classesNeeded === 1 ? 'lab turn (2 hrs)' : 'lab turns (2 hrs each)')
+                          : (calcData.classesNeeded === 1 ? 'class' : 'classes')}{' '}
+                        consecutively to reach <Text style={{ fontWeight: '800' }}>{targetCriteria}%</Text>.
                       </Text>
                     </>
                   )}
@@ -380,7 +507,11 @@ export default function PlannerScreen() {
                 {/* What-If Simulator */}
                 <Text style={[styles.calcHeading, { marginTop: SPACING.lg }]}>2. "What If I Skip?" Live Simulator</Text>
                 <View style={styles.simCard}>
-                  <Text style={styles.simNote}>Simulate skipping upcoming classes:</Text>
+                  <Text style={styles.simNote}>
+                    {calcData.isLab
+                      ? 'Simulate missing upcoming 2-hr lab turns:'
+                      : 'Simulate skipping upcoming classes:'}
+                  </Text>
                   <View style={styles.simButtonsRow}>
                     {[1, 2, 3, 4, 5].map(num => (
                       <TouchableOpacity
@@ -414,7 +545,7 @@ export default function PlannerScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.projTitle}>JUET Semester Projection</Text>
                     <Text style={styles.projBody}>
-                      Approx. <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{calcData.estimatedRemainingClasses}</Text> classes remaining before 05 Dec 2026.
+                      Approx. <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{calcData.estimatedRemainingClasses}</Text> {calcData.isLab ? 'lab turns' : 'classes'} remaining before 05 Dec 2026.
                       Max possible final attendance: <Text style={{ color: '#FFF', fontWeight: '800' }}>{calcData.maxPossiblePercent.toFixed(0)}%</Text>.
                     </Text>
                   </View>
@@ -728,6 +859,39 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 4,
+  },
+
+  modalTypeBannerLab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    borderRadius: BORDER_RADIUS.sm,
+    padding: 10,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+  },
+  modalTypeBannerLabText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#D1F2FE',
+    lineHeight: 16,
+  },
+  modalTypeBannerTheory: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(108, 92, 231, 0.08)',
+    borderRadius: BORDER_RADIUS.sm,
+    padding: 10,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 92, 231, 0.25)',
+  },
+  modalTypeBannerTheoryText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#E0DEFF',
+    lineHeight: 16,
   },
 
   summaryBar: {
