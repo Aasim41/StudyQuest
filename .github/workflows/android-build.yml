@@ -58,11 +58,10 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          file_path = Path("node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingPlugin.kt")
-          source = file_path.read_text()
-
-          if "import java.io.File" not in source:
-              source = source.replace("import java.nio.file.Paths", "import java.io.File\nimport java.nio.file.Paths")
+          candidate_paths = [
+              Path("node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingPlugin.kt"),
+              Path("node_modules/expo/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingPlugin.kt"),
+          ]
 
           old_block = (
               '    val srcDir = project.file("src/main/java/inline/modules/").absolutePath\n'
@@ -74,11 +73,20 @@ jobs:
               '    val buildDir = File(moduleDir, "build/inline/modules/").absolutePath\n'
           )
 
-          if old_block not in source and new_block not in source:
-              raise SystemExit("Expected inline modules path block not found in ExpoAutolinkingPlugin.kt")
+          patched_any = False
+          for file_path in candidate_paths:
+              if not file_path.exists():
+                  continue
+              source = file_path.read_text()
+              if "import java.io.File" not in source:
+                  source = source.replace("import java.nio.file.Paths", "import java.io.File\nimport java.nio.file.Paths")
+              if old_block in source:
+                  source = source.replace(old_block, new_block)
+              file_path.write_text(source)
+              patched_any = True
 
-          source = source.replace(old_block, new_block)
-          file_path.write_text(source)
+          if not patched_any:
+              raise SystemExit("ExpoAutolinkingPlugin.kt not found in expected node_modules paths")
           PY
 
       - name: 7. Generate Native Android Project
