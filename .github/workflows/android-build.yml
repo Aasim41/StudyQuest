@@ -52,6 +52,35 @@ jobs:
         working-directory: ./frontend
         run: npm install --legacy-peer-deps
 
+      - name: 6.1 Patch Expo Autolinking Inline Module Paths
+        working-directory: ./frontend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          file_path = Path("node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingPlugin.kt")
+          source = file_path.read_text()
+
+          if "import java.io.File" not in source:
+              source = source.replace("import java.nio.file.Paths", "import java.io.File\nimport java.nio.file.Paths")
+
+          old_block = (
+              '    val srcDir = project.file("src/main/java/inline/modules/").absolutePath\n'
+              '    val buildDir = project.file("build/inline/modules/").absolutePath\n'
+          )
+          new_block = (
+              '    val moduleDir = project.file("android").takeIf { it.exists() } ?: project.projectDir\n'
+              '    val srcDir = File(moduleDir, "src/main/java/inline/modules/").absolutePath\n'
+              '    val buildDir = File(moduleDir, "build/inline/modules/").absolutePath\n'
+          )
+
+          if old_block not in source and new_block not in source:
+              raise SystemExit("Expected inline modules path block not found in ExpoAutolinkingPlugin.kt")
+
+          source = source.replace(old_block, new_block)
+          file_path.write_text(source)
+          PY
+
       - name: 7. Generate Native Android Project
         working-directory: ./frontend
         run: npx expo prebuild -p android --clean --no-install
