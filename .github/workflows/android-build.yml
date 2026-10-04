@@ -42,6 +42,8 @@ jobs:
 
       - name: 4. Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - name: 5. Setup Gradle & Cache
         uses: gradle/actions/setup-gradle@v3
