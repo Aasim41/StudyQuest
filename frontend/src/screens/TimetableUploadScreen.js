@@ -79,7 +79,7 @@ export default function TimetableUploadScreen({ navigation }) {
       <FloatingParticle size={120} color={COLORS.accent} x={width * 0.6} y={height * 0.5} delay={500} />
 
       <Animated.View style={styles.header} entering={FadeInDown.delay(100).duration(600)}>
-        <Text style={styles.stepLabel}>STEP 6 OF 6</Text>
+        <Text style={styles.stepLabel}>STEP 2 OF 2</Text>
         <Text style={styles.title}>Your Class Timetable</Text>
         <Text style={styles.subtitle}>Upload your weekly class schedule so we know when you are busy.</Text>
       </Animated.View>
@@ -118,7 +118,7 @@ export default function TimetableUploadScreen({ navigation }) {
         <TouchableOpacity style={styles.manualButton} onPress={() => navigation.navigate('TimetableCorrection', { parsedTimetable: [] })}>
           <Text style={styles.manualText}>Or Fill Manually ✍️</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.skipButton} onPress={() => navigation.navigate('ScheduleGeneration')}>
+        <TouchableOpacity style={styles.skipButton} onPress={() => navigation.navigate('TimetableCorrection', { parsedTimetable: [] })}>
           <Text style={styles.skipText}>Skip for now</Text>
         </TouchableOpacity>
       </Animated.View>

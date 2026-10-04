@@ -8,6 +8,7 @@ import { GradientButton, FloatingParticle } from '../components/ui';
 import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUser } from '../context/UserContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,6 +31,7 @@ const EditableCell = ({ value, onChangeText, placeholder, style }) => (
 );
 
 export default function TimetableCorrectionScreen({ navigation, route }) {
+  const { saveTimetable, completeOnboarding } = useUser();
   const initialData = route.params?.parsedTimetable || INITIAL_TIMETABLE;
   const parsedCalendar = route.params?.parsedCalendar || [];
   
@@ -102,7 +104,8 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem('@onboarding_timetable', JSON.stringify(timetable));
-      navigation.replace('ScheduleGeneration');
+      await saveTimetable(timetable);
+      await completeOnboarding();
     } catch (err) {
       console.warn('Error saving timetable:', err);
     } finally {
@@ -119,7 +122,7 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
       <FloatingParticle size={100} color={COLORS.accent} x={-20} y={height * 0.6} delay={500} />
 
       <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.header}>
-        <Text style={styles.stepLabel}>STEP 3 OF 3</Text>
+        <Text style={styles.stepLabel}>FINAL STEP</Text>
         <Text style={styles.title}>Verify Timetable</Text>
         <Text style={styles.subtitle}>Review the parsed data and make corrections if needed.</Text>
       </Animated.View>
@@ -173,7 +176,7 @@ export default function TimetableCorrectionScreen({ navigation, route }) {
 
       <Animated.View entering={FadeInUp.delay(1000).springify()} style={styles.footer}>
         <GradientButton
-          title="Save & Continue"
+          title="Save & Launch Attendance Tracker 🎯"
           onPress={handleSave}
           loading={saving}
           style={styles.saveBtn}

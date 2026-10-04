@@ -143,12 +143,8 @@ export default function InstituteSearchScreen({ navigation, route }) {
         }).catch(err => console.warn('Background save error:', err));
       }
       
-      // Navigate immediately
-      if (isCollege) {
-        navigation.navigate('CalendarUpload');
-      } else {
-        navigation.navigate('SyllabusUpload'); // skip calendar
-      }
+      // Navigate directly to Timetable Upload
+      navigation.navigate('TimetableUpload');
 
     } catch (err) {
       console.error('Save error:', err);
@@ -177,11 +173,7 @@ export default function InstituteSearchScreen({ navigation, route }) {
           createdAt: new Date().toISOString(),
         }).catch(err => console.warn('Background save error:', err));
       }
-      if (isCollege) {
-        navigation.navigate('CalendarUpload');
-      } else {
-        navigation.navigate('SyllabusUpload');
-      }
+      navigation.navigate('TimetableUpload');
     } catch (err) {
       console.error('Save error:', err);
     } finally {

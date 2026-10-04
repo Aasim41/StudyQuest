@@ -113,7 +113,7 @@ const MainTabNavigator = () => (
       tabBarIcon: ({ color, size, focused }) => {
         let iconName = '';
         if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
-        else if (route.name === 'Planner') iconName = focused ? 'calendar-month' : 'calendar-month-outline';
+        else if (route.name === 'Planner') iconName = focused ? 'calculator' : 'calculator-variant-outline';
         else if (route.name === 'StudyTube') iconName = focused ? 'play-circle' : 'play-circle-outline';
         else if (route.name === 'Saved') iconName = focused ? 'bookmark' : 'bookmark-outline';
         else if (route.name === 'Analytics') iconName = focused ? 'chart-bar' : 'chart-bar-stacked';

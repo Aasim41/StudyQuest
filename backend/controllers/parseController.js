@@ -36,7 +36,7 @@ async function callVisionModelWithFallback(prompt, imageParts, req) {
   for (let i = 0; i < geminiClients.length; i++) {
     try {
       const response = await geminiClients[i].models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         contents: [{ text: prompt }, ...imageParts],
         config: { responseMimeType: "application/json" }
       });
@@ -66,7 +66,6 @@ async function callVisionModelWithFallback(prompt, imageParts, req) {
       const response = await groqClients[i].chat.completions.create({
         model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [{ role: "user", content: groqContent }],
-        // We omit response_format because the prompt asks for a JSON array, not an object.
       });
       return response.choices[0].message.content;
     } catch (err) {
@@ -102,30 +101,27 @@ async function parseTimetable(req, res) {
       return res.status(400).json({ success: false, error: 'No files uploaded' });
     }
 
-    const adminApp = req.app.locals.firebaseAdmin;
-    const genai = req.app.locals.genai;
-
-    // Bypass Firebase Storage upload since we only need the parsed data
     const fileUrl = "skipped";
 
-    // 4. Call Gemini Vision to extract timetable
+    // 4. Call Gemini 2.5 Pro Vision to extract timetable
     const prompt = `
-You are a highly advanced OCR and data extraction AI for a student planner application. Your job is to extract the weekly class schedule from the provided timetable (which may be blurry, have merged cells, or unusual layouts) with PIN-POINT ACCURACY.
+You are an expert data extraction AI. You are parsing a college timetable image to build an attendance tracking app. 
+Absolute precision is required. Do not hallucinate classes.
 
 Rules:
-1. Extract EVERY SINGLE CLASS listed. Do not miss any.
-2. If a cell spans multiple hours, create separate entries for each hour, OR accurately represent the full duration in the "time" field (e.g., "09:00 - 11:00").
-3. Ignore blank cells, lunch breaks, or empty slots.
-4. Correct obvious OCR typos (e.g., "Phy5ics" -> "Physics").
-5. Return the result STRICTLY as a JSON array of objects.
+1. Extract EVERY single valid class.
+2. If a class spans 2 hours (e.g. 10:00 - 12:00), CREATE TWO SEPARATE 1-HOUR ENTRIES (e.g. one for 10:00-11:00, one for 11:00-12:00) so attendance can be tracked per hour.
+3. Ignore blank slots, lunch breaks, and holidays.
+4. Correct spelling errors.
+5. Return STRICTLY a JSON array.
 
-Each object MUST have the following schema EXACTLY:
-- "id": a unique string (e.g. "1", "2")
-- "day": the day of the week, abbreviated to 3 letters (e.g., "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-- "time": the time slot in 24-hour format if possible (e.g., "09:00 - 10:00")
-- "subject": the name of the subject or class
-- "type": the type of class (e.g., "Lecture", "Lab", "Tutorial", "Seminar"). If not mentioned, assume "Lecture".
-- "confidence": a number between 0.0 and 1.0 indicating extraction confidence.
+Schema for each object in the array:
+- "id": a unique string (e.g. "uuid")
+- "day": exactly one of "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+- "time": the specific 1-hour slot (e.g., "10:00 - 11:00")
+- "subject": exact subject name
+- "type": "Lecture", "Lab", "Tutorial", or "Seminar"
+- "confidence": number between 0.0 and 1.0
 `;
 
     const parsedText = await callVisionModelWithFallback(prompt, imageParts, req);

@@ -24,6 +24,8 @@ export const UserProvider = ({ children }) => {
     lastStudyDate: null, avatarUrl: null, unlockedBadges: [], studyMinutesPerSubject: {} 
   });
   const [studyPlan, setStudyPlan] = useState([]);
+  const [timetable, setTimetable] = useState([]);
+  const [attendanceRecords, setAttendanceRecords] = useState({});
   const [savedVideos, setSavedVideos] = useState([]);
   const [watchHistory, setWatchHistory] = useState([]);
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
@@ -143,6 +145,16 @@ export const UserProvider = ({ children }) => {
       if (planStr) {
         setStudyPlan(JSON.parse(planStr));
       }
+
+      const timetableStr = await AsyncStorage.getItem('@timetable');
+      if (timetableStr) {
+        setTimetable(JSON.parse(timetableStr));
+      }
+
+      const attendanceStr = await AsyncStorage.getItem('@attendanceRecords');
+      if (attendanceStr) {
+        setAttendanceRecords(JSON.parse(attendanceStr));
+      }
       
       const videosStr = await AsyncStorage.getItem('@savedVideos');
       if (videosStr) {
@@ -176,6 +188,17 @@ export const UserProvider = ({ children }) => {
           unlockedBadges: data.unlockedBadges || [],
           studyMinutesPerSubject: data.studyMinutesPerSubject || {},
         });
+
+        if (data.timetable && Array.isArray(data.timetable)) {
+          setTimetable(data.timetable);
+          AsyncStorage.setItem('@timetable', JSON.stringify(data.timetable)).catch(() => {});
+        }
+
+        if (data.attendanceRecords && typeof data.attendanceRecords === 'object') {
+          setAttendanceRecords(data.attendanceRecords);
+          AsyncStorage.setItem('@attendanceRecords', JSON.stringify(data.attendanceRecords)).catch(() => {});
+        }
+
         // Sync onboarding flag from Firestore (survives reinstalls)
         // Also treat having an avatarUrl as proof that onboarding was completed
         // (covers the case where the flag wasn't saved due to a crash)
@@ -199,6 +222,131 @@ export const UserProvider = ({ children }) => {
       AsyncStorage.setItem('@studyPlan', JSON.stringify(newPlan)).catch(e => console.warn('Failed to save study plan locally', e));
     } catch (e) {
       console.warn('Failed to save study plan locally', e);
+    }
+  };
+
+  const saveTimetable = async (newTimetable) => {
+    setTimetable(newTimetable);
+    try {
+      await AsyncStorage.setItem('@timetable', JSON.stringify(newTimetable));
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { timetable: newTimetable }, { merge: true });
+      }
+
+      // Auto-initialize subjects in attendanceRecords if not present
+      const currentRecords = { ...attendanceRecords };
+      const uniqueSubjects = [...new Set(newTimetable.map(item => item.subject).filter(Boolean))];
+      let updated = false;
+      uniqueSubjects.forEach(sub => {
+        if (!currentRecords[sub]) {
+          currentRecords[sub] = { attended: 0, missed: 0, total: 0, history: {} };
+          updated = true;
+        }
+      });
+      if (updated) {
+        setAttendanceRecords(currentRecords);
+        await AsyncStorage.setItem('@attendanceRecords', JSON.stringify(currentRecords));
+        if (auth.currentUser) {
+          await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to save timetable', e);
+    }
+  };
+
+  const markClassAttendance = async (subject, dateStr, classId, status) => {
+    const currentRecords = { ...attendanceRecords };
+    const subRecord = currentRecords[subject] || { attended: 0, missed: 0, total: 0, history: {} };
+    const history = { ...(subRecord.history || {}) };
+    const prevStatus = history[dateStr]?.[classId];
+
+    if (prevStatus === status) return;
+
+    let attended = subRecord.attended || 0;
+    let missed = subRecord.missed || 0;
+    let total = subRecord.total || 0;
+
+    if (prevStatus === 'present') {
+      attended = Math.max(0, attended - 1);
+      total = Math.max(0, total - 1);
+    } else if (prevStatus === 'absent') {
+      missed = Math.max(0, missed - 1);
+      total = Math.max(0, total - 1);
+    }
+
+    if (status === 'present') {
+      attended += 1;
+      total += 1;
+    } else if (status === 'absent') {
+      missed += 1;
+      total += 1;
+    }
+
+    if (!history[dateStr]) history[dateStr] = {};
+    if (status === 'unmarked') {
+      delete history[dateStr][classId];
+    } else {
+      history[dateStr][classId] = status;
+    }
+
+    currentRecords[subject] = {
+      ...subRecord,
+      attended,
+      missed,
+      total,
+      history
+    };
+
+    setAttendanceRecords(currentRecords);
+
+    // XP Reward for attending
+    if (status === 'present') {
+      let newXp = (userStats.xp || 0) + 25;
+      let newLevel = userStats.level || 1;
+      let nextLevelXp = userStats.nextLevelXp || 1000;
+      if (newXp >= nextLevelXp) {
+        newLevel += 1;
+        newXp = newXp - nextLevelXp;
+        nextLevelXp = Math.floor(nextLevelXp * 1.5);
+      }
+      const newStats = { ...userStats, xp: newXp, level: newLevel, nextLevelXp };
+      saveStatsToFirestore(newStats);
+    }
+
+    try {
+      await AsyncStorage.setItem('@attendanceRecords', JSON.stringify(currentRecords));
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Failed to save attendance records', e);
+    }
+  };
+
+  const updateManualAttendance = async (subject, manualAttended, manualTotal) => {
+    const currentRecords = { ...attendanceRecords };
+    const subRecord = currentRecords[subject] || { history: {} };
+    const attended = Math.max(0, parseInt(manualAttended) || 0);
+    const total = Math.max(attended, parseInt(manualTotal) || 0);
+    const missed = total - attended;
+
+    currentRecords[subject] = {
+      ...subRecord,
+      attended,
+      missed,
+      total,
+      history: subRecord.history || {}
+    };
+
+    setAttendanceRecords(currentRecords);
+    try {
+      await AsyncStorage.setItem('@attendanceRecords', JSON.stringify(currentRecords));
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Failed to update manual attendance', e);
     }
   };
 
@@ -346,6 +494,11 @@ export const UserProvider = ({ children }) => {
       studyPlan,
       loadLocalStudyPlan,
       updateStudyPlan,
+      timetable,
+      attendanceRecords,
+      saveTimetable,
+      markClassAttendance,
+      updateManualAttendance,
       savedVideos,
       saveVideo,
       removeVideo,
