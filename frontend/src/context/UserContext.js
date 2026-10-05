@@ -255,13 +255,16 @@ export const UserProvider = ({ children }) => {
     };
     init();
     
-    // Request notification permissions and register interactive categories
     const setupNotifications = async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.warn('Notification permissions not granted');
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') {
+          console.warn('Notification permissions not granted');
+        }
+        await setupNotificationCategories();
+      } catch (err) {
+        console.warn('Notification setup safely skipped:', err);
       }
-      await setupNotificationCategories();
     };
     setupNotifications();
 

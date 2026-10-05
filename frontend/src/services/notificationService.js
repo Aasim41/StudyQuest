@@ -17,29 +17,40 @@ export const NOTIFICATION_ACTIONS = {
  */
 export async function setupNotificationCategories() {
   try {
-    await Notifications.setNotificationCategoryAsync(NOTIFICATION_CATEGORIES.CLASS_END, [
-      {
-        identifier: NOTIFICATION_ACTIONS.PRESENT,
-        buttonTitle: '✅ Present (+25 XP)',
-        options: {
-          opensAppToForeground: false,
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Class Attendance & Updates',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#00D2FF',
+      });
+    }
+
+    if (Platform.OS === 'ios') {
+      await Notifications.setNotificationCategoryAsync(NOTIFICATION_CATEGORIES.CLASS_END, [
+        {
+          identifier: NOTIFICATION_ACTIONS.PRESENT,
+          buttonTitle: '✅ Present (+25 XP)',
+          options: {
+            opensAppToForeground: false,
+          },
         },
-      },
-      {
-        identifier: NOTIFICATION_ACTIONS.ABSENT,
-        buttonTitle: '❌ Absent',
-        options: {
-          opensAppToForeground: false,
+        {
+          identifier: NOTIFICATION_ACTIONS.ABSENT,
+          buttonTitle: '❌ Absent',
+          options: {
+            opensAppToForeground: false,
+          },
         },
-      },
-      {
-        identifier: NOTIFICATION_ACTIONS.CANCELLED,
-        buttonTitle: '🚫 Off',
-        options: {
-          opensAppToForeground: false,
+        {
+          identifier: NOTIFICATION_ACTIONS.CANCELLED,
+          buttonTitle: '🚫 Off',
+          options: {
+            opensAppToForeground: false,
+          },
         },
-      },
-    ]);
+      ]);
+    }
   } catch (error) {
     console.warn('Failed to set notification categories:', error);
   }

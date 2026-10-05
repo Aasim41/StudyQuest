@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged } from 'firebase/auth';
 import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
@@ -100,11 +99,15 @@ const MainTabNavigator = () => (
         elevation: 10,
       },
       tabBarBackground: () => (
-        <BlurView 
-          tint="dark" 
-          intensity={80} 
-          style={StyleSheet.absoluteFill} 
-          pointerEvents="none"
+        <View 
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: 'rgba(12, 12, 24, 0.96)',
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255, 255, 255, 0.08)',
+            }
+          ]} 
         />
       ),
       tabBarShowLabel: false,
