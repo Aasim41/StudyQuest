@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -17,13 +18,15 @@ import {
   testTriggerClassEndNotification,
 } from '../services/notificationService';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 // Real initial JUET CampusLynx records for B31 (synced from portal)
 export const JUET_REAL_PORTAL_ATTENDANCE = {
