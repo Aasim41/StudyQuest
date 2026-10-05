@@ -24,7 +24,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, FONTS } from '../theme';
-import { ModernButton, ModernCard, MinimalProgress, GSAPStagger } from '../components/ui';
+import { ModernButton, ModernCard, MinimalProgress, GSAPStagger, SleekPill, PulseIndicator } from '../components/ui';
 import { ACADEMIC_CALENDAR } from '../config/academicCalendar';
 import {
   scheduleClassEndNotifications,
@@ -166,22 +166,22 @@ export default function DashboardScreen() {
               <View style={styles.institutionBadge}>
                 <Text style={styles.institutionBadgeText}>JUET GUNA • ODD SEM 2026</Text>
               </View>
-              <TouchableOpacity
-                style={styles.batchPill}
-                activeOpacity={0.8}
+              <SleekPill
+                label={`Batch: ${userBatch || 'B31'}`}
+                icon={<MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" />}
+                active={true}
+                activeColor="#00D2FF"
                 onPress={() => setBatchModalVisible(true)}
-              >
-                <MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
-                <Text style={styles.batchPillText}>Batch: <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{userBatch || 'B31'}</Text></Text>
-                <MaterialCommunityIcons name="menu-down" size={14} color="#00D2FF" />
-              </TouchableOpacity>
+                style={styles.batchPill}
+              />
 
               <TouchableOpacity
                 style={styles.syncLynxPill}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={() => setCampusLynxModalVisible(true)}
               >
-                <MaterialCommunityIcons name="cloud-sync" size={13} color="#2ECC71" style={{ marginRight: 3 }} />
+                <PulseIndicator size={6} color="#2ECC71" />
+                <MaterialCommunityIcons name="cloud-sync-outline" size={13} color="#2ECC71" style={{ marginHorizontal: 4 }} />
                 <Text style={styles.syncLynxPillText}>Sync</Text>
               </TouchableOpacity>
             </View>

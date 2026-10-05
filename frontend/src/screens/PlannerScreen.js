@@ -21,7 +21,7 @@ import Animated, {
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, FONTS } from '../theme';
-import { ModernButton, ModernCard, MinimalProgress, GSAPStagger } from '../components/ui';
+import { ModernButton, ModernCard, MinimalProgress, GSAPStagger, SleekPill, PulseIndicator } from '../components/ui';
 import { useUser } from '../context/UserContext';
 import CampusLynxSyncModal from '../components/CampusLynxSyncModal';
 import { auth } from '../../firebaseConfig';
@@ -310,22 +310,22 @@ export default function PlannerScreen() {
 
         {/* ─── ACTION BAR: BATCH SWITCHER & LIVE CAMPUSLYNX SYNC ──────────────────── */}
         <View style={styles.topControlRow}>
-          <TouchableOpacity
-            style={styles.batchPill}
-            activeOpacity={0.8}
+          <SleekPill
+            label={`Batch: ${userBatch || 'B31'}`}
+            icon={<MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" />}
+            active={true}
+            activeColor="#00D2FF"
             onPress={() => setBatchModalVisible(true)}
-          >
-            <MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
-            <Text style={styles.batchPillText}>Batch: <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{userBatch || 'B31'}</Text></Text>
-            <MaterialCommunityIcons name="menu-down" size={14} color="#00D2FF" />
-          </TouchableOpacity>
+            style={styles.batchPill}
+          />
 
           <TouchableOpacity
             style={styles.syncCampusLynxMainBtn}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             onPress={() => setCampusLynxModalVisible(true)}
           >
-            <MaterialCommunityIcons name="cloud-sync" size={15} color="#2ECC71" style={{ marginRight: 5 }} />
+            <PulseIndicator size={7} color="#2ECC71" />
+            <MaterialCommunityIcons name="cloud-sync-outline" size={15} color="#2ECC71" style={{ marginHorizontal: 5 }} />
             <Text style={styles.syncCampusLynxMainText}>Sync CampusLynx Live</Text>
           </TouchableOpacity>
         </View>
@@ -372,35 +372,26 @@ export default function PlannerScreen() {
 
         {/* ─── CATEGORY FILTER PILLS ──────────────────────────────────────────────── */}
         <View style={styles.tabFilterRow}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.tabFilterPill, activeTab === 'ALL' && styles.tabFilterPillActive]}
+          <SleekPill
+            label="All"
+            count={categorizedSubjects.all.length}
+            active={activeTab === 'ALL'}
             onPress={() => setActiveTab('ALL')}
-          >
-            <Text style={[styles.tabFilterText, activeTab === 'ALL' && styles.tabFilterTextActive]}>
-              All ({categorizedSubjects.all.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.tabFilterPill, activeTab === 'THEORY' && styles.tabFilterPillActive]}
+            style={{ marginRight: 8 }}
+          />
+          <SleekPill
+            label="Theory [L+T]"
+            count={categorizedSubjects.theory.length}
+            active={activeTab === 'THEORY'}
             onPress={() => setActiveTab('THEORY')}
-          >
-            <Text style={[styles.tabFilterText, activeTab === 'THEORY' && styles.tabFilterTextActive]}>
-              Theory [L+T] ({categorizedSubjects.theory.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.tabFilterPill, activeTab === 'LABS' && styles.tabFilterPillActive]}
+            style={{ marginRight: 8 }}
+          />
+          <SleekPill
+            label="Labs [2 hrs]"
+            count={categorizedSubjects.labs.length}
+            active={activeTab === 'LABS'}
             onPress={() => setActiveTab('LABS')}
-          >
-            <Text style={[styles.tabFilterText, activeTab === 'LABS' && styles.tabFilterTextActive]}>
-              Labs [2 hrs] ({categorizedSubjects.labs.length})
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
 
         {displayedSubjects.length === 0 ? (
@@ -432,7 +423,11 @@ export default function PlannerScreen() {
               }
 
               return (
-                <View key={subject} style={[styles.courseCard, isLab && styles.courseCardLab]}>
+                <ModernCard
+                  key={subject}
+                  style={[styles.courseCard, isLab && styles.courseCardLab]}
+                  onPress={() => openCalculator(subject)}
+                >
                   <View style={styles.courseTop}>
                     <View style={{ flex: 1, marginRight: 8 }}>
                       <View style={styles.cardHeaderBadgeRow}>
@@ -543,7 +538,7 @@ export default function PlannerScreen() {
                       <Text style={[styles.calcTriggerText, { color }]}>Calculator</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
+                </ModernCard>
               );
             })}
           </GSAPStagger>
@@ -632,15 +627,14 @@ export default function PlannerScreen() {
                 <Text style={styles.calcHeading}>1. Target Percentage</Text>
                 <View style={styles.targetRow}>
                   {[65, 70, 75, 80, 85].map(val => (
-                    <TouchableOpacity
+                    <SleekPill
                       key={val}
-                      style={[styles.targetPill, targetCriteria === val && styles.targetPillActive]}
+                      label={`${val}% ${val === 70 ? '★' : ''}`}
+                      active={targetCriteria === val}
+                      activeColor={val === 70 ? '#00D2FF' : COLORS.primary}
                       onPress={() => setTargetCriteria(val)}
-                    >
-                      <Text style={[styles.targetPillText, targetCriteria === val && styles.targetPillTextActive]}>
-                        {val}% {val === 70 ? '★' : ''}
-                      </Text>
-                    </TouchableOpacity>
+                      style={{ marginRight: 6, paddingHorizontal: 12 }}
+                    />
                   ))}
                 </View>
 
@@ -693,22 +687,18 @@ export default function PlannerScreen() {
                 <View style={styles.simCard}>
                   {calcData.hasTutorial && (
                     <View style={styles.simTypeToggleRow}>
-                      <TouchableOpacity
-                        style={[styles.simTypeBtn, simulatedSkipType === 'LECTURE' && styles.simTypeBtnActive]}
+                      <SleekPill
+                        label="Skip Lecture (L)"
+                        active={simulatedSkipType === 'LECTURE'}
                         onPress={() => setSimulatedSkipType('LECTURE')}
-                      >
-                        <Text style={[styles.simTypeBtnText, simulatedSkipType === 'LECTURE' && styles.simTypeBtnTextActive]}>
-                          Skip Lecture (L)
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.simTypeBtn, simulatedSkipType === 'TUTORIAL' && styles.simTypeBtnActive]}
+                        style={{ flex: 1, justifyContent: 'center', marginRight: 8 }}
+                      />
+                      <SleekPill
+                        label="Skip Tutorial (T)"
+                        active={simulatedSkipType === 'TUTORIAL'}
                         onPress={() => setSimulatedSkipType('TUTORIAL')}
-                      >
-                        <Text style={[styles.simTypeBtnText, simulatedSkipType === 'TUTORIAL' && styles.simTypeBtnTextActive]}>
-                          Skip Tutorial (T)
-                        </Text>
-                      </TouchableOpacity>
+                        style={{ flex: 1, justifyContent: 'center' }}
+                      />
                     </View>
                   )}
 
@@ -721,16 +711,22 @@ export default function PlannerScreen() {
                   </Text>
                   <View style={styles.simButtonsRow}>
                     {[1, 2, 3, 4, 5].map(num => (
-                      <TouchableOpacity
+                      <SleekPill
                         key={num}
-                        style={[styles.simStepBtn, simulatedSkips === num && styles.simStepBtnActive]}
+                        label={`+${num}`}
+                        active={simulatedSkips === num}
                         onPress={() => setSimulatedSkips(num)}
-                      >
-                        <Text style={[styles.simStepText, simulatedSkips === num && styles.simStepTextActive]}>
-                          +{num}
-                        </Text>
-                      </TouchableOpacity>
+                        style={{ flex: 1, justifyContent: 'center', marginHorizontal: 3, paddingVertical: 8 }}
+                      />
                     ))}
+                  </View>
+
+                  <View style={{ marginVertical: 10 }}>
+                    <MinimalProgress
+                      progress={calcData.simulatedPercent / 100}
+                      color={getStatusColor(calcData.simulatedPercent)}
+                      height={5}
+                    />
                   </View>
 
                   <View style={styles.simResultLine}>

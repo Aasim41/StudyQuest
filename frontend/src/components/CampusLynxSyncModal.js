@@ -14,6 +14,7 @@ import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
+import { PulseIndicator } from './ui';
 
 const { width, height } = Dimensions.get('window');
 
@@ -167,12 +168,14 @@ export default function CampusLynxSyncModal({ visible, onClose, onSyncComplete, 
     >
       <View style={styles.modalBackdrop}>
         <View style={styles.modalSheet}>
+          <View style={styles.sheetHandle} />
+
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <View style={styles.lynxBadge}>
-                <MaterialCommunityIcons name="shield-check-outline" size={14} color="#00D2FF" style={{ marginRight: 4 }} />
-                <Text style={styles.lynxBadgeText}>JUET CampusLynx Live Sync</Text>
+                <PulseIndicator size={6} color="#00D2FF" />
+                <Text style={[styles.lynxBadgeText, { marginLeft: 5 }]}>JUET CampusLynx Live Sync</Text>
               </View>
               <Text style={styles.headerTitle}>Student Portal Auto-Sync</Text>
             </View>
@@ -283,9 +286,17 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: height * 0.9,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   headerRow: {
     flexDirection: 'row',

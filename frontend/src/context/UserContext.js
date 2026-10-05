@@ -118,44 +118,58 @@ export const JUET_REAL_PORTAL_ATTENDANCE = {
 };
 
 // Helper to match CampusLynx raw subject codes with StudyQuest subjects
+// CRITICAL: Practical / Lab subjects are strictly treated as separate, distinct subjects!
 export function matchCampusLynxSubject(rawString, targetSubjectName) {
   if (!rawString || !targetSubjectName) return false;
   const raw = rawString.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const target = targetSubjectName.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-  if (raw.includes(target) || target.includes(raw)) return true;
+  // 1. ABSOLUTE SEPARATION: Practical / Lab subjects are separate from Theory subjects!
+  const labCodes = ['CS203', 'CS204', 'CS206', 'CS219', 'CS221', 'CS216', 'CS222'];
+  const isRawLab = raw.includes('LAB') || labCodes.some(c => raw.includes(c));
+  const isTargetLab = target.includes('LAB') || targetSubjectName.toUpperCase().includes('LAB') || labCodes.some(c => target.includes(c));
 
-  const codes = ['HS103', 'CS103', 'CS104', 'CS203', 'CS204', 'CS206', 'CS115', 'CS221', 'HS007', 'GE001', 'CS110', 'CS116', 'CS216'];
-  for (const c of codes) {
-    if (raw.includes(c) && target.includes(c)) return true;
+  // If one is a Lab and the other is NOT a Lab, they can NEVER match!
+  if (isRawLab !== isTargetLab) return false;
+
+  // 2. Exact JUET Course Code Match
+  const courseCodePairs = [
+    { code: 'HS103', lab: false },
+    { code: 'CS103', lab: false },
+    { code: 'CS104', lab: false },
+    { code: 'CS110', lab: false },
+    { code: 'CS115', lab: false },
+    { code: 'CS116', lab: false },
+    { code: 'HS007', lab: false },
+    { code: 'GE001', lab: false },
+    { code: 'CS203', lab: true }, // DS Lab
+    { code: 'CS204', lab: true }, // DBMS Lab
+    { code: 'CS206', lab: true }, // AP Lab-1
+    { code: 'CS219', lab: true }, // UNIX Lab
+    { code: 'CS221', lab: true }, // SM Lab
+    { code: 'CS216', lab: true }, // AI Lab
+    { code: 'CS222', lab: true }, // AI Lab
+  ];
+
+  for (const c of courseCodePairs) {
+    if (raw.includes(c.code) && target.includes(c.code)) {
+      return true;
+    }
   }
 
+  // 3. Name Match (Only within same Lab vs Theory category)
+  if (raw.includes('STATISTICAL') && target.includes('STATISTICAL')) return true;
+  if (raw.includes('DATASTRUCTURE') && target.includes('DATASTRUCTURE')) return true;
+  if (raw.includes('DATABASESYSTEM') && target.includes('DATABASESYSTEM')) return true;
+  if (raw.includes('ADVANCEDPROGRAMMING') && target.includes('ADVANCEDPROGRAMMING')) return true;
+  if (raw.includes('UNIX') && target.includes('UNIX')) return true;
+  if (raw.includes('AI') && target.includes('AI')) return true;
   if (raw.includes('DECISION') && target.includes('DECISION')) return true;
   if (raw.includes('CAREER') && target.includes('CAREER')) return true;
   if (raw.includes('ENVIRONMENT') && target.includes('ENVIRONMENT')) return true;
-  if (raw.includes('STATISTICAL') && target.includes('STATISTICAL')) {
-    const isRawLab = raw.includes('LAB') || raw.includes('CS221');
-    const isTargetLab = target.includes('LAB');
-    return isRawLab === isTargetLab;
-  }
-  if (raw.includes('DATASTRUCTURE') && target.includes('DATASTRUCTURE')) {
-    const isRawLab = raw.includes('LAB') || raw.includes('CS203');
-    const isTargetLab = target.includes('LAB');
-    return isRawLab === isTargetLab;
-  }
-  if (raw.includes('DATABASESYSTEM') && target.includes('DATABASESYSTEM')) {
-    const isRawLab = raw.includes('LAB') || raw.includes('CS204');
-    const isTargetLab = target.includes('LAB');
-    return isRawLab === isTargetLab;
-  }
   if (raw.includes('COMPUTATION') && target.includes('COMPUTATION')) return true;
-  if (raw.includes('ADVANCEDPROGRAMMING') && target.includes('ADVANCEDPROGRAMMING')) return true;
-  if (raw.includes('UNIX') && target.includes('UNIX')) return true;
-  if (raw.includes('AI') && target.includes('AI')) {
-    const isRawLab = raw.includes('LAB');
-    const isTargetLab = target.includes('LAB');
-    return isRawLab === isTargetLab;
-  }
+
+  if (raw.includes(target) || target.includes(raw)) return true;
 
   return false;
 }
