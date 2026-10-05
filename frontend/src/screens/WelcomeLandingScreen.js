@@ -4,26 +4,27 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp, withRepeat, withTiming, useSharedValue, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
-import { FloatingParticle, GlassCard, GradientButton } from '../components/ui';
+import { FloatingParticle, GlassCard } from '../components/ui';
 import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
 export default function WelcomeLandingScreen() {
   const navigation = useNavigation();
 
-  // Simple floating animation for the mock card
+  // Subtle floating animation for preview card
   const floatValue = useSharedValue(0);
   React.useEffect(() => {
     floatValue.value = withRepeat(
-      withTiming(1, { duration: 3000 }),
+      withTiming(1, { duration: 3200 }),
       -1,
       true
     );
   }, []);
 
   const floatingCardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: interpolate(floatValue.value, [0, 1], [0, -15], Extrapolation.CLAMP) }]
+    transform: [{ translateY: interpolate(floatValue.value, [0, 1], [0, -12], Extrapolation.CLAMP) }]
   }));
 
   return (
@@ -31,18 +32,27 @@ export default function WelcomeLandingScreen() {
       <StatusBar style="light" />
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
       
-      {/* Background Particles */}
-      <FloatingParticle size={300} color={COLORS.primary} x={-100} y={-50} delay={100} />
-      <FloatingParticle size={200} color={COLORS.accent} x={width * 0.5} y={height * 0.4} delay={500} />
-      <FloatingParticle size={150} color={COLORS.streak} x={width * 0.2} y={height * 0.8} delay={900} />
+      {/* Ambient background glow orbs */}
+      <FloatingParticle size={280} color={COLORS.primary} x={-100} y={-40} delay={100} />
+      <FloatingParticle size={200} color={COLORS.accent} x={width * 0.6} y={height * 0.35} delay={400} />
+      <FloatingParticle size={160} color="#2ECC71" x={width * 0.15} y={height * 0.75} delay={800} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Header (Nav bar) */}
+        {/* Header Bar */}
         <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.navBar}>
-          <Text style={styles.logoText}>StudyQuest</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.loginText}>Log In</Text>
+          <View style={styles.brandRow}>
+            <View style={styles.logoBadge}>
+              <MaterialCommunityIcons name="check-decagram" size={20} color="#00D2FF" />
+            </View>
+            <Text style={styles.logoText}>StudyQuest</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.navLoginBtn}
+            onPress={() => navigation.navigate('Login')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.loginText}>Sign In</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -50,36 +60,39 @@ export default function WelcomeLandingScreen() {
         <View style={styles.heroSection}>
           <Animated.View entering={FadeInDown.delay(200).springify()}>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>✨ AI-Powered Personalized Learning</Text>
+              <MaterialCommunityIcons name="school" size={14} color="#00D2FF" style={{ marginRight: 6 }} />
+              <Text style={styles.badgeText}>JUET CampusLynx Attendance Tracker</Text>
             </View>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Text style={styles.heroTitle}>
-              Unlocking the future with {'\n'}
-              <Text style={styles.heroTitleAccent}>Intelligent Learning.</Text>
+              Never Get Detained.{'\n'}
+              <Text style={styles.heroTitleAccent}>Track Every Bunk.</Text>
             </Text>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(400).springify()}>
             <Text style={styles.heroSubtitle}>
-              StudyQuest is a premier learning platform dedicated to equipping students with AI-powered, personalized education that adapts to your unique learning style.
+              Direct 1-tap CampusLynx sync with your Enrollment Number. Real-time calculations for safe bunks, live detention warnings, and strict Theory vs Lab separation.
             </Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.actionContainer}>
+          {/* Action Row */}
+          <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.actionContainer}>
             <TouchableOpacity 
               style={styles.primaryBtn} 
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Signup')}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Login')}
             >
               <LinearGradient
-                colors={COLORS.gradientPrimary}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
+                colors={['#6C5CE7', '#00D2FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
                 style={styles.primaryBtnGradient}
               >
-                <Text style={styles.primaryBtnText}>Start Your Journey</Text>
+                <MaterialCommunityIcons name="login" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.primaryBtnText}>Sign In with Enrollment No.</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -93,60 +106,70 @@ export default function WelcomeLandingScreen() {
           </Animated.View>
         </View>
 
-        {/* Mock Graphic Section */}
+        {/* Live Attendance Preview Graphic */}
         <Animated.View entering={FadeInUp.delay(700).springify()} style={styles.graphicSection}>
           <Animated.View style={[styles.mockCardWrapper, floatingCardStyle]}>
             <GlassCard style={styles.mockCard}>
               <View style={styles.mockCardHeader}>
                 <View>
-                  <Text style={styles.mockCardTitle}>LIVE PROGRESS</Text>
-                  <Text style={styles.mockCardSubtitle}>Your Learning Path</Text>
+                  <Text style={styles.mockCardTitle}>CAMPUSLYNX PORTAL • BATCH B31</Text>
+                  <Text style={styles.mockCardSubtitle}>Live Attendance Status</Text>
                 </View>
                 <View style={styles.masteryBadge}>
-                  <Text style={styles.masteryText}>85% Mastered</Text>
+                  <Text style={styles.masteryText}>84.8% Safe</Text>
                 </View>
               </View>
 
-              <Text style={styles.mockTopic}>DSA Mastery</Text>
+              {/* Subject Breakdown preview */}
+              <View style={styles.previewSubjectRow}>
+                <Text style={styles.previewSubjectName}>Data Structures (DS)</Text>
+                <Text style={styles.previewSubjectPercent}>89.2%</Text>
+              </View>
               <View style={styles.mockProgressBarBg}>
-                <View style={[styles.mockProgressBarFill, { width: '85%' }]} />
+                <View style={[styles.mockProgressBarFill, { width: '89.2%' }]} />
               </View>
 
               <View style={styles.mockStatsRow}>
-                <View style={[styles.mockStatBox, { backgroundColor: 'rgba(46, 204, 113, 0.1)' }]}>
-                  <Text style={styles.mockStatLabel}>Concepts Mastered</Text>
-                  <Text style={[styles.mockStatValue, { color: '#2ECC71' }]}>18 / 24</Text>
+                <View style={[styles.mockStatBox, { backgroundColor: 'rgba(46, 204, 113, 0.12)' }]}>
+                  <Text style={styles.mockStatLabel}>Safe to Bunk</Text>
+                  <Text style={[styles.mockStatValue, { color: '#2ECC71' }]}>+4 Lectures</Text>
                 </View>
-                <View style={[styles.mockStatBox, { backgroundColor: 'rgba(243, 156, 18, 0.1)' }]}>
-                  <Text style={styles.mockStatLabel}>Current Focus</Text>
-                  <Text style={[styles.mockStatValue, { color: '#F39C12' }]}>Two Pointers</Text>
+                <View style={[styles.mockStatBox, { backgroundColor: 'rgba(0, 210, 255, 0.12)' }]}>
+                  <Text style={styles.mockStatLabel}>Labs (Isolated)</Text>
+                  <Text style={[styles.mockStatValue, { color: '#00D2FF' }]}>100% Attended</Text>
                 </View>
               </View>
 
               <View style={styles.mockAiComment}>
-                <Text style={styles.mockAiText}>✨ "You've improved 15% in Data Structures this week. Keep going!"</Text>
+                <MaterialCommunityIcons name="shield-check" size={16} color="#2ECC71" style={{ marginRight: 6 }} />
+                <Text style={styles.mockAiText}>You are safely 9.8% above the 75% criteria threshold.</Text>
               </View>
             </GlassCard>
+            
             <View style={styles.floatingAiBadge}>
-               <Text style={styles.floatingAiText}>AI-Powered</Text>
+              <MaterialCommunityIcons name="lightning-bolt" size={14} color="#00F5FF" style={{ marginRight: 4 }} />
+              <Text style={styles.floatingAiText}>CampusLynx Sync</Text>
             </View>
           </Animated.View>
         </Animated.View>
 
-        {/* Social Proof */}
-        <Animated.View entering={FadeInDown.delay(900).springify()} style={styles.socialProof}>
-          <View style={styles.avatars}>
-            <View style={[styles.avatarCircle, { backgroundColor: '#FF6B35', zIndex: 3 }]} />
-            <View style={[styles.avatarCircle, { backgroundColor: '#4A90D9', zIndex: 2, marginLeft: -15 }]} />
-            <View style={[styles.avatarCircle, { backgroundColor: '#2ECC71', zIndex: 1, marginLeft: -15 }]} />
+        {/* Feature Badges Row */}
+        <Animated.View entering={FadeInDown.delay(850).springify()} style={styles.featureRow}>
+          <View style={styles.featurePill}>
+            <MaterialCommunityIcons name="flask-outline" size={15} color="#00D2FF" />
+            <Text style={styles.featurePillText}>Strict Lab Isolation</Text>
           </View>
-          <View style={styles.socialTextContainer}>
-            <Text style={styles.socialNumber}>10,000+ Students</Text>
-            <Text style={styles.socialSub}>joined this month</Text>
+          <View style={styles.featurePill}>
+            <MaterialCommunityIcons name="calculator-variant-outline" size={15} color="#A29BFE" />
+            <Text style={styles.featurePillText}>Live Bunk Calc</Text>
+          </View>
+          <View style={styles.featurePill}>
+            <MaterialCommunityIcons name="bell-ring-outline" size={15} color="#FF6B35" />
+            <Text style={styles.featurePillText}>Detention Alerts</Text>
           </View>
         </Animated.View>
         
-        <View style={{ height: 50 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -154,47 +177,47 @@ export default function WelcomeLandingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, paddingBottom: SPACING.xxl },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.07, paddingBottom: SPACING.xxl },
   navBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xxl },
-  logoText: { color: COLORS.textPrimary, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
-  loginText: { color: COLORS.textSecondary, fontSize: FONT_SIZES.body, fontWeight: '700' },
-  heroSection: { marginTop: SPACING.lg, marginBottom: SPACING.xxl },
-  badge: { backgroundColor: 'rgba(46, 204, 113, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.pill, alignSelf: 'flex-start', marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(46, 204, 113, 0.3)' },
-  badgeText: { color: '#2ECC71', fontSize: 12, fontWeight: '800' },
-  heroTitle: { color: COLORS.textPrimary, fontSize: 38, fontWeight: '900', lineHeight: 46, marginBottom: SPACING.lg },
-  heroTitleAccent: { color: COLORS.primary },
-  heroSubtitle: { color: COLORS.textSecondary, fontSize: 16, lineHeight: 24, marginBottom: SPACING.xxl },
-  actionContainer: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  primaryBtn: { flex: 1, borderRadius: BORDER_RADIUS.pill, overflow: 'hidden', ...SHADOWS.glow },
-  primaryBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryBtnText: { color: '#FFF', fontSize: FONT_SIZES.bodyLarge, fontFamily: FONTS.extraBold },
-  secondaryBtn: { flex: 1, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: BORDER_RADIUS.pill, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder },
-  secondaryBtnText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.bodyLarge, fontFamily: FONTS.extraBold },
-  howItWorksBtn: { paddingVertical: 16, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center' },
-  howItWorksText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: '700' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoBadge: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(0, 210, 255, 0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0, 210, 255, 0.3)' },
+  logoText: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },
+  navLoginBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: BORDER_RADIUS.pill, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.15)' },
+  loginText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: '700' },
+  heroSection: { marginTop: SPACING.md, marginBottom: SPACING.xxl },
+  badge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0, 210, 255, 0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.pill, alignSelf: 'flex-start', marginBottom: SPACING.lg, borderWidth: 1, borderColor: 'rgba(0, 210, 255, 0.3)' },
+  badgeText: { color: '#00D2FF', fontSize: 12, fontWeight: '800' },
+  heroTitle: { color: COLORS.textPrimary, fontSize: 36, fontWeight: '900', lineHeight: 44, marginBottom: SPACING.md },
+  heroTitleAccent: { color: COLORS.accent },
+  heroSubtitle: { color: COLORS.textSecondary, fontSize: 15, lineHeight: 22, marginBottom: SPACING.xl },
+  actionContainer: { flexDirection: 'column', gap: 12 },
+  primaryBtn: { borderRadius: BORDER_RADIUS.pill, overflow: 'hidden', ...SHADOWS.glow },
+  primaryBtnGradient: { flexDirection: 'row', paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryBtnText: { color: '#FFF', fontSize: FONT_SIZES.bodyLarge, fontWeight: '800' },
+  secondaryBtn: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderRadius: BORDER_RADIUS.pill, backgroundColor: COLORS.glass, borderWidth: 1, borderColor: COLORS.glassBorder },
+  secondaryBtnText: { color: COLORS.textPrimary, fontSize: FONT_SIZES.body, fontWeight: '700' },
   graphicSection: { alignItems: 'center', marginVertical: SPACING.xl },
   mockCardWrapper: { width: '100%', position: 'relative' },
-  mockCard: { padding: SPACING.xl, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: BORDER_RADIUS.xl },
-  mockCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
+  mockCard: { padding: SPACING.xl, backgroundColor: 'rgba(16, 16, 36, 0.85)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: BORDER_RADIUS.xl },
+  mockCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
   mockCardTitle: { color: COLORS.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 2 },
-  mockCardSubtitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '800' },
-  masteryBadge: { backgroundColor: '#2ECC71', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  masteryText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
-  mockTopic: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 8 },
-  mockProgressBarBg: { width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, marginBottom: SPACING.xl },
-  mockProgressBarFill: { height: '100%', backgroundColor: '#2ECC71', borderRadius: 3 },
-  mockStatsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: SPACING.md, marginBottom: SPACING.lg },
-  mockStatBox: { flex: 1, padding: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  mockStatLabel: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '600', marginBottom: 4 },
-  mockStatValue: { fontSize: 16, fontWeight: '800' },
-  mockAiComment: { backgroundColor: 'rgba(255,255,255,0.03)', padding: SPACING.md, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  mockAiText: { color: COLORS.textSecondary, fontSize: 12, fontStyle: 'italic', fontWeight: '500' },
-  floatingAiBadge: { position: 'absolute', top: -15, right: -10, backgroundColor: '#F39C12', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, ...SHADOWS.glow },
-  floatingAiText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-  socialProof: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.xl },
-  avatars: { flexDirection: 'row' },
-  avatarCircle: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: COLORS.background },
-  socialTextContainer: { marginLeft: SPACING.md },
-  socialNumber: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '800' },
-  socialSub: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '500' }
+  mockCardSubtitle: { color: COLORS.textPrimary, fontSize: 17, fontWeight: '800' },
+  masteryBadge: { backgroundColor: 'rgba(46, 204, 113, 0.2)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(46, 204, 113, 0.4)' },
+  masteryText: { color: '#2ECC71', fontSize: 12, fontWeight: '800' },
+  previewSubjectRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 6 },
+  previewSubjectName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700' },
+  previewSubjectPercent: { color: '#00D2FF', fontSize: 14, fontWeight: '800' },
+  mockProgressBarBg: { width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginBottom: SPACING.lg },
+  mockProgressBarFill: { height: '100%', backgroundColor: '#00D2FF', borderRadius: 3 },
+  mockStatsRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.md },
+  mockStatBox: { flex: 1, padding: 12, borderRadius: 14, alignItems: 'center' },
+  mockStatLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  mockStatValue: { fontSize: 16, fontWeight: '900' },
+  mockAiComment: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(46, 204, 113, 0.08)', padding: 10, borderRadius: 10 },
+  mockAiText: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', flex: 1 },
+  floatingAiBadge: { position: 'absolute', top: -12, right: 16, backgroundColor: '#0A0A1A', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,210,255,0.4)', ...SHADOWS.glowAccent },
+  floatingAiText: { color: '#00F5FF', fontSize: 11, fontWeight: '800' },
+  featureRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 8, marginTop: 8 },
+  featurePill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.05)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: BORDER_RADIUS.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  featurePillText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700' },
 });

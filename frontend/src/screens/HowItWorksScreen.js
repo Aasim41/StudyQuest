@@ -4,34 +4,35 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
 const WORKFLOW_STEPS = [
   {
-    icon: '📚',
-    title: 'Upload Data',
-    desc: 'Enter your timetable, academic calendar, and syllabus to give the AI context about your studies.'
+    icon: 'card-account-details-outline',
+    title: '1. Enrollment No. & Password',
+    desc: 'Sign in directly with your JUET Enrollment Number and CampusLynx password. Your credentials stay secure on your device.'
   },
   {
-    icon: '🧠',
-    title: 'AI Processing',
-    desc: 'Our advanced Llama AI analyzes your inputs and generates a smart, optimized daily study schedule.'
+    icon: 'account-group-outline',
+    title: '2. Select Your Batch (e.g. B31)',
+    desc: 'Select your batch to automatically load your exact semester class timetable, including lectures, tutorials, and practicals.'
   },
   {
-    icon: '📅',
-    title: 'Study Plan',
-    desc: 'View your personalized schedule. The AI automatically allocates more time to tougher subjects.'
+    icon: 'sync',
+    title: '3. 1-Tap CampusLynx Sync',
+    desc: 'Sync real-time attendance directly from the portal without having to repeatedly solve captchas or re-login.'
   },
   {
-    icon: '⏱️',
-    title: 'Focus Timer',
-    desc: 'Use the built-in Pomodoro timer to focus on your sessions, earn XP, and level up your academic journey!'
+    icon: 'calculator-variant-outline',
+    title: '4. Smart Bunk Calculator',
+    desc: 'See exactly how many upcoming classes you can safely miss, or how many you must attend consecutively to hit 75% or 80%.'
   },
   {
-    icon: '🎥',
-    title: 'AI Video Summarizer',
-    desc: 'Paste any YouTube educational video link, and the AI will extract the transcript and summarize it instantly.'
+    icon: 'flask-outline',
+    title: '5. Strict Theory vs Lab Isolation',
+    desc: 'Practicals and Labs are scored independently from theory so a low lab attendance is never hidden by lectures.'
   }
 ];
 
@@ -41,20 +42,19 @@ export default function HowItWorksScreen({ navigation }) {
       <StatusBar style="light" />
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
-      <Animated.View entering={FadeIn.duration(800)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(600)} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text>
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>How It Works</Text>
         <View style={{ width: 40 }} /> 
       </Animated.View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.delay(200).springify()}>
-          <Text style={styles.subtitle}>Supercharge your learning with AI</Text>
+        <Animated.View entering={FadeInDown.delay(150).springify()}>
+          <Text style={styles.subtitle}>CampusLynx Attendance Tracking</Text>
           <Text style={styles.description}>
-            StudyQuest uses advanced Artificial Intelligence to analyze your academic life and create the perfect study routine. 
-            Here is how you can get the most out of it:
+            StudyQuest is built specifically for JUET students to eliminate attendance anxiety. Here is how your attendance and bunk calculations are managed:
           </Text>
         </Animated.View>
 
@@ -62,12 +62,12 @@ export default function HowItWorksScreen({ navigation }) {
           {WORKFLOW_STEPS.map((step, index) => (
             <Animated.View 
               key={index} 
-              entering={FadeInDown.delay(400 + index * 100).springify()}
+              entering={FadeInDown.delay(250 + index * 80).springify()}
               style={styles.stepCard}
             >
-              <LinearGradient colors={COLORS.gradientGlass} style={styles.stepGradient}>
+              <LinearGradient colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']} style={styles.stepGradient}>
                 <View style={styles.iconContainer}>
-                  <Text style={styles.stepIcon}>{step.icon}</Text>
+                  <MaterialCommunityIcons name={step.icon} size={26} color="#00D2FF" />
                 </View>
                 <View style={styles.stepTextContainer}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
@@ -78,10 +78,10 @@ export default function HowItWorksScreen({ navigation }) {
           ))}
         </View>
 
-        <Animated.View entering={FadeInDown.delay(1000).springify()} style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()}>
-            <LinearGradient colors={COLORS.gradientPrimary} style={styles.primaryBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Text style={styles.primaryBtnText}>Got it! Let's Go</Text>
+        <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.footer}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Login')}>
+            <LinearGradient colors={['#6C5CE7', '#00D2FF']} style={styles.primaryBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              <Text style={styles.primaryBtnText}>Sign In Now</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -97,51 +97,94 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
-    paddingTop: height * 0.07,
+    paddingTop: height * 0.06,
     paddingBottom: SPACING.md,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.glass,
-    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder
+    alignItems: 'center',
   },
-  backIcon: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  headerTitle: { fontSize: FONT_SIZES.title, fontWeight: '800', color: '#FFF' },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 60, paddingTop: SPACING.lg },
-  subtitle: { fontSize: FONT_SIZES.heading, fontWeight: '800', color: COLORS.accent, marginBottom: SPACING.md },
-  description: { fontSize: FONT_SIZES.bodyLarge, color: COLORS.textSecondary, lineHeight: 24, marginBottom: SPACING.xl },
-  stepsContainer: { gap: SPACING.md },
+  headerTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxl,
+  },
+  subtitle: {
+    color: '#00D2FF',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  description: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: SPACING.xl,
+  },
+  stepsContainer: {
+    gap: 14,
+  },
   stepCard: {
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   stepGradient: {
     flexDirection: 'row',
-    padding: SPACING.lg,
-    alignItems: 'center',
+    padding: 16,
+    alignItems: 'flex-start',
   },
   iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+  },
+  stepTextContainer: {
+    flex: 1,
+  },
+  stepTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  stepDesc: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  footer: {
+    marginTop: SPACING.xxl,
+    marginBottom: SPACING.xl,
+  },
+  primaryBtn: {
+    borderRadius: BORDER_RADIUS.pill,
+    overflow: 'hidden',
+  },
+  primaryBtnGradient: {
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.lg,
   },
-  stepIcon: { fontSize: 24 },
-  stepTextContainer: { flex: 1 },
-  stepTitle: { fontSize: FONT_SIZES.subtitle, fontWeight: '700', color: '#FFF', marginBottom: 4 },
-  stepDesc: { fontSize: FONT_SIZES.body, color: COLORS.textMuted, lineHeight: 20 },
-  footer: { marginTop: SPACING.xxl, alignItems: 'center' },
-  primaryBtn: { width: '100%', borderRadius: BORDER_RADIUS.pill, overflow: 'hidden' },
-  primaryBtnGradient: { paddingVertical: SPACING.lg, alignItems: 'center' },
-  primaryBtnText: { color: '#FFF', fontSize: FONT_SIZES.bodyLarge, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  primaryBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
 });
