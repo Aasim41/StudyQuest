@@ -19,9 +19,6 @@ import HowItWorksScreen from '../screens/HowItWorksScreen';
 
 // Setup & Profile Screens
 import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
-import UserTypeScreen from '../screens/UserTypeScreen';
-import InstituteSearchScreen from '../screens/InstituteSearchScreen';
-import TimetableUploadScreen from '../screens/TimetableUploadScreen';
 import TimetableCorrectionScreen from '../screens/TimetableCorrectionScreen';
 
 // Core Attendance Screens
@@ -57,9 +54,6 @@ const OnboardingStack = () => (
     }}
   >
     <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
-    <Stack.Screen name="UserType" component={UserTypeScreen} />
-    <Stack.Screen name="InstituteSearch" component={InstituteSearchScreen} />
-    <Stack.Screen name="TimetableUpload" component={TimetableUploadScreen} />
     <Stack.Screen name="TimetableCorrection" component={TimetableCorrectionScreen} />
   </Stack.Navigator>
 );
