@@ -208,44 +208,45 @@ export const UserProvider = ({ children }) => {
     };
     init();
     
-    const setupNotifications = async () => {
-      try {
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status !== 'granted') {
-          console.warn('Notification permissions not granted');
+    if (Platform.OS !== 'web') {
+      const setupNotifications = async () => {
+        try {
+          const { status } = await Notifications.requestPermissionsAsync();
+          if (status !== 'granted') {
+            console.warn('Notification permissions not granted');
+          }
+          await setupNotificationCategories();
+        } catch (err) {
+          console.warn('Notification setup safely skipped:', err);
         }
-        await setupNotificationCategories();
-      } catch (err) {
-        console.warn('Notification setup safely skipped:', err);
-      }
-    };
-    setupNotifications();
+      };
+      setupNotifications();
 
-    // Listen for direct interactive actions tapped on notification shade (Present / Absent / Off)
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      try {
-        const actionId = response.actionIdentifier;
-        const data = response.notification?.request?.content?.data;
-        if (!data || data.type !== 'class_end') return;
+      const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+        try {
+          const actionId = response.actionIdentifier;
+          const data = response.notification?.request?.content?.data;
+          if (!data || data.type !== 'class_end') return;
 
-        const { subject, dateStr, classId } = data;
-        if (!subject || !classId) return;
+          const { subject, dateStr, classId } = data;
+          if (!subject || !classId) return;
 
-        if (actionId === NOTIFICATION_ACTIONS.PRESENT) {
-          markClassAttendance(subject, dateStr, classId, 'present');
-        } else if (actionId === NOTIFICATION_ACTIONS.ABSENT) {
-          markClassAttendance(subject, dateStr, classId, 'absent');
-        } else if (actionId === NOTIFICATION_ACTIONS.CANCELLED) {
-          markClassAttendance(subject, dateStr, classId, 'cancelled');
+          if (actionId === NOTIFICATION_ACTIONS.PRESENT) {
+            markClassAttendance(subject, dateStr, classId, 'present');
+          } else if (actionId === NOTIFICATION_ACTIONS.ABSENT) {
+            markClassAttendance(subject, dateStr, classId, 'absent');
+          } else if (actionId === NOTIFICATION_ACTIONS.CANCELLED) {
+            markClassAttendance(subject, dateStr, classId, 'cancelled');
+          }
+        } catch (err) {
+          console.warn('Error processing notification response action:', err);
         }
-      } catch (err) {
-        console.warn('Error processing notification response action:', err);
-      }
-    });
+      });
 
-    return () => {
-      responseSubscription.remove();
-    };
+      return () => {
+        responseSubscription.remove();
+      };
+    }
   }, []);
 
   const scheduleStudyNotifications = async (plan) => {
