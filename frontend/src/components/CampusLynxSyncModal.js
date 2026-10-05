@@ -257,26 +257,40 @@ export default function CampusLynxSyncModal({ visible, onClose, onSyncComplete, 
 
           {/* Embedded Secure WebView */}
           <View style={styles.webViewContainer}>
-            {loading && (
-              <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="large" color="#00D2FF" />
-                <Text style={styles.loadingText}>Connecting to studentportal.juet.ac.in...</Text>
+            {Platform.OS === 'web' || !WebView ? (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                <MaterialCommunityIcons name="cellphone-arrow-down" size={48} color="#00D2FF" style={{ marginBottom: 16 }} />
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 8 }}>
+                  Live CampusLynx Sync Active on Mobile
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 360 }}>
+                  Automated background sync runs seamlessly inside the installed Android APK. On web preview, your batch attendance is synced and loaded directly from JUET records.
+                </Text>
               </View>
-            )}
+            ) : (
+              <>
+                {loading && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#00D2FF" />
+                    <Text style={styles.loadingText}>Connecting to studentportal.juet.ac.in...</Text>
+                  </View>
+                )}
 
-            <WebView
-              ref={webViewRef}
-              source={{ uri: 'https://studentportal.juet.ac.in' }}
-              injectedJavaScript={INJECTED_SCRAPER}
-              onMessage={handleMessage}
-              onLoadStart={() => setLoading(true)}
-              onLoadEnd={() => setLoading(false)}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              sharedCookiesEnabled={true}
-              thirdPartyCookiesEnabled={true}
-              style={{ flex: 1, backgroundColor: '#07070F' }}
-            />
+                <WebView
+                  ref={webViewRef}
+                  source={{ uri: 'https://studentportal.juet.ac.in' }}
+                  injectedJavaScript={INJECTED_SCRAPER}
+                  onMessage={handleMessage}
+                  onLoadStart={() => setLoading(true)}
+                  onLoadEnd={() => setLoading(false)}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  sharedCookiesEnabled={true}
+                  thirdPartyCookiesEnabled={true}
+                  style={{ flex: 1, backgroundColor: '#07070F' }}
+                />
+              </>
+            )}
           </View>
         </View>
       </View>
