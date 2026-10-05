@@ -1,5 +1,5 @@
 import React, { useEffect, Component } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
@@ -16,7 +16,9 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { UserProvider } from './src/context/UserContext';
 
 try {
-  SplashScreen.preventAutoHideAsync().catch(() => {});
+  if (Platform.OS !== 'web') {
+    SplashScreen.preventAutoHideAsync().catch(() => {});
+  }
 } catch (e) {}
 
 class ErrorBoundary extends Component {
@@ -53,16 +55,20 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync().catch(() => {});
+    if (Platform.OS !== 'web') {
+      if (fontsLoaded || fontError) {
+        SplashScreen.hideAsync().catch(() => {});
+      }
     }
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {});
-    }, 1200);
-    return () => clearTimeout(timer);
+    if (Platform.OS !== 'web') {
+      const timer = setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => {});
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   return (
