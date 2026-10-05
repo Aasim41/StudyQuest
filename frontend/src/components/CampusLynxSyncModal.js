@@ -9,8 +9,17 @@ import {
   Alert,
   TextInput,
   Dimensions,
+  Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+
+let WebView;
+if (Platform.OS !== 'web') {
+  try {
+    WebView = require('react-native-webview').WebView;
+  } catch (e) {
+    console.warn('react-native-webview not loaded:', e);
+  }
+}
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
