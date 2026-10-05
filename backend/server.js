@@ -80,7 +80,7 @@ app.use((req, res, next) => {
 
 // ─── CORS ───────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000', 'http://localhost:8081', 'exp://127.0.0.1:8081'],
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -100,14 +100,10 @@ app.locals.geminiClients = geminiClients;
 const healthRoutes = require('./routes/health');
 const collegeRoutes = require('./routes/colleges');
 const parseRoutes = require('./routes/parse');
-const youtubeRoutes = require('./routes/youtube');
-const mergeRoutes = require('./routes/merge');
 
 app.use('/api/health', healthRoutes);
 app.use('/api/colleges', collegeRoutes);
 app.use('/api/parse', parseRoutes);
-app.use('/api/youtube', youtubeRoutes);
-app.use('/api/schedule/merge', mergeRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {

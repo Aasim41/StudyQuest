@@ -188,57 +188,7 @@ export const UserProvider = ({ children }) => {
   const [studyPlan, setStudyPlan] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState({});
-  const [savedVideos, setSavedVideos] = useState([]);
-  const [watchHistory, setWatchHistory] = useState([]);
-  const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
-  const [generationError, setGenerationError] = useState(null);
 
-  const generateScheduleInBackground = async () => {
-    setIsGeneratingSchedule(true);
-    setGenerationError(null);
-    try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("Not authenticated");
-
-      const calendarStr = await AsyncStorage.getItem('@onboarding_calendar');
-      const syllabusStr = await AsyncStorage.getItem('@onboarding_syllabus');
-      const timetableStr = await AsyncStorage.getItem('@onboarding_timetable');
-      
-      const payload = {
-        timetable: timetableStr ? JSON.parse(timetableStr) : [],
-        calendar: calendarStr ? JSON.parse(calendarStr) : [],
-        syllabus: syllabusStr ? JSON.parse(syllabusStr) : []
-      };
-
-      const res = await fetch(`${API_BASE}/api/schedule/merge/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const result = await res.json();
-      if (result.success && result.studyPlan && result.studyPlan.length > 0) {
-        const plan = result.studyPlan.map((item, index) => ({
-          ...item,
-          id: item.id || `bg-gen-${Date.now()}-${index}`,
-          completed: item.completed || false,
-          color: item.color || ['#FF6B35', '#4A90D9', '#2ECC71', '#A29BFE'][index % 4],
-        }));
-        await updateStudyPlan(plan);
-        
-        // Schedule background notifications for the sessions
-        scheduleStudyNotifications(plan);
-      } else {
-        setGenerationError(result.error || 'The AI returned an empty schedule. Please try regenerating.');
-        console.warn('Background generation failed', result.error);
-      }
-    } catch (err) {
-      setGenerationError(err.message || 'Network error while generating schedule.');
-      console.warn('Background generation error:', err);
-    } finally {
-      setIsGeneratingSchedule(false);
-    }
-  };
 
   useEffect(() => {
     const init = async () => {
@@ -410,16 +360,6 @@ export const UserProvider = ({ children }) => {
         });
         setAttendanceRecords(initialRecords);
         setScopedItem('@attendanceRecords', JSON.stringify(initialRecords)).catch(() => {});
-      }
-      
-      const videosStr = await getScopedItem('@savedVideos');
-      if (videosStr) {
-        setSavedVideos(JSON.parse(videosStr));
-      }
-
-      const historyStr = await getScopedItem('@watchHistory');
-      if (historyStr) {
-        setWatchHistory(JSON.parse(historyStr));
       }
     } catch (e) {
       console.warn('Failed to load local data', e);
@@ -773,37 +713,7 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const saveVideo = async (video) => {
-    const newVideos = [...savedVideos, video];
-    setSavedVideos(newVideos);
-    try {
-      await setScopedItem('@savedVideos', JSON.stringify(newVideos));
-    } catch (e) {
-      console.warn('Failed to save video locally', e);
-    }
-  };
 
-  const removeVideo = async (videoId) => {
-    const newVideos = savedVideos.filter(v => v.videoId !== videoId);
-    setSavedVideos(newVideos);
-    try {
-      await setScopedItem('@savedVideos', JSON.stringify(newVideos));
-    } catch (e) {
-      console.warn('Failed to remove video locally', e);
-    }
-  };
-
-  const addToWatchHistory = async (title) => {
-    if (!title) return;
-    // Keep last 15 items, prevent immediate duplicates
-    const newHistory = [title, ...watchHistory.filter(t => t !== title)].slice(0, 15);
-    setWatchHistory(newHistory);
-    try {
-      await setScopedItem('@watchHistory', JSON.stringify(newHistory));
-    } catch (e) {
-      console.warn('Failed to save watch history locally', e);
-    }
-  };
 
   const BADGE_DEFINITIONS = {
     first_focus: { id: 'first_focus', name: 'Focus Novice', icon: '🎯', description: 'Complete your first Focus Session' },
@@ -920,14 +830,6 @@ export const UserProvider = ({ children }) => {
       markClassAttendance,
       updateManualAttendance,
       syncCampusLynxData,
-      savedVideos,
-      saveVideo,
-      removeVideo,
-      watchHistory,
-      addToWatchHistory,
-      isGeneratingSchedule,
-      generationError,
-      generateScheduleInBackground,
       BADGE_DEFINITIONS,
       unlockBadge,
       logStudySession
