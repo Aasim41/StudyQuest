@@ -198,7 +198,12 @@ export default function AppNavigator() {
       setAuthLoading(false);
     });
 
+    const safetyTimer = setTimeout(() => {
+      setAuthLoading(false);
+    }, 1500);
+
     return () => {
+      clearTimeout(safetyTimer);
       unsubscribeAuth();
     };
   }, []);
@@ -224,5 +229,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#07070F',
+    height: Platform.OS === 'web' ? '100vh' : '100%',
   },
 });
