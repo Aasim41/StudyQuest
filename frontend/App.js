@@ -71,9 +71,20 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.body.style.backgroundColor = '#07070F';
+      document.body.style.margin = '0';
+      document.body.style.padding = '0';
+      document.body.style.height = '100%';
+      document.documentElement.style.backgroundColor = '#07070F';
+      document.documentElement.style.height = '100%';
+    }
+  }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#07070F' }}>
-      <SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#07070F', height: '100%', minHeight: Platform.OS === 'web' ? '100vh' : undefined }}>
+      <SafeAreaProvider style={{ flex: 1, height: '100%' }}>
         <PaperProvider>
           <ErrorBoundary>
             <UserProvider>
