@@ -30,8 +30,47 @@ import {
   scheduleClassEndNotifications,
   testTriggerClassEndNotification,
 } from '../services/notificationService';
+import CampusLynxSyncModal from '../components/CampusLynxSyncModal';
 
 const { width } = Dimensions.get('window');
+
+const BATCH_GROUP_INFO = {
+  BX: {
+    title: 'GROUP BX (Batches B1, B2, B3)',
+    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
+    badgeColor: '#6C5CE7',
+    tag: 'ToC Track',
+    batches: ['B1', 'B2', 'B3']
+  },
+  BY: {
+    title: 'GROUP BY (Batches B4, B5, B6)',
+    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
+    badgeColor: '#6C5CE7',
+    tag: 'ToC Track',
+    batches: ['B4', 'B5', 'B6']
+  },
+  BZ: {
+    title: 'GROUP BZ (Batches B7, B8, B9)',
+    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
+    badgeColor: '#6C5CE7',
+    tag: 'ToC Track',
+    batches: ['B7', 'B8', 'B9']
+  },
+  BX1_AI: {
+    title: 'GROUP BX1 — AI & ML Specialization',
+    desc: 'Specialization Track • Foundation of AI (FOAI) + AI Lab',
+    badgeColor: '#8B5CF6',
+    tag: 'AI & ML',
+    batches: ['B21', 'B22', 'B23']
+  },
+  BX1_B31: {
+    title: 'GROUP BX1 — Batch B31 (Data Science / Stats)',
+    desc: 'Stats Track • Statistical Methods (SM) + SM Lab (No ToC)',
+    badgeColor: '#00D2FF',
+    tag: 'SM & Stats',
+    batches: ['B31']
+  }
+};
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
@@ -42,10 +81,11 @@ export default function DashboardScreen() {
     markClassAttendance,
     userBatch,
     switchBatch,
-    BATCH_GROUPS,
+    syncCampusLynxData,
   } = useUser();
   const [greeting, setGreeting] = useState('');
   const [batchModalVisible, setBatchModalVisible] = useState(false);
+  const [campusLynxModalVisible, setCampusLynxModalVisible] = useState(false);
 
   // Date and day calculations
   const today = useMemo(() => new Date(), []);
@@ -134,6 +174,15 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
                 <Text style={styles.batchPillText}>Batch: <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{userBatch || 'B31'}</Text></Text>
                 <MaterialCommunityIcons name="menu-down" size={14} color="#00D2FF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.syncLynxPill}
+                activeOpacity={0.8}
+                onPress={() => setCampusLynxModalVisible(true)}
+              >
+                <MaterialCommunityIcons name="cloud-sync" size={13} color="#2ECC71" style={{ marginRight: 3 }} />
+                <Text style={styles.syncLynxPillText}>Sync</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.greetingText}>{greeting},</Text>
@@ -327,7 +376,7 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       activeOpacity={0.8}
                       style={[styles.btnAction, currentStatus === 'present' && styles.btnActionPresentActive]}
-                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'present')}
+                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'present', item.sessionType)}
                     >
                       <MaterialCommunityIcons
                         name="check"
@@ -342,7 +391,7 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       activeOpacity={0.8}
                       style={[styles.btnAction, currentStatus === 'absent' && styles.btnActionAbsentActive]}
-                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'absent')}
+                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'absent', item.sessionType)}
                     >
                       <MaterialCommunityIcons
                         name="close"
@@ -357,7 +406,7 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       activeOpacity={0.8}
                       style={[styles.btnActionCompact, currentStatus === 'cancelled' && styles.btnActionOffActive]}
-                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'cancelled')}
+                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'cancelled', item.sessionType)}
                     >
                       <Text style={[styles.btnActionCompactText, currentStatus === 'cancelled' && styles.btnActionTextActive]}>
                         Off
@@ -395,12 +444,19 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-              {BATCH_GROUPS && Object.entries(BATCH_GROUPS).map(([groupKey, batchList]) => (
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              {BATCH_GROUP_INFO && Object.entries(BATCH_GROUP_INFO).map(([groupKey, info]) => (
                 <View key={groupKey} style={styles.batchGroupSection}>
-                  <Text style={styles.batchGroupTitle}>{`GROUP ${groupKey} (${batchList.join(', ')})`}</Text>
+                  <View style={styles.batchGroupTitleRow}>
+                    <Text style={styles.batchGroupTitle}>{info.title}</Text>
+                    <View style={[styles.batchGroupBadge, { borderColor: info.badgeColor }]}>
+                      <Text style={[styles.batchGroupBadgeText, { color: info.badgeColor }]}>{info.tag}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.batchGroupDesc}>{info.desc}</Text>
+
                   <View style={styles.batchGrid}>
-                    {batchList.map(batchCode => {
+                    {info.batches.map(batchCode => {
                       const isSelected = (userBatch === batchCode);
                       return (
                         <TouchableOpacity
@@ -428,6 +484,16 @@ export default function DashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ─── CAMPUSLYNX LIVE SYNC MODAL ────────────────────────────────────────── */}
+      <CampusLynxSyncModal
+        visible={campusLynxModalVisible}
+        onClose={() => setCampusLynxModalVisible(false)}
+        userUid={auth.currentUser?.uid}
+        onSyncComplete={async (records) => {
+          await syncCampusLynxData(records);
+        }}
+      />
     </View>
   );
 }
@@ -801,6 +867,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
+  syncLynxPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(46, 204, 113, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(46, 204, 113, 0.35)',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  syncLynxPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2ECC71',
+  },
 
   // Test Notification Button
   testNotificationBtn: {
@@ -928,12 +1009,33 @@ const styles = StyleSheet.create({
   batchGroupSection: {
     marginBottom: SPACING.md,
   },
+  batchGroupTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   batchGroupTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#00D2FF',
-    letterSpacing: 0.8,
-    marginBottom: 6,
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  batchGroupBadge: {
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.pill,
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  batchGroupBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  batchGroupDesc: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginBottom: 8,
   },
   batchGrid: {
     flexDirection: 'row',

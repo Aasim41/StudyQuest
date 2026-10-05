@@ -25,6 +25,141 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Real initial JUET CampusLynx records for B31 (synced from portal)
+export const JUET_REAL_PORTAL_ATTENDANCE = {
+  'Techniques for Decision Making (TDM)': {
+    attendedL: 17, totalL: 20, percentL: 85.0,
+    attendedT: 7, totalT: 10, percentT: 70.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 24, total: 30, missed: 6,
+    overallPercent: 80.0,
+    history: {}
+  },
+  'Data Structures (DS)': {
+    attendedL: 23, totalL: 27, percentL: 85.2,
+    attendedT: 10, totalT: 10, percentT: 100.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 33, total: 37, missed: 4,
+    overallPercent: 89.2,
+    history: {}
+  },
+  'Database Systems (DBMS)': {
+    attendedL: 14, totalL: 17, percentL: 82.4,
+    attendedT: 6, totalT: 8, percentT: 75.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 20, total: 25, missed: 5,
+    overallPercent: 80.0,
+    history: {}
+  },
+  'Career Management & Development (CMD)': {
+    attendedL: 16, totalL: 18, percentL: 88.9,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 16, total: 18, missed: 2,
+    overallPercent: 88.9,
+    history: {}
+  },
+  'Environmental Science (EVS)': {
+    attendedL: 12, totalL: 16, percentL: 75.0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 12, total: 16, missed: 4,
+    overallPercent: 75.0,
+    history: {}
+  },
+  'Statistical Methods (SM)': {
+    attendedL: 26, totalL: 29, percentL: 89.7,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 26, total: 29, missed: 3,
+    overallPercent: 89.7,
+    history: {}
+  },
+  'Data Structures Lab (DS Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 9, totalP: 9, percentP: 100.0,
+    attended: 9, total: 9, missed: 0,
+    overallPercent: 100.0,
+    history: {}
+  },
+  'Database Systems Lab (DBMS Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 7, totalP: 9, percentP: 77.8,
+    attended: 7, total: 9, missed: 2,
+    overallPercent: 77.8,
+    history: {}
+  },
+  'Advanced Programming Lab-1 (AP Lab-1)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 7, totalP: 9, percentP: 77.8,
+    attended: 7, total: 9, missed: 2,
+    overallPercent: 77.8,
+    history: {}
+  },
+  'Statistical Methods Lab (SM Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 8, totalP: 9, percentP: 88.9,
+    attended: 8, total: 9, missed: 1,
+    overallPercent: 88.9,
+    history: {}
+  },
+  'Unix Programming Lab (UNIX Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 8, totalP: 9, percentP: 88.9,
+    attended: 8, total: 9, missed: 1,
+    overallPercent: 88.9,
+    history: {}
+  }
+};
+
+// Helper to match CampusLynx raw subject codes with StudyQuest subjects
+export function matchCampusLynxSubject(rawString, targetSubjectName) {
+  if (!rawString || !targetSubjectName) return false;
+  const raw = rawString.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const target = targetSubjectName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  if (raw.includes(target) || target.includes(raw)) return true;
+
+  const codes = ['HS103', 'CS103', 'CS104', 'CS203', 'CS204', 'CS206', 'CS115', 'CS221', 'HS007', 'GE001', 'CS110', 'CS116', 'CS216'];
+  for (const c of codes) {
+    if (raw.includes(c) && target.includes(c)) return true;
+  }
+
+  if (raw.includes('DECISION') && target.includes('DECISION')) return true;
+  if (raw.includes('CAREER') && target.includes('CAREER')) return true;
+  if (raw.includes('ENVIRONMENT') && target.includes('ENVIRONMENT')) return true;
+  if (raw.includes('STATISTICAL') && target.includes('STATISTICAL')) {
+    const isRawLab = raw.includes('LAB') || raw.includes('CS221');
+    const isTargetLab = target.includes('LAB');
+    return isRawLab === isTargetLab;
+  }
+  if (raw.includes('DATASTRUCTURE') && target.includes('DATASTRUCTURE')) {
+    const isRawLab = raw.includes('LAB') || raw.includes('CS203');
+    const isTargetLab = target.includes('LAB');
+    return isRawLab === isTargetLab;
+  }
+  if (raw.includes('DATABASESYSTEM') && target.includes('DATABASESYSTEM')) {
+    const isRawLab = raw.includes('LAB') || raw.includes('CS204');
+    const isTargetLab = target.includes('LAB');
+    return isRawLab === isTargetLab;
+  }
+  if (raw.includes('COMPUTATION') && target.includes('COMPUTATION')) return true;
+  if (raw.includes('ADVANCEDPROGRAMMING') && target.includes('ADVANCEDPROGRAMMING')) return true;
+  if (raw.includes('UNIX') && target.includes('UNIX')) return true;
+  if (raw.includes('AI') && target.includes('AI')) {
+    const isRawLab = raw.includes('LAB');
+    const isTargetLab = target.includes('LAB');
+    return isRawLab === isTargetLab;
+  }
+
+  return false;
+}
+
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
@@ -179,47 +314,93 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // Student Data Isolation: Partition local storage keys by Firebase User UID
+  const getScopedItem = async (baseKey) => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        const val = await AsyncStorage.getItem(`${baseKey}_${uid}`);
+        if (val !== null) return val;
+      }
+      return await AsyncStorage.getItem(baseKey);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const setScopedItem = async (baseKey, value) => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await AsyncStorage.setItem(`${baseKey}_${uid}`, value);
+      } else {
+        await AsyncStorage.setItem(baseKey, value);
+      }
+    } catch (e) {
+      console.warn(`Failed to set scoped item ${baseKey}`, e);
+    }
+  };
+
   const loadLocalStudyPlan = async () => {
     try {
-      const planStr = await AsyncStorage.getItem('@studyPlan');
+      const planStr = await getScopedItem('@studyPlan');
       if (planStr) {
         setStudyPlan(JSON.parse(planStr));
       }
 
-      const batchStr = await AsyncStorage.getItem('@userBatch');
+      const batchStr = await getScopedItem('@userBatch');
       const activeBatch = batchStr || 'B31';
       setUserBatchState(activeBatch);
 
-      const timetableStr = await AsyncStorage.getItem('@timetable');
+      const timetableStr = await getScopedItem('@timetable');
       if (timetableStr) {
         setTimetable(JSON.parse(timetableStr));
       } else {
         const initialTt = filterTimetableForBatch(activeBatch);
         setTimetable(initialTt);
-        AsyncStorage.setItem('@timetable', JSON.stringify(initialTt)).catch(() => {});
+        setScopedItem('@timetable', JSON.stringify(initialTt)).catch(() => {});
       }
 
-      const attendanceStr = await AsyncStorage.getItem('@attendanceRecords');
+      const attendanceStr = await getScopedItem('@attendanceRecords');
       if (attendanceStr) {
-        setAttendanceRecords(JSON.parse(attendanceStr));
+        const parsed = JSON.parse(attendanceStr);
+        // If B31 and not initialized with real LTP data, merge real portal data
+        if (activeBatch === 'B31') {
+          const hasRealData = Object.values(parsed).some(r => (r.total || 0) > 0);
+          if (!hasRealData) {
+            setAttendanceRecords(JUET_REAL_PORTAL_ATTENDANCE);
+            setScopedItem('@attendanceRecords', JSON.stringify(JUET_REAL_PORTAL_ATTENDANCE)).catch(() => {});
+          } else {
+            setAttendanceRecords(parsed);
+          }
+        } else {
+          setAttendanceRecords(parsed);
+        }
       } else {
         const initialTt = filterTimetableForBatch(activeBatch);
-        const initialRecords = {};
+        const initialRecords = activeBatch === 'B31' ? { ...JUET_REAL_PORTAL_ATTENDANCE } : {};
         initialTt.forEach(item => {
           if (item.subject && !initialRecords[item.subject]) {
-            initialRecords[item.subject] = { attended: 0, missed: 0, total: 0, history: {} };
+            initialRecords[item.subject] = {
+              attended: 0, missed: 0, total: 0,
+              attendedL: 0, totalL: 0,
+              attendedT: 0, totalT: 0,
+              attendedP: 0, totalP: 0,
+              percentL: 0, percentT: 0, percentP: 0, overallPercent: 0,
+              history: {}
+            };
           }
         });
         setAttendanceRecords(initialRecords);
-        AsyncStorage.setItem('@attendanceRecords', JSON.stringify(initialRecords)).catch(() => {});
+        setScopedItem('@attendanceRecords', JSON.stringify(initialRecords)).catch(() => {});
       }
       
-      const videosStr = await AsyncStorage.getItem('@savedVideos');
+      const videosStr = await getScopedItem('@savedVideos');
       if (videosStr) {
         setSavedVideos(JSON.parse(videosStr));
       }
 
-      const historyStr = await AsyncStorage.getItem('@watchHistory');
+      const historyStr = await getScopedItem('@watchHistory');
       if (historyStr) {
         setWatchHistory(JSON.parse(historyStr));
       }
@@ -236,7 +417,7 @@ export const UserProvider = ({ children }) => {
         const data = userDoc.data();
         if (data.userBatch) {
           setUserBatchState(data.userBatch);
-          AsyncStorage.setItem('@userBatch', data.userBatch).catch(() => {});
+          setScopedItem('@userBatch', data.userBatch).catch(() => {});
         }
 
         setUserStats({
@@ -254,7 +435,7 @@ export const UserProvider = ({ children }) => {
 
         if (data.timetable && Array.isArray(data.timetable)) {
           setTimetable(data.timetable);
-          AsyncStorage.setItem('@timetable', JSON.stringify(data.timetable)).catch(() => {});
+          setScopedItem('@timetable', JSON.stringify(data.timetable)).catch(() => {});
         } else {
           const initialTt = filterTimetableForBatch(data.userBatch || 'B31');
           setTimetable(initialTt);
@@ -262,7 +443,7 @@ export const UserProvider = ({ children }) => {
 
         if (data.attendanceRecords && typeof data.attendanceRecords === 'object') {
           setAttendanceRecords(data.attendanceRecords);
-          AsyncStorage.setItem('@attendanceRecords', JSON.stringify(data.attendanceRecords)).catch(() => {});
+          setScopedItem('@attendanceRecords', JSON.stringify(data.attendanceRecords)).catch(() => {});
         }
 
         // Sync onboarding flag from Firestore (survives reinstalls)
@@ -285,7 +466,7 @@ export const UserProvider = ({ children }) => {
   const switchBatch = async (newBatch) => {
     try {
       setUserBatchState(newBatch);
-      await AsyncStorage.setItem('@userBatch', newBatch);
+      await setScopedItem('@userBatch', newBatch);
       if (auth.currentUser) {
         setDoc(doc(db, 'users', auth.currentUser.uid), { userBatch: newBatch }, { merge: true }).catch(() => {});
       }
@@ -299,7 +480,7 @@ export const UserProvider = ({ children }) => {
   const updateStudyPlan = async (newPlan) => {
     setStudyPlan(newPlan);
     try {
-      AsyncStorage.setItem('@studyPlan', JSON.stringify(newPlan)).catch(e => console.warn('Failed to save study plan locally', e));
+      setScopedItem('@studyPlan', JSON.stringify(newPlan)).catch(e => console.warn('Failed to save study plan locally', e));
     } catch (e) {
       console.warn('Failed to save study plan locally', e);
     }
@@ -308,7 +489,7 @@ export const UserProvider = ({ children }) => {
   const saveTimetable = async (newTimetable) => {
     setTimetable(newTimetable);
     try {
-      await AsyncStorage.setItem('@timetable', JSON.stringify(newTimetable));
+      await setScopedItem('@timetable', JSON.stringify(newTimetable));
       if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), { timetable: newTimetable }, { merge: true });
       }
@@ -325,7 +506,7 @@ export const UserProvider = ({ children }) => {
       });
       if (updated) {
         setAttendanceRecords(currentRecords);
-        await AsyncStorage.setItem('@attendanceRecords', JSON.stringify(currentRecords));
+        await setScopedItem('@attendanceRecords', JSON.stringify(currentRecords));
         if (auth.currentUser) {
           await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
         }
@@ -335,32 +516,65 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const markClassAttendance = async (subject, dateStr, classId, status) => {
+  const markClassAttendance = async (subject, dateStr, classId, status, sessionType) => {
     const currentRecords = { ...attendanceRecords };
-    const subRecord = currentRecords[subject] || { attended: 0, missed: 0, total: 0, history: {} };
+    const subRecord = currentRecords[subject] || {
+      attended: 0, missed: 0, total: 0,
+      attendedL: 0, totalL: 0,
+      attendedT: 0, totalT: 0,
+      attendedP: 0, totalP: 0,
+      history: {}
+    };
     const history = { ...(subRecord.history || {}) };
     const prevStatus = history[dateStr]?.[classId];
 
     if (prevStatus === status) return;
 
+    // Detect session type (L, T, P)
+    let stype = sessionType;
+    if (!stype) {
+      if (classId?.includes('-T-') || classId?.includes('-tutorial-')) stype = 'T';
+      else if (classId?.includes('-P-') || classId?.includes('-practical-') || subject.toLowerCase().includes('lab')) stype = 'P';
+      else stype = 'L';
+    }
+
     let attended = subRecord.attended || 0;
     let missed = subRecord.missed || 0;
     let total = subRecord.total || 0;
 
+    let attendedL = subRecord.attendedL || 0;
+    let totalL = subRecord.totalL || 0;
+    let attendedT = subRecord.attendedT || 0;
+    let totalT = subRecord.totalT || 0;
+    let attendedP = subRecord.attendedP || 0;
+    let totalP = subRecord.totalP || 0;
+
     if (prevStatus === 'present') {
       attended = Math.max(0, attended - 1);
       total = Math.max(0, total - 1);
+      if (stype === 'T') { attendedT = Math.max(0, attendedT - 1); totalT = Math.max(0, totalT - 1); }
+      else if (stype === 'P') { attendedP = Math.max(0, attendedP - 1); totalP = Math.max(0, totalP - 1); }
+      else { attendedL = Math.max(0, attendedL - 1); totalL = Math.max(0, totalL - 1); }
     } else if (prevStatus === 'absent') {
       missed = Math.max(0, missed - 1);
       total = Math.max(0, total - 1);
+      if (stype === 'T') { totalT = Math.max(0, totalT - 1); }
+      else if (stype === 'P') { totalP = Math.max(0, totalP - 1); }
+      else { totalL = Math.max(0, totalL - 1); }
     }
 
     if (status === 'present') {
       attended += 1;
       total += 1;
+      if (stype === 'T') { attendedT += 1; totalT += 1; }
+      else if (stype === 'P') { attendedP += 1; totalP += 1; }
+      else { attendedL += 1; totalL += 1; }
     } else if (status === 'absent') {
       missed += 1;
       total += 1;
+      if (stype === 'T') { totalT += 1; }
+      else if (stype === 'P') { totalP += 1; }
+      else { totalL += 1; }
     }
 
     if (!history[dateStr]) history[dateStr] = {};
@@ -370,11 +584,26 @@ export const UserProvider = ({ children }) => {
       history[dateStr][classId] = status;
     }
 
+    const percentL = totalL > 0 ? (attendedL / totalL) * 100 : 0;
+    const percentT = totalT > 0 ? (attendedT / totalT) * 100 : 0;
+    const percentP = totalP > 0 ? (attendedP / totalP) * 100 : 0;
+    const overallPercent = total > 0 ? (attended / total) * 100 : 0;
+
     currentRecords[subject] = {
       ...subRecord,
       attended,
       missed,
       total,
+      attendedL,
+      totalL,
+      attendedT,
+      totalT,
+      attendedP,
+      totalP,
+      percentL,
+      percentT,
+      percentP,
+      overallPercent,
       history
     };
 
@@ -395,7 +624,7 @@ export const UserProvider = ({ children }) => {
     }
 
     try {
-      await AsyncStorage.setItem('@attendanceRecords', JSON.stringify(currentRecords));
+      await setScopedItem('@attendanceRecords', JSON.stringify(currentRecords));
       if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
       }
@@ -421,13 +650,100 @@ export const UserProvider = ({ children }) => {
 
     setAttendanceRecords(currentRecords);
     try {
-      await AsyncStorage.setItem('@attendanceRecords', JSON.stringify(currentRecords));
+      await setScopedItem('@attendanceRecords', JSON.stringify(currentRecords));
       if (auth.currentUser) {
         await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
       }
     } catch (e) {
       console.warn('Failed to update manual attendance', e);
     }
+  };
+
+  const syncCampusLynxData = async (scrapedRecords) => {
+    if (!scrapedRecords || !Array.isArray(scrapedRecords) || scrapedRecords.length === 0) return 0;
+
+    const currentRecords = { ...attendanceRecords };
+    let matchedCount = 0;
+    const currentSubjects = Object.keys(currentRecords);
+
+    scrapedRecords.forEach(item => {
+      const raw = item.rawSubject || '';
+      const matchedSubj = currentSubjects.find(subj => matchCampusLynxSubject(raw, subj));
+
+      if (matchedSubj) {
+        matchedCount++;
+        const prev = currentRecords[matchedSubj] || {};
+        const isLab = matchedSubj.toLowerCase().includes('lab');
+
+        let totalL = prev.totalL || 0;
+        let attendedL = prev.attendedL || 0;
+        let totalT = prev.totalT || 0;
+        let attendedT = prev.attendedT || 0;
+        let totalP = prev.totalP || 0;
+        let attendedP = prev.attendedP || 0;
+
+        if (isLab) {
+          totalP = prev.totalP || 9;
+          attendedP = item.currentP != null ? Math.round((totalP * item.currentP) / 100) : (prev.attendedP || 7);
+        } else {
+          if (item.currentL != null) {
+            totalL = prev.totalL || 20;
+            attendedL = Math.round((totalL * item.currentL) / 100);
+          }
+          if (item.currentT != null) {
+            totalT = prev.totalT || 10;
+            attendedT = Math.round((totalT * item.currentT) / 100);
+          }
+        }
+
+        const attended = isLab ? attendedP : (attendedL + attendedT);
+        const total = isLab ? totalP : (totalL + totalT);
+        const missed = Math.max(0, total - attended);
+
+        currentRecords[matchedSubj] = {
+          ...prev,
+          attended,
+          total,
+          missed,
+          attendedL,
+          totalL,
+          attendedT,
+          totalT,
+          attendedP,
+          totalP,
+          percentL: item.currentL,
+          percentT: item.currentT,
+          percentP: item.currentP,
+          overallPercent: item.overallLTP != null ? item.overallLTP : (total > 0 ? (attended / total) * 100 : 0),
+          lastSyncedAt: new Date().toISOString(),
+        };
+      }
+    });
+
+    setAttendanceRecords(currentRecords);
+
+    // Award +50 XP bonus for syncing portal attendance
+    let newXp = (userStats.xp || 0) + 50;
+    let newLevel = userStats.level || 1;
+    let nextLevelXp = userStats.nextLevelXp || 1000;
+    if (newXp >= nextLevelXp) {
+      newLevel += 1;
+      newXp = newXp - nextLevelXp;
+      nextLevelXp = Math.floor(nextLevelXp * 1.5);
+    }
+    const newStats = { ...userStats, xp: newXp, level: newLevel, nextLevelXp };
+    saveStatsToFirestore(newStats);
+
+    try {
+      await setScopedItem('@attendanceRecords', JSON.stringify(currentRecords));
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: currentRecords }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Failed to save synced attendance records', e);
+    }
+
+    return matchedCount;
   };
 
   const saveStatsToFirestore = async (newStats) => {
@@ -444,7 +760,7 @@ export const UserProvider = ({ children }) => {
     const newVideos = [...savedVideos, video];
     setSavedVideos(newVideos);
     try {
-      await AsyncStorage.setItem('@savedVideos', JSON.stringify(newVideos));
+      await setScopedItem('@savedVideos', JSON.stringify(newVideos));
     } catch (e) {
       console.warn('Failed to save video locally', e);
     }
@@ -454,7 +770,7 @@ export const UserProvider = ({ children }) => {
     const newVideos = savedVideos.filter(v => v.videoId !== videoId);
     setSavedVideos(newVideos);
     try {
-      await AsyncStorage.setItem('@savedVideos', JSON.stringify(newVideos));
+      await setScopedItem('@savedVideos', JSON.stringify(newVideos));
     } catch (e) {
       console.warn('Failed to remove video locally', e);
     }
@@ -466,7 +782,7 @@ export const UserProvider = ({ children }) => {
     const newHistory = [title, ...watchHistory.filter(t => t !== title)].slice(0, 15);
     setWatchHistory(newHistory);
     try {
-      await AsyncStorage.setItem('@watchHistory', JSON.stringify(newHistory));
+      await setScopedItem('@watchHistory', JSON.stringify(newHistory));
     } catch (e) {
       console.warn('Failed to save watch history locally', e);
     }
@@ -586,6 +902,7 @@ export const UserProvider = ({ children }) => {
       saveTimetable,
       markClassAttendance,
       updateManualAttendance,
+      syncCampusLynxData,
       savedVideos,
       saveVideo,
       removeVideo,

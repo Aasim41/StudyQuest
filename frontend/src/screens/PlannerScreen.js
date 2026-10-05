@@ -23,12 +23,62 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, FONTS } from '../theme';
 import { ModernButton, ModernCard, MinimalProgress, GSAPStagger } from '../components/ui';
 import { useUser } from '../context/UserContext';
+import CampusLynxSyncModal from '../components/CampusLynxSyncModal';
+import { auth } from '../../firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
+const BATCH_GROUP_INFO = {
+  BX: {
+    title: 'GROUP BX (Batches B1, B2, B3)',
+    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
+    badgeColor: '#6C5CE7',
+    tag: 'ToC Track',
+    batches: ['B1', 'B2', 'B3']
+  },
+  BY: {
+    title: 'GROUP BY (Batches B4, B5, B6)',
+    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
+    badgeColor: '#6C5CE7',
+    tag: 'ToC Track',
+    batches: ['B4', 'B5', 'B6']
+  },
+  BZ: {
+    title: 'GROUP BZ (Batches B7, B8, B9)',
+    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
+    badgeColor: '#6C5CE7',
+    tag: 'ToC Track',
+    batches: ['B7', 'B8', 'B9']
+  },
+  BX1_AI: {
+    title: 'GROUP BX1 — AI & ML Specialization',
+    desc: 'Specialization Track • Foundation of AI (FOAI) + AI Lab',
+    badgeColor: '#8B5CF6',
+    tag: 'AI & ML',
+    batches: ['B21', 'B22', 'B23']
+  },
+  BX1_B31: {
+    title: 'GROUP BX1 — Batch B31 (Data Science / Stats)',
+    desc: 'Stats Track • Statistical Methods (SM) + SM Lab (No ToC)',
+    badgeColor: '#00D2FF',
+    tag: 'SM & Stats',
+    batches: ['B31']
+  }
+};
+
 export default function PlannerScreen() {
-  const { timetable, attendanceRecords, updateManualAttendance, userBatch } = useUser();
+  const {
+    timetable,
+    attendanceRecords,
+    updateManualAttendance,
+    userBatch,
+    switchBatch,
+    syncCampusLynxData,
+  } = useUser();
   const [activeTab, setActiveTab] = useState('ALL'); // 'ALL' | 'THEORY' | 'LABS'
+  const [campusLynxModalVisible, setCampusLynxModalVisible] = useState(false);
+  const [batchModalVisible, setBatchModalVisible] = useState(false);
+  const [simulatedSkipType, setSimulatedSkipType] = useState('LECTURE');
 
   // Distinct subjects from timetable + records
   const subjectsList = useMemo(() => {
@@ -158,6 +208,20 @@ export default function PlannerScreen() {
     const isLab = selectedSubject.toLowerCase().includes('lab') ||
       (timetable || []).some(t => t.subject === selectedSubject && (t.isLab || t.sessionType === 'P'));
 
+    const attendedL = rec.attendedL || 0;
+    const totalL = rec.totalL || 0;
+    const percentL = totalL > 0 ? (attendedL / totalL) * 100 : (rec.percentL || null);
+
+    const attendedT = rec.attendedT || 0;
+    const totalT = rec.totalT || 0;
+    const percentT = totalT > 0 ? (attendedT / totalT) * 100 : (rec.percentT || null);
+
+    const attendedP = rec.attendedP || 0;
+    const totalP = rec.totalP || 0;
+    const percentP = totalP > 0 ? (attendedP / totalP) * 100 : (rec.percentP || null);
+
+    const hasTutorial = (timetable || []).some(t => t.subject === selectedSubject && t.sessionType === 'T') || totalT > 0;
+
     let safeBunks = 0;
     let classesNeeded = 0;
 
@@ -172,8 +236,24 @@ export default function PlannerScreen() {
       if (classesNeeded < 0) classesNeeded = 0;
     }
 
-    const simulatedTotal = total + simulatedSkips;
-    const simulatedPercent = simulatedTotal > 0 ? (attended / simulatedTotal) * 100 : 0;
+    let simTotal = total + simulatedSkips;
+    let simAttended = attended;
+    let simLTotal = totalL;
+    let simTTotal = totalT;
+    let simPTotal = totalP;
+
+    if (isLab) {
+      simPTotal = totalP + simulatedSkips;
+    } else if (simulatedSkipType === 'TUTORIAL' && hasTutorial) {
+      simTTotal = totalT + simulatedSkips;
+    } else {
+      simLTotal = totalL + simulatedSkips;
+    }
+
+    const simulatedPercent = simTotal > 0 ? (simAttended / simTotal) * 100 : 0;
+    const simulatedLPercent = simLTotal > 0 ? (attendedL / simLTotal) * 100 : null;
+    const simulatedTPercent = simTTotal > 0 ? (attendedT / simTTotal) * 100 : null;
+    const simulatedPPercent = simPTotal > 0 ? (attendedP / simPTotal) * 100 : null;
 
     const weeklyCount = (timetable || []).filter(item => item.subject === selectedSubject).length;
     // For lab: 1 turn per week (about 8 remaining weeks in semester). For theory: weeklyCount * 8
@@ -184,16 +264,29 @@ export default function PlannerScreen() {
 
     return {
       isLab,
+      hasTutorial,
       attended,
       total,
       currentPercent,
+      attendedL,
+      totalL,
+      percentL,
+      attendedT,
+      totalT,
+      percentT,
+      attendedP,
+      totalP,
+      percentP,
       safeBunks,
       classesNeeded,
       simulatedPercent,
+      simulatedLPercent,
+      simulatedTPercent,
+      simulatedPPercent,
       estimatedRemainingClasses,
       maxPossiblePercent,
     };
-  }, [selectedSubject, attendanceRecords, targetCriteria, simulatedSkips, timetable]);
+  }, [selectedSubject, attendanceRecords, targetCriteria, simulatedSkips, simulatedSkipType, timetable]);
 
   const getStatusColor = (percent) => {
     if (percent >= 75) return '#2ECC71';
@@ -214,6 +307,28 @@ export default function PlannerScreen() {
           <Text style={styles.titleText}>Attendance Hub</Text>
           <Text style={styles.subText}>Dedicated per-subject bunk calculators & Webkiosk sync</Text>
         </Animated.View>
+
+        {/* ─── ACTION BAR: BATCH SWITCHER & LIVE CAMPUSLYNX SYNC ──────────────────── */}
+        <View style={styles.topControlRow}>
+          <TouchableOpacity
+            style={styles.batchPill}
+            activeOpacity={0.8}
+            onPress={() => setBatchModalVisible(true)}
+          >
+            <MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
+            <Text style={styles.batchPillText}>Batch: <Text style={{ color: '#00D2FF', fontWeight: '800' }}>{userBatch || 'B31'}</Text></Text>
+            <MaterialCommunityIcons name="menu-down" size={14} color="#00D2FF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.syncCampusLynxMainBtn}
+            activeOpacity={0.8}
+            onPress={() => setCampusLynxModalVisible(true)}
+          >
+            <MaterialCommunityIcons name="cloud-sync" size={15} color="#2ECC71" style={{ marginRight: 5 }} />
+            <Text style={styles.syncCampusLynxMainText}>Sync CampusLynx Live</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ─── OVERALL METRIC CARD ───────────────────────────────────────────────── */}
         <View style={styles.overallCard}>
@@ -362,15 +477,61 @@ export default function PlannerScreen() {
                     </Text>
                   </View>
 
+                  {/* CampusLynx LTP Breakdown Chips */}
+                  <View style={styles.ltpChipsRow}>
+                    {isLab ? (
+                      <View style={styles.ltpChip}>
+                        <Text style={styles.ltpChipLabel}>Current P:</Text>
+                        <Text style={styles.ltpChipVal}>
+                          {rec.totalP ? `${(rec.attendedP / rec.totalP * 100).toFixed(1)}%` : `${percent.toFixed(1)}%`}
+                        </Text>
+                        <Text style={styles.ltpChipFraction}>
+                          ({rec.totalP ? rec.attendedP : rec.attended}/{rec.totalP ? rec.totalP : rec.total} turns)
+                        </Text>
+                      </View>
+                    ) : item.tutorials > 0 ? (
+                      <>
+                        <View style={styles.ltpChip}>
+                          <Text style={styles.ltpChipLabel}>Current L:</Text>
+                          <Text style={styles.ltpChipVal}>
+                            {rec.totalL ? `${(rec.attendedL / rec.totalL * 100).toFixed(1)}%` : '--'}
+                          </Text>
+                          <Text style={styles.ltpChipFraction}>
+                            {rec.totalL ? `(${rec.attendedL}/${rec.totalL})` : ''}
+                          </Text>
+                        </View>
+                        <View style={[styles.ltpChip, { marginLeft: 6 }]}>
+                          <Text style={styles.ltpChipLabel}>Current T:</Text>
+                          <Text style={styles.ltpChipVal}>
+                            {rec.totalT ? `${(rec.attendedT / rec.totalT * 100).toFixed(1)}%` : '--'}
+                          </Text>
+                          <Text style={styles.ltpChipFraction}>
+                            {rec.totalT ? `(${rec.attendedT}/${rec.totalT})` : ''}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <View style={styles.ltpChip}>
+                        <Text style={styles.ltpChipLabel}>Current L:</Text>
+                        <Text style={styles.ltpChipVal}>
+                          {rec.totalL ? `${(rec.attendedL / rec.totalL * 100).toFixed(1)}%` : `${percent.toFixed(1)}%`}
+                        </Text>
+                        <Text style={styles.ltpChipFraction}>
+                          ({rec.totalL ? rec.attendedL : rec.attended}/{rec.totalL ? rec.totalL : rec.total})
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
                   {/* Actions */}
                   <View style={styles.courseActionsRow}>
                     <TouchableOpacity
                       activeOpacity={0.8}
-                      style={styles.syncBtn}
-                      onPress={() => openWebkioskSync(subject)}
+                      style={[styles.syncBtn, { borderColor: 'rgba(46, 204, 113, 0.4)' }]}
+                      onPress={() => setCampusLynxModalVisible(true)}
                     >
-                      <MaterialCommunityIcons name="sync" size={14} color={COLORS.textMuted} style={{ marginRight: 4 }} />
-                      <Text style={styles.syncBtnText}>Webkiosk</Text>
+                      <MaterialCommunityIcons name="cloud-sync" size={14} color="#2ECC71" style={{ marginRight: 4 }} />
+                      <Text style={[styles.syncBtnText, { color: '#2ECC71' }]}>Sync Portal</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -429,20 +590,43 @@ export default function PlannerScreen() {
                 )}
 
                 {/* Standing Summary */}
-                <View style={styles.summaryBar}>
-                  <View style={styles.summaryCol}>
-                    <Text style={styles.summaryNum}>{calcData.currentPercent.toFixed(1)}%</Text>
-                    <Text style={styles.summaryTxt}>Current</Text>
+                {calcData.hasTutorial ? (
+                  <View style={styles.summaryBarLTP}>
+                    <View style={styles.summaryColLTP}>
+                      <Text style={styles.summaryNumLTP}>
+                        {calcData.percentL != null ? `${calcData.percentL.toFixed(1)}%` : '--'}
+                      </Text>
+                      <Text style={styles.summaryTxtLTP}>Current L ({calcData.attendedL}/{calcData.totalL})</Text>
+                    </View>
+                    <View style={styles.summaryColLTP}>
+                      <Text style={styles.summaryNumLTP}>
+                        {calcData.percentT != null ? `${calcData.percentT.toFixed(1)}%` : '--'}
+                      </Text>
+                      <Text style={styles.summaryTxtLTP}>Current T ({calcData.attendedT}/{calcData.totalT})</Text>
+                    </View>
+                    <View style={styles.summaryColLTP}>
+                      <Text style={[styles.summaryNumLTP, { color: getStatusColor(calcData.currentPercent) }]}>
+                        {calcData.currentPercent.toFixed(1)}%
+                      </Text>
+                      <Text style={styles.summaryTxtLTP}>Overall LTP ({calcData.attended}/{calcData.total})</Text>
+                    </View>
                   </View>
-                  <View style={styles.summaryCol}>
-                    <Text style={styles.summaryNum}>{calcData.attended} / {calcData.total}</Text>
-                    <Text style={styles.summaryTxt}>Attended</Text>
+                ) : (
+                  <View style={styles.summaryBar}>
+                    <View style={styles.summaryCol}>
+                      <Text style={styles.summaryNum}>{calcData.currentPercent.toFixed(1)}%</Text>
+                      <Text style={styles.summaryTxt}>Current</Text>
+                    </View>
+                    <View style={styles.summaryCol}>
+                      <Text style={styles.summaryNum}>{calcData.attended} / {calcData.total}</Text>
+                      <Text style={styles.summaryTxt}>Attended</Text>
+                    </View>
+                    <View style={styles.summaryCol}>
+                      <Text style={styles.summaryNum}>{calcData.total - calcData.attended}</Text>
+                      <Text style={styles.summaryTxt}>Bunked</Text>
+                    </View>
                   </View>
-                  <View style={styles.summaryCol}>
-                    <Text style={styles.summaryNum}>{calcData.total - calcData.attended}</Text>
-                    <Text style={styles.summaryTxt}>Bunked</Text>
-                  </View>
-                </View>
+                )}
 
                 {/* Target Criteria Selector */}
                 <Text style={styles.calcHeading}>1. Target Percentage</Text>
@@ -507,9 +691,32 @@ export default function PlannerScreen() {
                 {/* What-If Simulator */}
                 <Text style={[styles.calcHeading, { marginTop: SPACING.lg }]}>2. "What If I Skip?" Live Simulator</Text>
                 <View style={styles.simCard}>
+                  {calcData.hasTutorial && (
+                    <View style={styles.simTypeToggleRow}>
+                      <TouchableOpacity
+                        style={[styles.simTypeBtn, simulatedSkipType === 'LECTURE' && styles.simTypeBtnActive]}
+                        onPress={() => setSimulatedSkipType('LECTURE')}
+                      >
+                        <Text style={[styles.simTypeBtnText, simulatedSkipType === 'LECTURE' && styles.simTypeBtnTextActive]}>
+                          Skip Lecture (L)
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.simTypeBtn, simulatedSkipType === 'TUTORIAL' && styles.simTypeBtnActive]}
+                        onPress={() => setSimulatedSkipType('TUTORIAL')}
+                      >
+                        <Text style={[styles.simTypeBtnText, simulatedSkipType === 'TUTORIAL' && styles.simTypeBtnTextActive]}>
+                          Skip Tutorial (T)
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
                   <Text style={styles.simNote}>
                     {calcData.isLab
                       ? 'Simulate missing upcoming 2-hr lab turns:'
+                      : calcData.hasTutorial
+                      ? `Simulate missing upcoming ${simulatedSkipType === 'TUTORIAL' ? 'Tutorials' : 'Lectures'}:`
                       : 'Simulate skipping upcoming classes:'}
                   </Text>
                   <View style={styles.simButtonsRow}>
@@ -527,11 +734,23 @@ export default function PlannerScreen() {
                   </View>
 
                   <View style={styles.simResultLine}>
-                    <Text style={styles.simResultTitle}>New Attendance:</Text>
+                    <Text style={styles.simResultTitle}>New Overall Attendance:</Text>
                     <Text style={[styles.simResultNum, { color: getStatusColor(calcData.simulatedPercent) }]}>
                       {calcData.simulatedPercent.toFixed(1)}%
                     </Text>
                   </View>
+                  {calcData.hasTutorial && (
+                    <View style={[styles.simResultLine, { marginTop: 4 }]}>
+                      <Text style={styles.simResultSubTitle}>
+                        {simulatedSkipType === 'TUTORIAL' ? 'New Tutorial T(%):' : 'New Lecture L(%):'}
+                      </Text>
+                      <Text style={styles.simResultSubNum}>
+                        {simulatedSkipType === 'TUTORIAL'
+                          ? (calcData.simulatedTPercent != null ? `${calcData.simulatedTPercent.toFixed(1)}%` : '--')
+                          : (calcData.simulatedLPercent != null ? `${calcData.simulatedLPercent.toFixed(1)}%` : '--')}
+                      </Text>
+                    </View>
+                  )}
                   {calcData.simulatedPercent < 70 && (
                     <Text style={styles.simWarning}>
                       ⚠️ Drops below the mandatory JUET 70% threshold!
@@ -561,11 +780,24 @@ export default function PlannerScreen() {
       {/* ─── WEBKIOSK FAST-SYNC MODAL ────────────────────────────────────────── */}
       <Modal visible={syncModalVisible} transparent animationType="fade" onRequestClose={() => setSyncModalVisible(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { maxHeight: 360, borderRadius: BORDER_RADIUS.xl }]}>
-            <Text style={styles.modalCourseName}>Webkiosk Sync</Text>
+          <View style={[styles.modalSheet, { maxHeight: 440, borderRadius: BORDER_RADIUS.xl }]}>
+            <Text style={styles.modalCourseName}>Portal Sync Options</Text>
             <Text style={styles.modalOverline}>Update current counts for {selectedSubject}</Text>
 
-            <View style={{ marginVertical: SPACING.md }}>
+            <TouchableOpacity
+              style={styles.btnLaunchLynx}
+              onPress={() => {
+                setSyncModalVisible(false);
+                setCampusLynxModalVisible(true);
+              }}
+            >
+              <MaterialCommunityIcons name="cloud-sync" size={18} color="#000" style={{ marginRight: 6 }} />
+              <Text style={styles.btnLaunchLynxText}>⚡ Auto-Sync from CampusLynx Live</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.orDividerText}>— OR ENTER MANUALLY —</Text>
+
+            <View style={{ marginVertical: SPACING.xs }}>
               <Text style={styles.inputFieldLabel}>Classes Attended</Text>
               <TextInput
                 style={styles.fieldInput}
@@ -576,7 +808,7 @@ export default function PlannerScreen() {
                 placeholderTextColor={COLORS.textMuted}
               />
 
-              <Text style={[styles.inputFieldLabel, { marginTop: 10 }]}>Total Classes Conducted</Text>
+              <Text style={[styles.inputFieldLabel, { marginTop: 8 }]}>Total Classes Conducted</Text>
               <TextInput
                 style={styles.fieldInput}
                 keyboardType="numeric"
@@ -590,11 +822,81 @@ export default function PlannerScreen() {
             <ModernButton
               title="Save Attendance"
               onPress={handleSaveWebkioskSync}
-              style={{ marginTop: 4 }}
+              style={{ marginTop: 6 }}
             />
             <TouchableOpacity onPress={() => setSyncModalVisible(false)} style={styles.cancelLink}>
               <Text style={styles.cancelLinkText}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── CAMPUSLYNX LIVE AUTO-SYNC MODAL ────────────────────────────────────── */}
+      <CampusLynxSyncModal
+        visible={campusLynxModalVisible}
+        onClose={() => setCampusLynxModalVisible(false)}
+        userUid={auth.currentUser?.uid}
+        onSyncComplete={async (records) => {
+          await syncCampusLynxData(records);
+        }}
+      />
+
+      {/* ─── BATCH SELECTION MODAL ──────────────────────────────────────────────── */}
+      <Modal
+        visible={batchModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBatchModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { maxHeight: 520, borderRadius: BORDER_RADIUS.xl }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalCourseName}>Select Your College Batch</Text>
+                <Text style={styles.modalOverline}>Filters your exact timetable, theory & 2-hr lab courses</Text>
+              </View>
+              <TouchableOpacity onPress={() => setBatchModalVisible(false)} style={styles.closeBtn}>
+                <MaterialCommunityIcons name="close" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              {BATCH_GROUP_INFO && Object.entries(BATCH_GROUP_INFO).map(([groupKey, info]) => (
+                <View key={groupKey} style={styles.batchGroupSection}>
+                  <View style={styles.batchGroupTitleRow}>
+                    <Text style={styles.batchGroupTitle}>{info.title}</Text>
+                    <View style={[styles.batchGroupBadge, { borderColor: info.badgeColor }]}>
+                      <Text style={[styles.batchGroupBadgeText, { color: info.badgeColor }]}>{info.tag}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.batchGroupDesc}>{info.desc}</Text>
+
+                  <View style={styles.batchGrid}>
+                    {info.batches.map(batchCode => {
+                      const isSelected = (userBatch === batchCode);
+                      return (
+                        <TouchableOpacity
+                          key={batchCode}
+                          activeOpacity={0.8}
+                          style={[styles.batchCard, isSelected && styles.batchCardActive]}
+                          onPress={async () => {
+                            await switchBatch(batchCode);
+                            setBatchModalVisible(false);
+                          }}
+                        >
+                          <Text style={[styles.batchCardText, isSelected && styles.batchCardTextActive]}>
+                            {batchCode}
+                          </Text>
+                          {isSelected && (
+                            <MaterialCommunityIcons name="check-circle" size={14} color="#00D2FF" style={{ marginLeft: 4 }} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1085,5 +1387,227 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  topControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  batchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  batchPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  syncCampusLynxMainBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(46, 204, 113, 0.15)',
+    borderWidth: 1,
+    borderColor: '#2ECC71',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  syncCampusLynxMainText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2ECC71',
+  },
+
+  // LTP Breakdown Chips
+  ltpChipsRow: {
+    flexDirection: 'row',
+    marginTop: 6,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  ltpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  ltpChipLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    marginRight: 3,
+  },
+  ltpChipVal: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#00D2FF',
+  },
+  ltpChipFraction: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginLeft: 2,
+  },
+
+  // Summary Bar LTP
+  summaryBarLTP: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 10,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 8,
+  },
+  summaryColLTP: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryNumLTP: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFF',
+  },
+  summaryTxtLTP: {
+    fontSize: 9,
+    color: COLORS.textMuted,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+
+  // Simulator Toggle
+  simTypeToggleRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 8,
+  },
+  simTypeBtn: {
+    flex: 1,
+    paddingVertical: 5,
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  simTypeBtnActive: {
+    backgroundColor: 'rgba(108, 92, 231, 0.25)',
+    borderColor: COLORS.primary,
+  },
+  simTypeBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
+  simTypeBtnTextActive: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
+  simResultSubTitle: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  simResultSubNum: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+
+  // Launch Lynx in Fast-sync modal
+  btnLaunchLynx: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2ECC71',
+    borderRadius: BORDER_RADIUS.sm,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  btnLaunchLynxText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#000',
+  },
+  orDividerText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginVertical: 10,
+    letterSpacing: 0.8,
+  },
+
+  // Batch Selection in Planner
+  batchGroupSection: {
+    marginBottom: SPACING.md,
+  },
+  batchGroupTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  batchGroupTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  batchGroupBadge: {
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.pill,
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  batchGroupBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  batchGroupDesc: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginBottom: 8,
+  },
+  batchGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  batchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#131322',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  batchCardActive: {
+    backgroundColor: 'rgba(0, 210, 255, 0.15)',
+    borderColor: '#00D2FF',
+  },
+  batchCardText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.textSecondary,
+  },
+  batchCardTextActive: {
+    color: '#00D2FF',
   },
 });
