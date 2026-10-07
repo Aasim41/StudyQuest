@@ -249,26 +249,7 @@ export const UserProvider = ({ children }) => {
     }
   }, []);
 
-  const scheduleStudyNotifications = async (plan) => {
-    // Cancel all previously scheduled notifications
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    
-    plan.forEach((session, index) => {
-      // In a real app we'd parse the session.date / session.time correctly.
-      // For this demo, we'll just stagger them by a few seconds for testing 
-      // or assume they are hours away.
-      // Here we schedule a dummy notification 10 seconds from now for the first session, 
-      // just to prove it works in the background.
-      Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Time to study: ${session.subject} 📚`,
-          body: session.topic || "Open StudyQuest to begin your focus timer!",
-          sound: true,
-        },
-        trigger: { seconds: 10 + (index * 5) },
-      });
-    });
-  };
+
 
   const completeOnboarding = async () => {
     try {
