@@ -274,19 +274,21 @@ export default function AvatarSelectionScreen() {
     setTimeout(() => setLoading(false), 400);
   };
 
-  const handleSave = () => {
-    // Fire and forget: update context and start Firestore save in background
+  const handleSave = async () => {
     saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
-    
     if (isEditing) {
       navigation.goBack();
     } else {
-      navigation.navigate('UserType');
+      await completeOnboarding();
     }
   };
 
-  const handleSkip = () => {
-    navigation.navigate('UserType');
+  const handleSkip = async () => {
+    if (isEditing) {
+      navigation.goBack();
+    } else {
+      await completeOnboarding();
+    }
   };
 
   const activeCat = CATEGORIES.find(c => c.id === activeCategory);
