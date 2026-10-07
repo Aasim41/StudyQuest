@@ -25,8 +25,6 @@ import TimetableCorrectionScreen from '../screens/TimetableCorrectionScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import PlannerScreen from '../screens/PlannerScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
-import LeaderboardScreen from '../screens/LeaderboardScreen';
-import AchievementsScreen from '../screens/AchievementsScreen';
 
 const Stack = createNativeStackNavigator();
 
