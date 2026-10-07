@@ -150,14 +150,6 @@ const MainStack = () => (
       options={{ presentation: 'fullScreenModal' }}
     />
     <Stack.Screen 
-      name="Leaderboard" 
-      component={LeaderboardScreen} 
-    />
-    <Stack.Screen 
-      name="Achievements" 
-      component={AchievementsScreen} 
-    />
-    <Stack.Screen 
       name="TimetableCorrection" 
       component={TimetableCorrectionScreen} 
     />
