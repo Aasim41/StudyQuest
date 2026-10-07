@@ -700,97 +700,6 @@ export const UserProvider = ({ children }) => {
 
 
 
-  const BADGE_DEFINITIONS = {
-    first_focus: { id: 'first_focus', name: 'Focus Novice', icon: '🎯', description: 'Complete your first Focus Session' },
-    marathon: { id: 'marathon', name: 'Marathoner', icon: '🏃', description: 'Study for 2 hours in a row' },
-    night_owl: { id: 'night_owl', name: 'Night Owl', icon: '🦉', description: 'Study past 10 PM' },
-    streak_3: { id: 'streak_3', name: 'Hot Streak', icon: '🔥', description: 'Achieve a 3-day streak' },
-    early_bird: { id: 'early_bird', name: 'Early Bird', icon: '🌅', description: 'Study before 8 AM' }
-  };
-
-  const unlockBadge = async (badgeId) => {
-    const currentBadges = userStats.unlockedBadges || [];
-    if (!currentBadges.includes(badgeId) && BADGE_DEFINITIONS[badgeId]) {
-      const newBadges = [...currentBadges, badgeId];
-      const newStats = { ...userStats, unlockedBadges: newBadges };
-      setUserStats(newStats);
-      
-      // Update Firestore
-      if (auth.currentUser) {
-        try {
-          await setDoc(doc(db, 'users', auth.currentUser.uid), { unlockedBadges: newBadges }, { merge: true });
-        } catch (e) {
-          console.warn('Failed to unlock badge', e);
-        }
-      }
-      return BADGE_DEFINITIONS[badgeId]; // Return badge so UI can show a toast
-    }
-    return null;
-  };
-
-  const logStudySession = async (subject, durationMinutes) => {
-    const xpGained = durationMinutes * 10;
-    const newXp = userStats.xp + xpGained;
-    let newLevel = userStats.level;
-    let nextLevelXp = userStats.nextLevelXp;
-    let leveledUp = false;
-
-    if (newXp >= nextLevelXp) {
-      newLevel += 1;
-      nextLevelXp = Math.floor(nextLevelXp * 1.5);
-      leveledUp = true;
-    }
-
-    const currentSubjectMinutes = userStats.studyMinutesPerSubject?.[subject] || 0;
-    
-    const newStats = {
-      ...userStats,
-      xp: newXp,
-      level: newLevel,
-      nextLevelXp: nextLevelXp,
-      studyMinutesPerSubject: {
-        ...(userStats.studyMinutesPerSubject || {}),
-        [subject]: currentSubjectMinutes + durationMinutes
-      }
-    };
-
-    setUserStats(newStats);
-
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'users', auth.currentUser.uid), newStats, { merge: true });
-      } catch (e) {
-        console.warn('Failed to save study session stats', e);
-      }
-    }
-
-    // Check Badges
-    const unlocked = [];
-    if (!userStats.unlockedBadges?.includes('first_focus')) {
-      const b = await unlockBadge('first_focus');
-      if (b) unlocked.push(b);
-    }
-    if (durationMinutes >= 120 && !userStats.unlockedBadges?.includes('marathon')) {
-      const b = await unlockBadge('marathon');
-      if (b) unlocked.push(b);
-    }
-    const hour = new Date().getHours();
-    if (hour >= 22 || hour <= 3) {
-      if (!userStats.unlockedBadges?.includes('night_owl')) {
-        const b = await unlockBadge('night_owl');
-        if (b) unlocked.push(b);
-      }
-    }
-    if (hour >= 5 && hour <= 8) {
-      if (!userStats.unlockedBadges?.includes('early_bird')) {
-        const b = await unlockBadge('early_bird');
-        if (b) unlocked.push(b);
-      }
-    }
-
-    return { leveledUp, newLevel, unlockedBadges: unlocked, xpGained };
-  };
-
   return (
     <UserContext.Provider value={{
       onboardingComplete,
@@ -815,9 +724,6 @@ export const UserProvider = ({ children }) => {
       markClassAttendance,
       updateManualAttendance,
       syncCampusLynxData,
-      BADGE_DEFINITIONS,
-      unlockBadge,
-      logStudySession
     }}>
       {children}
     </UserContext.Provider>
