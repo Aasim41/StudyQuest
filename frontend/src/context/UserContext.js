@@ -185,7 +185,7 @@ export const UserProvider = ({ children }) => {
 
   const [userStats, setUserStats] = useState({ 
     level: 1, xp: 0, nextLevelXp: 1000, streak: 0, 
-    lastStudyDate: null, avatarUrl: null, unlockedBadges: [], studyMinutesPerSubject: {} 
+    lastStudyDate: null, avatarUrl: null,
   });
   const [userBatch, setUserBatchState] = useState('B31');
   const [studyPlan, setStudyPlan] = useState([]);
