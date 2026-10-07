@@ -368,11 +368,7 @@ export const UserProvider = ({ children }) => {
           nextLevelXp: data.nextLevelXp || 1000,
           streak: data.streak || 0,
           lastStudyDate: data.lastStudyDate || null,
-          userType: data.userType || null,
-          institute: data.institute || null,
           avatarUrl: data.avatarUrl || null,
-          unlockedBadges: data.unlockedBadges || [],
-          studyMinutesPerSubject: data.studyMinutesPerSubject || {},
         });
 
         if (data.timetable && Array.isArray(data.timetable)) {
