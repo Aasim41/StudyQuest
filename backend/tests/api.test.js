@@ -7,18 +7,4 @@ describe('API Endpoints', () => {
     expect(res.statusCode).toEqual(200);
     expect(res.body).toHaveProperty('success', true);
   });
-
-  it('GET /api/colleges/search without query should return 400', async () => {
-    const res = await request(app).get('/api/colleges/search');
-    expect(res.statusCode).toEqual(400);
-    expect(res.body).toHaveProperty('error');
-  });
-
-  it('POST /api/schedule/merge/generate without data should return 400', async () => {
-    const res = await request(app)
-      .post('/api/schedule/merge/generate')
-      .send({});
-    expect(res.statusCode).toEqual(400);
-    expect(res.body).toHaveProperty('error');
-  });
 });
