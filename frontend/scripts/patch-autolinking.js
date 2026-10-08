@@ -33,3 +33,33 @@ if (fs.existsSync(pluginPath)) {
 } else {
   console.log('[patch-autolinking] File not found at:', pluginPath);
 }
+
+// 2. Patch RNCWebViewClient.java for untrusted/self-signed SSL certificates (e.g. JUET CampusLynx)
+const webviewClientPath = path.join(
+  __dirname,
+  '..',
+  'node_modules',
+  'react-native-webview',
+  'android',
+  'src',
+  'main',
+  'java',
+  'com',
+  'reactnativecommunity',
+  'webview',
+  'RNCWebViewClient.java'
+);
+
+if (fs.existsSync(webviewClientPath)) {
+  let wvContent = fs.readFileSync(webviewClientPath, 'utf8');
+  if (wvContent.includes('handler.cancel();') && wvContent.includes('onReceivedSslError')) {
+    wvContent = wvContent.replace(
+      'handler.cancel();',
+      'handler.proceed();\n        return;'
+    );
+    fs.writeFileSync(webviewClientPath, wvContent, 'utf8');
+    console.log('[patch-webview-ssl] Successfully patched RNCWebViewClient.java to proceed on SSL cert errors');
+  } else {
+    console.log('[patch-webview-ssl] RNCWebViewClient.java already patched or pattern missing');
+  }
+}
