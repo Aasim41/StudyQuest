@@ -168,7 +168,7 @@ export default function FacultyScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0B13" />
+      <StatusBar barStyle="light-content" backgroundColor="#08080C" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -252,7 +252,7 @@ export default function FacultyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B13',
+    backgroundColor: '#08080C',
   },
   header: {
     paddingTop: 54,
@@ -286,14 +286,14 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161622',
+    backgroundColor: '#101016',
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   searchInput: {
     flex: 1,
@@ -305,9 +305,11 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   cardGroup: {
-    backgroundColor: '#161622',
+    backgroundColor: '#101017',
     borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   facultyRow: {
     flexDirection: 'row',
