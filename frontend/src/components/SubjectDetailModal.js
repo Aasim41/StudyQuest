@@ -28,10 +28,11 @@ export default function SubjectDetailModal({
     total = 0,
     missed = 0,
     history = [],
+    isLab = false,
   } = subjectData;
 
-  const [selectedTarget, setSelectedTarget] = useState(70);
-  const [calculatorOpen, setCalculatorOpen] = useState(true);
+  // Flexible attendance target threshold (Defaults to standard 75%, no fixed 70%)
+  const [selectedTarget, setSelectedTarget] = useState(75);
   const [attendNext, setAttendNext] = useState(0);
   const [leaveNext, setLeaveNext] = useState(0);
   const [historyFilter, setHistoryFilter] = useState('ALL'); // 'ALL' | 'ABSENT' | 'PRESENT'
@@ -39,29 +40,29 @@ export default function SubjectDetailModal({
   // Current attendance percentage
   const currentPercent = total > 0 ? (attended / total) * 100 : 0;
 
-  // Projected attendance with What-If steppers
+  // Forecasted values
   const projectedAttended = attended + attendNext;
   const projectedTotal = total + attendNext + leaveNext;
-  const projectedPercent = projectedTotal > 0 ? (projectedAttended / projectedTotal) * 100 : 0;
+  const projectedPercent = projectedTotal > 0 ? (projectedAttended / projectedTotal) * 100 : currentPercent;
 
   // Calculate bunk capacity or classes needed for target
   const getBunkStatus = (att, tot, target) => {
     if (tot === 0) return { canBunk: true, text: 'No classes yet', count: 0 };
     const pct = (att / tot) * 100;
     if (pct >= target) {
-      // Safe to bunk: Math.floor((100 * att - target * tot) / target)
+      // Safe bunks calculation: Math.floor((100 * att - target * tot) / target)
       const safe = Math.floor((100 * att - target * tot) / target);
       return {
         canBunk: true,
-        text: safe > 0 ? `Can bunk ${safe} ${safe === 1 ? 'class' : 'classes'}` : `At ${target}% threshold`,
+        text: safe > 0 ? `Can bunk ${safe} ${safe === 1 ? 'class' : 'classes'} safely` : `At ${target}% threshold`,
         count: safe,
       };
     } else {
-      // Need to attend: Math.ceil((target * tot - 100 * att) / (100 - target))
+      // Classes needed: Math.ceil((target * tot - 100 * att) / (100 - target))
       const need = Math.ceil((target * tot - 100 * att) / (100 - target));
       return {
         canBunk: false,
-        text: `Attend next ${need} ${need === 1 ? 'class' : 'classes'}`,
+        text: `Must attend next ${need} ${need === 1 ? 'class' : 'classes'}`,
         count: need,
       };
     }
@@ -77,17 +78,13 @@ export default function SubjectDetailModal({
     [projectedAttended, projectedTotal, selectedTarget]
   );
 
-  // Status color based on target
-  const getStatusColor = (pct) => {
-    if (pct >= selectedTarget) return '#E5A93C'; // warm amber/yellow for 75-80 or green
-    if (pct >= 85) return '#2ECC71';
-    return '#E74C3C';
-  };
+  // Individual forecasts for Card 1 & Card 2
+  const attendOnlyPercent = (total + attendNext) > 0 ? ((attended + attendNext) / (total + attendNext)) * 100 : currentPercent;
+  const leaveOnlyPercent = (total + leaveNext) > 0 ? (attended / (total + leaveNext)) * 100 : currentPercent;
 
   // Filtered history list
   const historyList = useMemo(() => {
     if (!history || !Array.isArray(history) || history.length === 0) {
-      // Synthesize realistic history if none present
       const list = [];
       const now = new Date();
       for (let i = 0; i < total; i++) {
@@ -100,14 +97,14 @@ export default function SubjectDetailModal({
           id: `hist-${i}`,
           date: `${dayNum} ${monthNames[d.getMonth()]}`,
           time: i % 2 === 0 ? '2:00 PM' : '4:00 PM',
-          slot: subjectData.isLab ? 'P' : 'L',
+          slot: isLab ? 'P' : 'L',
           status: isPres ? 'present' : 'absent',
         });
       }
       return list;
     }
     return history;
-  }, [history, total, attended, subjectData.isLab]);
+  }, [history, total, attended, isLab]);
 
   const filteredHistory = useMemo(() => {
     if (historyFilter === 'ABSENT') {
@@ -121,6 +118,8 @@ export default function SubjectDetailModal({
 
   const presentCount = historyList.filter((h) => h.status === 'present').length;
   const absentCount = historyList.filter((h) => h.status === 'absent').length;
+
+  const hasSimulations = attendNext > 0 || leaveNext > 0;
 
   return (
     <Modal
@@ -140,14 +139,18 @@ export default function SubjectDetailModal({
               <Text style={styles.subjectTitle} numberOfLines={1}>
                 {name}
               </Text>
-              {code ? <Text style={styles.subjectCodeText}>{code}</Text> : null}
+              <View style={styles.headerSubRow}>
+                {code ? <Text style={styles.subjectCodeText}>{code}</Text> : null}
+                <View style={styles.subDot} />
+                <Text style={styles.subjectTypeTag}>{isLab ? 'Practical / Lab' : 'Theory Course'}</Text>
+              </View>
             </View>
             <TouchableOpacity
               style={styles.closeBtn}
               activeOpacity={0.8}
               onPress={onClose}
             >
-              <MaterialCommunityIcons name="close" size={20} color="#FFF" />
+              <MaterialCommunityIcons name="close" size={20} color="#D1D0D8" />
             </TouchableOpacity>
           </View>
 
@@ -155,199 +158,260 @@ export default function SubjectDetailModal({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* Hero Attendance Card */}
+            {/* ─── HERO ATTENDANCE CARD ────────────────────────────────────── */}
             <View style={styles.heroCard}>
-              <View style={styles.heroPercentRow}>
-                <Text style={[styles.heroPercent, { color: currentPercent >= 80 ? '#2ECC71' : '#E5A93C' }]}>
-                  {total > 0 ? `${currentPercent.toFixed(1)}%` : '--'}
-                </Text>
-                <Text style={styles.heroPercentLabel}>overall attendance</Text>
+              <View style={styles.heroTopRow}>
+                <View>
+                  <Text style={styles.heroLabel}>CURRENT ATTENDANCE</Text>
+                  <Text style={[styles.heroPercent, { color: currentPercent >= selectedTarget ? '#38D39F' : '#E5A93C' }]}>
+                    {total > 0 ? `${currentPercent.toFixed(1)}%` : '--'}
+                  </Text>
+                </View>
+
+                <View style={styles.classesBox}>
+                  <Text style={styles.classesNum}>{attended} <Text style={styles.classesTotal}>/ {total}</Text></Text>
+                  <Text style={styles.classesSub}>Classes Attended</Text>
+                  {missed > 0 && (
+                    <Text style={styles.missedSub}>{missed} missed</Text>
+                  )}
+                </View>
               </View>
 
-              <Text style={styles.heroClassesCount}>
-                <Text style={{ fontWeight: '800', color: '#FFF' }}>{attended}</Text> / {total} classes attended
-              </Text>
+              {/* Threshold Target Selector */}
+              <View style={styles.targetSection}>
+                <View style={styles.targetHeaderRow}>
+                  <Text style={styles.targetLabel}>Target Threshold:</Text>
+                  <View style={styles.targetPillsContainer}>
+                    {[75, 80, 85].map((tgt) => {
+                      const isSelected = selectedTarget === tgt;
+                      return (
+                        <TouchableOpacity
+                          key={tgt}
+                          style={[
+                            styles.targetPill,
+                            isSelected && styles.targetPillActive,
+                          ]}
+                          activeOpacity={0.8}
+                          onPress={() => setSelectedTarget(tgt)}
+                        >
+                          <Text
+                            style={[
+                              styles.targetPillText,
+                              isSelected && styles.targetPillTextActive,
+                            ]}
+                          >
+                            {tgt}%
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
 
-              {/* Status Badge & Target Selectors */}
-              <View style={styles.badgeAndTargetsRow}>
+                {/* Status Margin Badge */}
                 <View
                   style={[
                     styles.bunkStatusBadge,
                     currentBunkStatus.canBunk ? styles.bunkBadgeSafe : styles.bunkBadgeRisk,
                   ]}
                 >
+                  <MaterialCommunityIcons
+                    name={currentBunkStatus.canBunk ? 'check-circle' : 'alert-circle'}
+                    size={15}
+                    color={currentBunkStatus.canBunk ? '#38D39F' : '#FF5C5C'}
+                    style={{ marginRight: 6 }}
+                  />
                   <Text
                     style={[
                       styles.bunkStatusText,
-                      { color: currentBunkStatus.canBunk ? '#4EBA86' : '#FF6B6B' },
+                      { color: currentBunkStatus.canBunk ? '#38D39F' : '#FF5C5C' },
                     ]}
                   >
                     {currentBunkStatus.text}
                   </Text>
                 </View>
-
-                {/* Criteria Pills (70%, 80%, 90%) */}
-                <View style={styles.criteriaPillsRow}>
-                  {[70, 80, 90].map((tgt) => {
-                    const isSelected = selectedTarget === tgt;
-                    return (
-                      <TouchableOpacity
-                        key={tgt}
-                        style={[
-                          styles.targetPill,
-                          isSelected && styles.targetPillActive,
-                        ]}
-                        activeOpacity={0.8}
-                        onPress={() => setSelectedTarget(tgt)}
-                      >
-                        <Text
-                          style={[
-                            styles.targetPillText,
-                            isSelected && styles.targetPillTextActive,
-                          ]}
-                        >
-                          {tgt}%
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
               </View>
+            </View>
 
-              {/* What-If Calculator Accordion */}
-              <TouchableOpacity
-                style={styles.calcAccordionHeader}
-                activeOpacity={0.85}
-                onPress={() => setCalculatorOpen(!calculatorOpen)}
-              >
-                <View style={styles.calcHeaderLeft}>
-                  <MaterialCommunityIcons
-                    name="calculator"
-                    size={16}
-                    color="#D1D0D8"
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={styles.calcHeaderTitle}>What-if calculator</Text>
-                </View>
-                <MaterialCommunityIcons
-                  name={calculatorOpen ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color="#D1D0D8"
-                />
-              </TouchableOpacity>
-
-              {calculatorOpen && (
-                <View style={styles.calcContent}>
-                  <View style={styles.steppersRow}>
-                    {/* ATTEND NEXT Stepper */}
-                    <View style={styles.stepperBox}>
-                      <Text style={styles.stepperLabel}>ATTEND NEXT</Text>
-                      <View style={styles.stepperControls}>
-                        <TouchableOpacity
-                          style={styles.stepBtn}
-                          onPress={() => setAttendNext(Math.max(0, attendNext - 1))}
-                        >
-                          <MaterialCommunityIcons name="minus" size={18} color="#D1D0D8" />
-                        </TouchableOpacity>
-                        <Text style={styles.stepValue}>{attendNext}</Text>
-                        <TouchableOpacity
-                          style={styles.stepBtn}
-                          onPress={() => setAttendNext(attendNext + 1)}
-                        >
-                          <MaterialCommunityIcons name="plus" size={18} color="#D1D0D8" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* LEAVE NEXT Stepper */}
-                    <View style={styles.stepperBox}>
-                      <Text style={[styles.stepperLabel, { color: '#E8A3B2' }]}>LEAVE NEXT</Text>
-                      <View style={styles.stepperControls}>
-                        <TouchableOpacity
-                          style={styles.stepBtn}
-                          onPress={() => setLeaveNext(Math.max(0, leaveNext - 1))}
-                        >
-                          <MaterialCommunityIcons name="minus" size={18} color="#D1D0D8" />
-                        </TouchableOpacity>
-                        <Text style={styles.stepValue}>{leaveNext}</Text>
-                        <TouchableOpacity
-                          style={[styles.stepBtn, { backgroundColor: '#3A202A' }]}
-                          onPress={() => setLeaveNext(leaveNext + 1)}
-                        >
-                          <MaterialCommunityIcons name="plus" size={18} color="#FF92A5" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Projected Result Row */}
-                  <View style={styles.projectedRow}>
-                    <Text style={styles.projectedLabel}>
-                      Projected:{' '}
-                      <Text
-                        style={[
-                          styles.projectedPercent,
-                          { color: projectedPercent >= selectedTarget ? '#E5A93C' : '#E74C3C' },
-                        ]}
-                      >
-                        {projectedPercent.toFixed(1)}%
-                      </Text>{' '}
-                      <Text style={styles.projectedFraction}>
-                        ({projectedAttended}/{projectedTotal})
-                      </Text>
-                    </Text>
-
-                    <View
-                      style={[
-                        styles.projectedBadge,
-                        projectedBunkStatus.canBunk ? styles.bunkBadgeSafe : styles.bunkBadgeRisk,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.projectedBadgeText,
-                          { color: projectedBunkStatus.canBunk ? '#4EBA86' : '#FF6B6B' },
-                        ]}
-                      >
-                        {projectedBunkStatus.text}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+            {/* ─── FORECAST CARDS (ATTEND & LEAVE SEPARATE) ────────────────── */}
+            <View style={styles.forecastSectionHeader}>
+              <Text style={styles.forecastSectionTitle}>Attendance Forecast</Text>
+              {hasSimulations && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setAttendNext(0);
+                    setLeaveNext(0);
+                  }}
+                >
+                  <Text style={styles.resetBtnText}>Reset</Text>
+                </TouchableOpacity>
               )}
             </View>
 
-            {/* History Filter Segmented Tabs */}
-            <View style={styles.historyTabsRow}>
-              <TouchableOpacity
-                style={[styles.historyTab, historyFilter === 'ALL' && styles.historyTabActive]}
-                onPress={() => setHistoryFilter('ALL')}
-              >
-                <Text style={[styles.historyTabText, historyFilter === 'ALL' && styles.historyTabTextActive]}>
-                  All ({historyList.length})
-                </Text>
-              </TouchableOpacity>
+            {/* CARD 1: FORECAST ATTENDING CLASS */}
+            <View style={styles.forecastCardAttend}>
+              <View style={styles.forecastCardTop}>
+                <View style={styles.forecastIconBoxAttend}>
+                  <MaterialCommunityIcons name="calendar-check" size={22} color="#38D39F" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.forecastCardTitle}>Attend Upcoming Classes</Text>
+                  <Text style={styles.forecastCardSub}>Simulate attending next sessions</Text>
+                </View>
 
-              <TouchableOpacity
-                style={[styles.historyTab, historyFilter === 'ABSENT' && styles.historyTabActive]}
-                onPress={() => setHistoryFilter('ABSENT')}
-              >
-                <Text style={[styles.historyTabText, historyFilter === 'ABSENT' && styles.historyTabTextActive]}>
-                  Absent ({absentCount})
-                </Text>
-              </TouchableOpacity>
+                {/* Plus / Minus Stepper */}
+                <View style={styles.stepperContainer}>
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, attendNext === 0 && styles.stepperBtnDisabled]}
+                    activeOpacity={0.7}
+                    disabled={attendNext === 0}
+                    onPress={() => setAttendNext(Math.max(0, attendNext - 1))}
+                  >
+                    <MaterialCommunityIcons name="minus" size={16} color={attendNext === 0 ? '#4E4D5E' : '#FFF'} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.historyTab, historyFilter === 'PRESENT' && styles.historyTabActive]}
-                onPress={() => setHistoryFilter('PRESENT')}
-              >
-                <Text style={[styles.historyTabText, historyFilter === 'PRESENT' && styles.historyTabTextActive]}>
-                  Present ({presentCount})
+                  <View style={styles.stepperValueBox}>
+                    <Text style={styles.stepperValueText}>+{attendNext}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, styles.stepperBtnAttend]}
+                    activeOpacity={0.7}
+                    onPress={() => setAttendNext(attendNext + 1)}
+                  >
+                    <MaterialCommunityIcons name="plus" size={16} color="#38D39F" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Dynamic Attend Forecast Outcome */}
+              <View style={styles.forecastOutcomeRow}>
+                <MaterialCommunityIcons name="trending-up" size={16} color="#38D39F" style={{ marginRight: 6 }} />
+                <Text style={styles.outcomeText}>
+                  {attendNext > 0 ? (
+                    <>
+                      Attending {attendNext} more:{' '}
+                      <Text style={styles.outcomeHighlightAttend}>
+                        {attendOnlyPercent.toFixed(1)}%
+                      </Text>{' '}
+                      <Text style={styles.deltaText}>(+{((attendOnlyPercent - currentPercent)).toFixed(1)}%)</Text>
+                    </>
+                  ) : (
+                    'Tap + to see your percentage boost'
+                  )}
                 </Text>
-              </TouchableOpacity>
+              </View>
             </View>
 
-            {/* Chronological Class History Items */}
+            {/* CARD 2: FORECAST LEAVING / BUNKING CLASS */}
+            <View style={styles.forecastCardLeave}>
+              <View style={styles.forecastCardTop}>
+                <View style={styles.forecastIconBoxLeave}>
+                  <MaterialCommunityIcons name="umbrella-beach" size={22} color="#FF7675" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.forecastCardTitle}>Leave / Bunk Classes</Text>
+                  <Text style={styles.forecastCardSub}>Simulate missing next sessions</Text>
+                </View>
+
+                {/* Plus / Minus Stepper */}
+                <View style={styles.stepperContainer}>
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, leaveNext === 0 && styles.stepperBtnDisabled]}
+                    activeOpacity={0.7}
+                    disabled={leaveNext === 0}
+                    onPress={() => setLeaveNext(Math.max(0, leaveNext - 1))}
+                  >
+                    <MaterialCommunityIcons name="minus" size={16} color={leaveNext === 0 ? '#4E4D5E' : '#FFF'} />
+                  </TouchableOpacity>
+
+                  <View style={styles.stepperValueBox}>
+                    <Text style={[styles.stepperValueText, { color: '#FF7675' }]}>-{leaveNext}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, styles.stepperBtnLeave]}
+                    activeOpacity={0.7}
+                    onPress={() => setLeaveNext(leaveNext + 1)}
+                  >
+                    <MaterialCommunityIcons name="plus" size={16} color="#FF7675" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Dynamic Leave Forecast Outcome */}
+              <View style={styles.forecastOutcomeRow}>
+                <MaterialCommunityIcons name="trending-down" size={16} color="#FF7675" style={{ marginRight: 6 }} />
+                <Text style={styles.outcomeText}>
+                  {leaveNext > 0 ? (
+                    <>
+                      Missing {leaveNext} more:{' '}
+                      <Text style={styles.outcomeHighlightLeave}>
+                        {leaveOnlyPercent.toFixed(1)}%
+                      </Text>{' '}
+                      <Text style={styles.deltaTextNegative}>({((leaveOnlyPercent - currentPercent)).toFixed(1)}%)</Text>
+                      {' • '}
+                      <Text style={leaveOnlyPercent >= selectedTarget ? styles.safeText : styles.dangerText}>
+                        {leaveOnlyPercent >= selectedTarget ? 'Safe' : `Below ${selectedTarget}%`}
+                      </Text>
+                    </>
+                  ) : (
+                    'Tap + to test your safe bunk limit'
+                  )}
+                </Text>
+              </View>
+            </View>
+
+            {/* COMBINED SIMULATION SUMMARY (If active) */}
+            {hasSimulations && (
+              <View style={styles.combinedSummaryCard}>
+                <View style={styles.summaryTopRow}>
+                  <Text style={styles.summaryTitle}>Combined Projection</Text>
+                  <Text style={[styles.summaryPercent, { color: projectedPercent >= selectedTarget ? '#38D39F' : '#FF5C5C' }]}>
+                    {projectedPercent.toFixed(1)}%
+                  </Text>
+                </View>
+                <Text style={styles.summarySub}>
+                  {projectedAttended} of {projectedTotal} total classes • {projectedBunkStatus.text}
+                </Text>
+              </View>
+            )}
+
+            {/* ─── CLASS HISTORY LIST ──────────────────────────────────────── */}
+            <View style={styles.historySectionHeader}>
+              <Text style={styles.historySectionTitle}>Class History</Text>
+              <View style={styles.historyTabsRow}>
+                <TouchableOpacity
+                  style={[styles.historyTab, historyFilter === 'ALL' && styles.historyTabActive]}
+                  onPress={() => setHistoryFilter('ALL')}
+                >
+                  <Text style={[styles.historyTabText, historyFilter === 'ALL' && styles.historyTabTextActive]}>
+                    All ({historyList.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.historyTab, historyFilter === 'ABSENT' && styles.historyTabActive]}
+                  onPress={() => setHistoryFilter('ABSENT')}
+                >
+                  <Text style={[styles.historyTabText, historyFilter === 'ABSENT' && styles.historyTabTextActive]}>
+                    Absent ({absentCount})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.historyTab, historyFilter === 'PRESENT' && styles.historyTabActive]}
+                  onPress={() => setHistoryFilter('PRESENT')}
+                >
+                  <Text style={[styles.historyTabText, historyFilter === 'PRESENT' && styles.historyTabTextActive]}>
+                    Present ({presentCount})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Chronological History Cards */}
             <View style={styles.historyListContainer}>
               {filteredHistory.map((item, idx) => {
                 const isPresent = item.status === 'present';
@@ -360,11 +424,14 @@ export default function SubjectDetailModal({
                     ]}
                   >
                     <View style={styles.historyItemLeft}>
-                      <Text style={styles.historyItemDate}>
-                        {item.date}, {item.time}
-                      </Text>
-                      <View style={styles.slotBadge}>
-                        <Text style={styles.slotBadgeText}>{item.slot || 'L'}</Text>
+                      <View style={[styles.slotBadge, isPresent ? styles.slotBadgePresent : styles.slotBadgeAbsent]}>
+                        <Text style={[styles.slotBadgeText, isPresent ? styles.slotTextPresent : styles.slotTextAbsent]}>
+                          {item.slot === 'P' ? 'LAB' : item.slot === 'T' ? 'TUT' : 'LEC'}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={styles.historyItemDate}>{item.date}</Text>
+                        <Text style={styles.historyItemTime}>{item.time || '10:00 AM'}</Text>
                       </View>
                     </View>
 
@@ -377,7 +444,7 @@ export default function SubjectDetailModal({
                       <Text
                         style={[
                           styles.statusPillText,
-                          { color: isPresent ? '#2ECC71' : '#FF4D4D' },
+                          { color: isPresent ? '#38D39F' : '#FF5C5C' },
                         ]}
                       >
                         {isPresent ? 'Present' : 'Absent'}
@@ -399,21 +466,23 @@ export default function SubjectDetailModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#12121A',
+    backgroundColor: '#08080C',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: height * 0.9,
+    maxHeight: height * 0.92,
     paddingTop: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   handleBar: {
-    width: 44,
+    width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignSelf: 'center',
     marginBottom: 14,
   },
@@ -425,16 +494,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   subjectTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
     color: '#FFF',
     letterSpacing: -0.3,
+  },
+  headerSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   subjectCodeText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#A29BFE',
-    marginTop: 2,
+  },
+  subDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#5A5868',
+    marginHorizontal: 8,
+  },
+  subjectTypeTag: {
+    fontSize: 12,
+    color: '#8E8D9A',
+    fontWeight: '500',
   },
   closeBtn: {
     width: 32,
@@ -445,69 +530,91 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingBottom: 24,
   },
 
   // Hero Card
   heroCard: {
-    backgroundColor: '#1C1B24',
+    backgroundColor: '#12121A',
     borderRadius: 20,
-    padding: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  heroPercentRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: '#8E8D9A',
     marginBottom: 4,
   },
   heroPercent: {
     fontSize: 38,
     fontWeight: '900',
-    letterSpacing: -0.5,
-    marginRight: 8,
+    letterSpacing: -0.6,
   },
-  heroPercentLabel: {
+  classesBox: {
+    alignItems: 'flex-end',
+    backgroundColor: '#191824',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  classesNum: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  classesTotal: {
     fontSize: 13,
     color: '#8E8D9A',
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  heroClassesCount: {
-    fontSize: 14,
+  classesSub: {
+    fontSize: 11,
     color: '#8E8D9A',
-    marginBottom: 14,
+    marginTop: 2,
+  },
+  missedSub: {
+    fontSize: 10,
+    color: '#FF7675',
+    fontWeight: '700',
+    marginTop: 2,
   },
 
-  // Badge & Targets Row
-  badgeAndTargetsRow: {
+  // Target Section
+  targetSection: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: 14,
+  },
+  targetHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  bunkStatusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
-  },
-  bunkBadgeSafe: {
-    backgroundColor: 'rgba(46, 204, 113, 0.16)',
-  },
-  bunkBadgeRisk: {
-    backgroundColor: 'rgba(231, 76, 60, 0.16)',
-  },
-  bunkStatusText: {
+  targetLabel: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
+    color: '#D1D0D8',
   },
-  criteriaPillsRow: {
+  targetPillsContainer: {
     flexDirection: 'row',
     gap: 6,
   },
   targetPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   targetPillActive: {
@@ -516,108 +623,222 @@ const styles = StyleSheet.create({
   targetPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#A5A4B4',
+    color: '#8E8D9A',
   },
   targetPillTextActive: {
-    color: '#13111C',
+    color: '#08080C',
     fontWeight: '900',
   },
-
-  // What-If Calculator Accordion
-  calcAccordionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  calcHeaderLeft: {
+  bunkStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
-  calcHeaderTitle: {
-    fontSize: 13,
+  bunkBadgeSafe: {
+    backgroundColor: 'rgba(56, 211, 159, 0.12)',
+  },
+  bunkBadgeRisk: {
+    backgroundColor: 'rgba(255, 92, 92, 0.12)',
+  },
+  bunkStatusText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#D1D0D8',
   },
-  calcContent: {
-    paddingTop: 10,
-  },
-  steppersRow: {
+
+  // Forecast Header
+  forecastSectionHeader: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  stepperBox: {
-    flex: 1,
-    backgroundColor: '#262432',
-    borderRadius: 14,
-    padding: 12,
-  },
-  stepperLabel: {
-    fontSize: 11,
+  forecastSectionTitle: {
+    fontSize: 14,
     fontWeight: '800',
-    color: '#B5B3C8',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    color: '#D1D0D8',
+    letterSpacing: 0.2,
   },
-  stepperControls: {
+  resetBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A29BFE',
+  },
+
+  // Card 1: Attend
+  forecastCardAttend: {
+    backgroundColor: '#0F1612',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 211, 159, 0.22)',
+  },
+  forecastCardLeave: {
+    backgroundColor: '#170E12',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 118, 117, 0.22)',
+  },
+  forecastCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  stepBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  forecastIconBoxAttend: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(56, 211, 159, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepValue: {
-    fontSize: 18,
-    fontWeight: '900',
+  forecastIconBoxLeave: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 118, 117, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forecastCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFF',
   },
-  projectedRow: {
+  forecastCardSub: {
+    fontSize: 11,
+    color: '#8E8D9A',
+    marginTop: 1,
+  },
+
+  // Steppers
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 3,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  stepperBtnDisabled: {
+    opacity: 0.35,
+  },
+  stepperBtnAttend: {
+    backgroundColor: 'rgba(56, 211, 159, 0.2)',
+  },
+  stepperBtnLeave: {
+    backgroundColor: 'rgba(255, 118, 117, 0.2)',
+  },
+  stepperValueBox: {
+    paddingHorizontal: 8,
+  },
+  stepperValueText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#38D39F',
+  },
+
+  // Forecast outcome
+  forecastOutcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: 8,
+  },
+  outcomeText: {
+    fontSize: 12,
+    color: '#B5B4C2',
+    fontWeight: '500',
+  },
+  outcomeHighlightAttend: {
+    fontWeight: '800',
+    color: '#38D39F',
+  },
+  outcomeHighlightLeave: {
+    fontWeight: '800',
+    color: '#FF7675',
+  },
+  deltaText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#38D39F',
+  },
+  deltaTextNegative: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF7675',
+  },
+  safeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#38D39F',
+  },
+  dangerText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF5C5C',
+  },
+
+  // Combined Summary Card
+  combinedSummaryCard: {
+    backgroundColor: '#161522',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#C5BBED',
+  },
+  summaryTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 6,
   },
-  projectedLabel: {
+  summaryTitle: {
     fontSize: 13,
-    color: '#A5A4B4',
-    fontWeight: '600',
-  },
-  projectedPercent: {
     fontWeight: '800',
+    color: '#FFF',
   },
-  projectedFraction: {
-    fontSize: 12,
-    color: '#767484',
+  summaryPercent: {
+    fontSize: 16,
+    fontWeight: '900',
   },
-  projectedBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  projectedBadgeText: {
+  summarySub: {
     fontSize: 11,
-    fontWeight: '800',
+    color: '#8E8D9A',
+    marginTop: 3,
   },
 
-  // History Filter Tabs
+  // History Section
+  historySectionHeader: {
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  historySectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#D1D0D8',
+    marginBottom: 8,
+  },
   historyTabsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
   },
   historyTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   historyTabActive: {
@@ -626,14 +847,14 @@ const styles = StyleSheet.create({
   historyTabText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#A5A4B4',
+    color: '#8E8D9A',
   },
   historyTabTextActive: {
-    color: '#13111C',
+    color: '#08080C',
     fontWeight: '900',
   },
 
-  // History List Cards
+  // History List Items
   historyListContainer: {
     gap: 8,
   },
@@ -641,45 +862,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1C1B24',
+    backgroundColor: '#12121A',
     borderRadius: 14,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
   },
   historyItemCardAbsent: {
-    backgroundColor: '#2A1215',
+    borderColor: 'rgba(255, 92, 92, 0.15)',
   },
   historyItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  slotBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotBadgePresent: {
+    backgroundColor: 'rgba(56, 211, 159, 0.14)',
+  },
+  slotBadgeAbsent: {
+    backgroundColor: 'rgba(255, 92, 92, 0.14)',
+  },
+  slotBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  slotTextPresent: {
+    color: '#38D39F',
+  },
+  slotTextAbsent: {
+    color: '#FF5C5C',
   },
   historyItemDate: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFF',
   },
-  slotBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  slotBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#A5A4B4',
+  historyItemTime: {
+    fontSize: 11,
+    color: '#8E8D9A',
   },
   statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
   statusPillPresent: {
-    backgroundColor: 'rgba(46, 204, 113, 0.16)',
+    backgroundColor: 'rgba(56, 211, 159, 0.14)',
   },
   statusPillAbsent: {
-    backgroundColor: 'rgba(231, 76, 60, 0.22)',
+    backgroundColor: 'rgba(255, 92, 92, 0.14)',
   },
   statusPillText: {
     fontSize: 11,
