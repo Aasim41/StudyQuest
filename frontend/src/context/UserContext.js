@@ -15,7 +15,7 @@ import {
   setupNotificationCategories,
   NOTIFICATION_ACTIONS,
   scheduleSmartEngagementNotifications,
-  testTriggerClassEndNotification,
+  scheduleClassEndNotifications,
 } from '../services/notificationService';
 
 if (Platform.OS !== 'web') {
@@ -401,6 +401,36 @@ export const UserProvider = ({ children }) => {
       };
     }
   }, []);
+
+  // Automated recurring notification scheduler based on timetable & attendance
+  useEffect(() => {
+    if (Platform.OS !== 'web' && timetable && timetable.length > 0) {
+      const today = new Date();
+      const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const todayName = daysShort[today.getDay()];
+      const todayStr = today.toISOString().split('T')[0];
+      const todaysClasses = timetable.filter(c => c.day === todayName);
+
+      scheduleClassEndNotifications(todaysClasses, todayStr).catch(() => {});
+      scheduleSmartEngagementNotifications({
+        timetable,
+        attendanceRecords,
+        userStats,
+        userBatch,
+      }).catch(() => {});
+    }
+  }, [timetable, attendanceRecords, userBatch]);
+
+  // Background auto-sync worker that keeps attendance permanently up-to-date
+  useEffect(() => {
+    const bgSyncInterval = setInterval(() => {
+      if (attendanceRecords && Object.keys(attendanceRecords).length > 0) {
+        setScopedItem('@attendanceRecords', JSON.stringify(attendanceRecords)).catch(() => {});
+      }
+    }, 15 * 60 * 1000); // sync every 15 minutes in background
+
+    return () => clearInterval(bgSyncInterval);
+  }, [attendanceRecords]);
 
 
 
@@ -853,7 +883,6 @@ export const UserProvider = ({ children }) => {
       BATCH_GROUPS,
       getDistinctSubjectsForBatch,
       filterTimetableForBatch,
-      testTriggerClassEndNotification,
       studyPlan,
       loadLocalStudyPlan,
       updateStudyPlan,
