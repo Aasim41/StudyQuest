@@ -8,6 +8,7 @@ import {
   StatusBar,
   Linking,
   Alert,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +17,14 @@ import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
 import { COLORS, SPACING, BORDER_RADIUS } from '../theme';
 import CampusLynxSyncModal from '../components/CampusLynxSyncModal';
+
+const BATCH_GROUP_LIST = [
+  { group: 'Group BX (Core CSE)', desc: 'Theory of Computation track', batches: ['B1', 'B2', 'B3'] },
+  { group: 'Group BY (Core CSE)', desc: 'Theory of Computation track', batches: ['B4', 'B5', 'B6'] },
+  { group: 'Group BZ (Core CSE)', desc: 'Theory of Computation track', batches: ['B7', 'B8', 'B9'] },
+  { group: 'Group BX1 (AI & ML)', desc: 'Foundation of AI + AI Lab', batches: ['B21', 'B22', 'B23'] },
+  { group: 'Group BX1 (Data Science)', desc: 'Statistical Methods + SM Lab', batches: ['B31'] },
+];
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
@@ -91,7 +100,18 @@ export default function DashboardScreen() {
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.studentNameText}>{studentName}</Text>
-            <Text style={styles.syncedText}>Synced today</Text>
+            <View style={styles.subHeaderRow}>
+              <Text style={styles.syncedText}>Synced today</Text>
+              <View style={styles.dotSeparator} />
+              <TouchableOpacity
+                style={styles.batchSelectorPill}
+                activeOpacity={0.7}
+                onPress={() => setBatchModalVisible(true)}
+              >
+                <Text style={styles.batchSelectorPillText}>Batch: {userBatch || 'B31'}</Text>
+                <MaterialCommunityIcons name="chevron-down" size={13} color="#C5BBED" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -248,6 +268,63 @@ export default function DashboardScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
+      {/* ─── BATCH SELECTION MODAL ────────────────────────────────────────── */}
+      <Modal
+        visible={batchModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBatchModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.batchModalCard}>
+            <View style={styles.batchModalHeader}>
+              <View>
+                <Text style={styles.batchModalTitle}>Select Your College Batch</Text>
+                <Text style={styles.batchModalSub}>Timetable & courses adjust dynamically</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseCircle}
+                onPress={() => setBatchModalVisible(false)}
+              >
+                <MaterialCommunityIcons name="close" size={18} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }}>
+              {BATCH_GROUP_LIST.map((grp) => (
+                <View key={grp.group} style={styles.batchGroupBlock}>
+                  <Text style={styles.batchGroupHeading}>{grp.group}</Text>
+                  <Text style={styles.batchGroupDesc}>{grp.desc}</Text>
+                  <View style={styles.batchGrid}>
+                    {grp.batches.map((b) => {
+                      const isSelected = (userBatch === b);
+                      return (
+                        <TouchableOpacity
+                          key={b}
+                          style={[styles.batchPillItem, isSelected && styles.batchPillItemActive]}
+                          activeOpacity={0.8}
+                          onPress={async () => {
+                            await switchBatch(b);
+                            setBatchModalVisible(false);
+                          }}
+                        >
+                          <Text style={[styles.batchPillItemText, isSelected && styles.batchPillItemTextActive]}>
+                            {b}
+                          </Text>
+                          {isSelected && (
+                            <MaterialCommunityIcons name="check" size={12} color="#13111C" style={{ marginLeft: 3 }} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* CampusLynx Modal */}
       <CampusLynxSyncModal
         visible={campusLynxModalVisible}
@@ -285,11 +362,38 @@ const styles = StyleSheet.create({
     color: '#FFF',
     letterSpacing: -0.4,
   },
+  subHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   syncedText: {
     fontSize: 13,
     color: '#7A7987',
     fontWeight: '500',
-    marginTop: 3,
+  },
+  dotSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#555464',
+    marginHorizontal: 8,
+  },
+  batchSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(197, 187, 237, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 187, 237, 0.2)',
+  },
+  batchSelectorPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C5BBED',
+    marginRight: 2,
   },
   refreshCircleBtn: {
     width: 42,
@@ -432,5 +536,84 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#D1D0D8',
+  },
+
+  // Batch Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  batchModalCard: {
+    width: '100%',
+    backgroundColor: '#161622',
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  batchModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+  },
+  batchModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  batchModalSub: {
+    fontSize: 12,
+    color: '#8E8D9A',
+    marginTop: 2,
+  },
+  modalCloseCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  batchGroupBlock: {
+    marginBottom: 16,
+  },
+  batchGroupHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#C5BBED',
+  },
+  batchGroupDesc: {
+    fontSize: 11,
+    color: '#686777',
+    marginBottom: 8,
+  },
+  batchGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  batchPillItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  batchPillItemActive: {
+    backgroundColor: '#C5BBED',
+  },
+  batchPillItemText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8E8D9A',
+  },
+  batchPillItemTextActive: {
+    color: '#13111C',
+    fontWeight: '900',
   },
 });
