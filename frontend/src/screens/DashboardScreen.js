@@ -22,8 +22,11 @@ export default function DashboardScreen() {
   const {
     attendanceRecords,
     syncCampusLynxData,
+    userBatch,
+    switchBatch,
   } = useUser();
   const [campusLynxModalVisible, setCampusLynxModalVisible] = useState(false);
+  const [batchModalVisible, setBatchModalVisible] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   // Overall attendance status
