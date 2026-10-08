@@ -161,7 +161,7 @@ export async function scheduleSmartEngagementNotifications({
     await Notifications.scheduleNotificationAsync({
       content: {
         title: `☀️ Morning JUET Briefing • Batch ${userBatch}`,
-        body: `Ready for today's classes? Track your lectures & labs to maintain your 70% threshold.`,
+        body: `Ready for today's classes? Track your lectures & labs to maintain your safe 75% threshold.`,
         sound: true,
         data: { type: 'smart_engagement', subType: 'morning_brief' },
       },
@@ -189,7 +189,7 @@ export async function scheduleSmartEngagementNotifications({
     });
 
     // 3. Critical Detention Risk Scan (Daily at 2:00 PM)
-    // Check if any subject has attendance < 70% or within 1 bunk of falling below
+    // Check if any subject has attendance < 75% or within 1 bunk of falling below
     let criticalSubject = null;
     let criticalPercent = 100;
 
@@ -206,7 +206,7 @@ export async function scheduleSmartEngagementNotifications({
     if (criticalSubject) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: `⚠️ 70% Criteria Watch: ${criticalSubject}`,
+          title: `⚠️ Safe Threshold Watch: ${criticalSubject}`,
           body: `Current attendance is ${criticalPercent.toFixed(0)}%. Avoid bunks in this subject to stay safe from T-3 detention.`,
           sound: true,
           data: { type: 'smart_engagement', subType: 'detention_warning' },
