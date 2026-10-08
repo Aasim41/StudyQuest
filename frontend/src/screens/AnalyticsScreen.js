@@ -1,16 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { StatusBar } from 'expo-status-bar';
+import { View, Text, StyleSheet, ScrollView, Dimensions, StatusBar } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../theme';
+import { COLORS, SPACING, BORDER_RADIUS } from '../theme';
 import { useUser } from '../context/UserContext';
-import { GlassCard } from '../components/ui';
 
-const { width } = Dimensions.get('window');
-
-export default function AnalyticsScreen({ navigation }) {
+export default function AnalyticsScreen() {
   const { attendanceRecords, userBatch } = useUser();
 
   const analytics = useMemo(() => {
@@ -44,19 +38,19 @@ export default function AnalyticsScreen({ navigation }) {
       sumAttended += attended;
       sumTotal += total;
 
-      // Safe bunks calculation (75% threshold)
-      const safeBunks = Math.max(0, Math.floor((attended - 0.75 * total) / 0.75));
-      const neededFor75 = percent < 75 ? Math.ceil((0.75 * total - attended) / 0.25) : 0;
+      // Safe bunks calculation (70% JUET threshold)
+      const safeBunks = Math.max(0, Math.floor((attended - 0.70 * total) / 0.70));
+      const neededFor70 = percent < 70 ? Math.ceil((0.70 * total - attended) / 0.30) : 0;
 
       let status = 'SAFE';
-      let statusColor = '#2ECC71';
-      if (percent < 75) {
+      let statusColor = '#38D39F';
+      if (percent < 70) {
         status = 'DETENTION RISK';
-        statusColor = '#FF4757';
+        statusColor = '#FF5C5C';
         criticalCount++;
-      } else if (percent < 80) {
+      } else if (percent < 75) {
         status = 'NEAR CRITERIA';
-        statusColor = '#FFA502';
+        statusColor = '#E5A93C';
         warningCount++;
       } else {
         safeCount++;
@@ -66,12 +60,13 @@ export default function AnalyticsScreen({ navigation }) {
 
       return {
         name: subName,
+        code: rec.code || (isLab ? 'LAB' : 'THEORY'),
         attended,
         total,
         missed,
         percent: parseFloat(percent.toFixed(1)),
         safeBunks,
-        neededFor75,
+        neededFor70,
         status,
         statusColor,
         isLab,
@@ -94,123 +89,158 @@ export default function AnalyticsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
-      <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0B13" />
 
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <View>
           <Text style={styles.headerTitle}>Attendance Analytics</Text>
-          <Text style={styles.headerSub}>JUET B.Tech III Sem • Batch {userBatch || 'B31'}</Text>
+          <Text style={styles.headerSub}>Batch {userBatch || 'B31'} • JUET 70% Criteria</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: analytics.overallPercent >= 75 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 71, 87, 0.15)' }]}>
-          <Text style={[styles.statusBadgeText, { color: analytics.overallPercent >= 75 ? '#2ECC71' : '#FF4757' }]}>
-            {analytics.overallPercent >= 75 ? 'Criteria Met' : 'Shortage'}
+
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor:
+                analytics.overallPercent >= 70
+                  ? 'rgba(56, 211, 159, 0.12)'
+                  : 'rgba(255, 92, 92, 0.12)',
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusBadgeText,
+              { color: analytics.overallPercent >= 70 ? '#38D39F' : '#FF5C5C' },
+            ]}
+          >
+            {analytics.overallPercent >= 70 ? 'Criteria Met' : 'Shortage'}
           </Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Hero Card */}
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <GlassCard style={styles.heroCard}>
-            <View style={styles.heroRow}>
-              <View>
-                <Text style={styles.heroLabel}>AGGREGATE ATTENDANCE</Text>
-                <Text style={styles.heroValue}>{analytics.overallPercent}%</Text>
-                <Text style={styles.heroSubText}>
-                  {analytics.overallPercent >= 75
-                    ? `+${(analytics.overallPercent - 75).toFixed(1)}% above 75% threshold`
-                    : `${(75 - analytics.overallPercent).toFixed(1)}% below criteria`}
+        <View style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View>
+              <Text style={styles.heroLabel}>AGGREGATE ATTENDANCE</Text>
+              <Text style={styles.heroValue}>{analytics.overallPercent}%</Text>
+              <Text style={styles.heroSubText}>
+                {analytics.overallPercent >= 70
+                  ? `+${(analytics.overallPercent - 70).toFixed(1)}% above 70% threshold`
+                  : `${(70 - analytics.overallPercent).toFixed(1)}% below 70% criteria`}
+              </Text>
+            </View>
+
+            <View style={styles.metricRingBox}>
+              <View
+                style={[
+                  styles.metricCircle,
+                  { borderColor: analytics.overallPercent >= 70 ? '#38D39F' : '#FF5C5C' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.metricCircleText,
+                    { color: analytics.overallPercent >= 70 ? '#38D39F' : '#FF5C5C' },
+                  ]}
+                >
+                  {analytics.totalAttended}/{analytics.totalClasses}
                 </Text>
               </View>
-              <View style={styles.metricRingBox}>
-                <View style={[styles.metricCircle, { borderColor: analytics.overallPercent >= 75 ? '#2ECC71' : '#FF4757' }]}>
-                  <Text style={[styles.metricCircleText, { color: analytics.overallPercent >= 75 ? '#2ECC71' : '#FF4757' }]}>
-                    {analytics.totalAttended}/{analytics.totalClasses}
-                  </Text>
-                </View>
-              </View>
             </View>
+          </View>
 
-            {/* Quick Stat Tiles */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statTile}>
-                <MaterialCommunityIcons name="check-circle" size={18} color="#2ECC71" />
-                <Text style={styles.statTileVal}>{analytics.totalAttended}</Text>
-                <Text style={styles.statTileLbl}>Attended</Text>
-              </View>
-              <View style={styles.statTile}>
-                <MaterialCommunityIcons name="close-circle" size={18} color="#FF4757" />
-                <Text style={styles.statTileVal}>{analytics.totalMissed}</Text>
-                <Text style={styles.statTileLbl}>Missed</Text>
-              </View>
-              <View style={styles.statTile}>
-                <MaterialCommunityIcons name="shield-check" size={18} color="#00D2FF" />
-                <Text style={styles.statTileVal}>{analytics.safeCount}</Text>
-                <Text style={styles.statTileLbl}>Safe Courses</Text>
-              </View>
-              <View style={styles.statTile}>
-                <MaterialCommunityIcons name="alert" size={18} color="#FFA502" />
-                <Text style={styles.statTileVal}>{analytics.warningCount + analytics.criticalCount}</Text>
-                <Text style={styles.statTileLbl}>Watchlist</Text>
-              </View>
+          {/* Quick Stat Tiles */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statTile}>
+              <MaterialCommunityIcons name="check-circle-outline" size={16} color="#38D39F" />
+              <Text style={styles.statTileVal}>{analytics.totalAttended}</Text>
+              <Text style={styles.statTileLbl}>Attended</Text>
             </View>
-          </GlassCard>
-        </Animated.View>
+            <View style={styles.statTile}>
+              <MaterialCommunityIcons name="close-circle-outline" size={16} color="#FF5C5C" />
+              <Text style={styles.statTileVal}>{analytics.totalMissed}</Text>
+              <Text style={styles.statTileLbl}>Missed</Text>
+            </View>
+            <View style={styles.statTile}>
+              <MaterialCommunityIcons name="shield-check-outline" size={16} color="#C5BBED" />
+              <Text style={styles.statTileVal}>{analytics.safeCount}</Text>
+              <Text style={styles.statTileLbl}>Safe Courses</Text>
+            </View>
+            <View style={styles.statTile}>
+              <MaterialCommunityIcons name="alert-outline" size={16} color="#E5A93C" />
+              <Text style={styles.statTileVal}>{analytics.warningCount + analytics.criticalCount}</Text>
+              <Text style={styles.statTileLbl}>Watchlist</Text>
+            </View>
+          </View>
+        </View>
 
         {/* Section Header */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Course Breakdown</Text>
-          <Text style={styles.sectionSubtitle}>Labs and lectures tracked strictly independently</Text>
-        </Animated.View>
+        <Text style={styles.sectionHeading}>Course Breakdown</Text>
 
         {/* Subject Cards */}
-        {analytics.subjectStats.map((item, index) => {
-          const barColor = item.percent >= 85 ? '#2ECC71' : item.percent >= 75 ? '#FFA502' : '#FF4757';
-          return (
-            <Animated.View key={item.name} entering={FadeInDown.delay(250 + index * 40).springify()}>
-              <GlassCard style={styles.courseCard}>
+        <View style={styles.cardGroup}>
+          {analytics.subjectStats.map((item, index) => {
+            const barColor =
+              item.percent >= 80 ? '#38D39F' : item.percent >= 70 ? '#E5A93C' : '#FF5C5C';
+
+            return (
+              <View
+                key={item.name}
+                style={[
+                  styles.courseRow,
+                  index < analytics.subjectStats.length - 1 && styles.courseRowBorder,
+                ]}
+              >
                 <View style={styles.courseHeader}>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.courseTagRow}>
-                      <View style={[styles.typeTag, { backgroundColor: item.isLab ? 'rgba(0, 210, 255, 0.15)' : 'rgba(108, 92, 231, 0.15)' }]}>
-                        <Text style={[styles.typeTagText, { color: item.isLab ? '#00D2FF' : '#A29BFE' }]}>
-                          {item.isLab ? 'LAB (2 HRS)' : 'THEORY'}
-                        </Text>
-                      </View>
-                      <Text style={[styles.courseStatusText, { color: item.statusColor }]}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <View style={styles.tagRow}>
+                      <Text style={styles.codeText}>{item.code}</Text>
+                      <View style={styles.dot} />
+                      <Text style={[styles.statusText, { color: item.statusColor }]}>
                         {item.status}
                       </Text>
                     </View>
                     <Text style={styles.courseName}>{item.name}</Text>
                   </View>
                   <Text style={[styles.coursePercent, { color: barColor }]}>
-                    {item.percent}%
+                    {item.total > 0 ? `${item.percent}%` : '--'}
                   </Text>
                 </View>
 
                 {/* Progress Bar */}
                 <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: `${Math.min(100, item.percent)}%`, backgroundColor: barColor }]} />
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${Math.min(100, item.percent)}%`, backgroundColor: barColor },
+                    ]}
+                  />
                 </View>
 
                 {/* Course Details Footer */}
                 <View style={styles.courseFooter}>
                   <Text style={styles.footerClasses}>
-                    Classes: <Text style={styles.boldText}>{item.attended}</Text> / {item.total}
+                    Classes: <Text style={{ color: '#FFF', fontWeight: '700' }}>{item.attended}</Text> / {item.total}
                   </Text>
                   <Text style={styles.footerBunk}>
-                    {item.percent >= 75 ? (
-                      <Text style={{ color: '#2ECC71' }}>Safe to bunk: +{item.safeBunks}</Text>
+                    {item.percent >= 70 ? (
+                      <Text style={{ color: '#38D39F' }}>Can bunk: +{item.safeBunks}</Text>
                     ) : (
-                      <Text style={{ color: '#FF4757' }}>Attend next {item.neededFor75} to reach 75%</Text>
+                      <Text style={{ color: '#FF5C5C' }}>Need next {item.neededFor70} classes</Text>
                     )}
                   </Text>
                 </View>
-              </GlassCard>
-            </Animated.View>
-          );
-        })}
+              </View>
+            );
+          })}
+        </View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -219,178 +249,179 @@ export default function AnalyticsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: {
+    flex: 1,
+    backgroundColor: '#0B0B13',
+  },
   header: {
     paddingTop: 54,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerLeft: { flex: 1 },
   headerTitle: {
-    color: COLORS.textPrimary,
     fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    color: '#FFF',
+    letterSpacing: -0.4,
   },
   headerSub: {
-    color: '#00D2FF',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
+    color: '#8E8D9A',
     marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.pill,
+    borderRadius: 14,
   },
   statusBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xxl,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   heroCard: {
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.xl,
-    marginBottom: SPACING.lg,
+    backgroundColor: '#1E1B2E',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
   },
   heroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: 16,
   },
   heroLabel: {
-    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 11,
     fontWeight: '800',
+    color: '#A29BFE',
     letterSpacing: 0.8,
   },
   heroValue: {
-    color: COLORS.textPrimary,
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: '900',
-    letterSpacing: -0.5,
-    marginVertical: 2,
+    color: '#FFF',
+    marginVertical: 4,
   },
   heroSubText: {
-    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 12,
-    fontWeight: '600',
+    color: '#8E8D9A',
   },
   metricRingBox: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   metricCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 3,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   metricCircleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   statsGrid: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    paddingTop: SPACING.md,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: 12,
     gap: 8,
   },
   statTile: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     paddingVertical: 8,
     borderRadius: 12,
   },
   statTileVal: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    marginTop: 4,
+    marginTop: 3,
   },
   statTileLbl: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: '#8E8D9A',
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
   },
-  sectionHeader: {
-    marginBottom: SPACING.md,
-  },
-  sectionTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
+  sectionHeading: {
+    fontSize: 14,
     fontWeight: '800',
+    color: '#8E8D9A',
+    marginBottom: 12,
+    letterSpacing: 0.5,
   },
-  sectionSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+  cardGroup: {
+    backgroundColor: '#161622',
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  courseCard: {
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.sm,
+  courseRow: {
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+  },
+  courseRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   courseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: SPACING.xs,
   },
-  courseTagRow: {
+  tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 4,
   },
-  typeTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  typeTagText: {
-    fontSize: 9,
+  codeText: {
+    fontSize: 11,
     fontWeight: '800',
+    color: '#A29BFE',
   },
-  courseStatusText: {
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#686777',
+    marginHorizontal: 6,
+  },
+  statusText: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
   courseName: {
-    color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
+    color: '#FFF',
   },
   coursePercent: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
-    marginLeft: 8,
   },
   progressBarBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     marginVertical: 10,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
   courseFooter: {
     flexDirection: 'row',
@@ -398,15 +429,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerClasses: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-  },
-  boldText: {
-    color: '#FFF',
-    fontWeight: '700',
+    fontSize: 11,
+    color: '#8E8D9A',
   },
   footerBunk: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
 });
