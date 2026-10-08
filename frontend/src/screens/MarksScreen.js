@@ -114,7 +114,7 @@ export default function MarksScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0B13" />
+      <StatusBar barStyle="light-content" backgroundColor="#08080C" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -211,7 +211,7 @@ export default function MarksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B13',
+    backgroundColor: '#08080C',
   },
   header: {
     paddingTop: 54,
@@ -247,13 +247,15 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   gpaHeroCard: {
-    backgroundColor: '#1E1B2E',
+    backgroundColor: '#12121A',
     borderRadius: 20,
     padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   gpaLabel: {
     fontSize: 11,
@@ -287,9 +289,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   subjectsGroup: {
-    backgroundColor: '#161622',
+    backgroundColor: '#101017',
     borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   subjectCard: {
     paddingVertical: 16,
