@@ -155,7 +155,7 @@ export default function AttendanceListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B13',
+    backgroundColor: '#08080C',
   },
   header: {
     flexDirection: 'row',
@@ -202,9 +202,11 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   cardGroup: {
-    backgroundColor: '#161622',
+    backgroundColor: '#101017',
     borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   subjectRow: {
     flexDirection: 'row',
