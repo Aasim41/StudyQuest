@@ -1,65 +1,52 @@
 /**
  * StudyQuest Design System
- * Premium, vibrant, gamified aesthetic
+ * Sleek, Minimal, Obsidian Aesthetics (JUET Companion)
  */
 
 export const COLORS = {
-  // Primary gradient palette
+  // Primary & Accents
   primary: '#6C5CE7',
   primaryLight: '#A29BFE',
-  primaryDark: '#5A4BD1',
-  
-  // Secondary
-  secondary: '#A29BFE',
+  primaryDark: '#4D3FB0',
+  accent: '#C5BBED',
+  accentSubtle: 'rgba(197, 187, 237, 0.12)',
 
-  // Accent / Energy
-  accent: '#00D2FF',
-  accentGlow: '#00F5FF',
-  
-  // Gamification colors
-  xp: '#FFD93D',
-  xpGlow: '#FFE066',
-  streak: '#FF6B35',
-  streakGlow: '#FF8C5A',
-  levelUp: '#2ECC71',
-  fest: '#9B59B6',
-  
-  // Gradients (as arrays for LinearGradient)
-  gradientPrimary: ['#6C5CE7', '#A29BFE', '#74B9FF'],
-  gradientDark: ['#0A0A1A', '#111122', '#181830'],
-  gradientCard: ['rgba(108, 92, 231, 0.15)', 'rgba(162, 155, 254, 0.05)'],
-  gradientAccent: ['#00D2FF', '#3A7BD5'],
-  gradientFire: ['#FF416C', '#FF4B2B'],
-  gradientSuccess: ['#11998E', '#38EF7D'],
-  gradientGlass: ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)'],
-  gradientOnboarding: ['#05050A', '#130B29', '#1C0D45'],
-  
-  // Surface / Background
-  background: '#0A0A1A',
-  surface: '#141432',
-  surfaceLight: '#1E1E4A',
-  surfaceElevated: '#252552',
-  
-  // Glass
-  glass: 'rgba(255, 255, 255, 0.08)',
-  glassBorder: 'rgba(255, 255, 255, 0.15)',
-  glassHeavy: 'rgba(255, 255, 255, 0.14)',
-  
-  // Text
+  // Matte Dark Surfaces (Minimalist & Sleek)
+  background: '#0D0D12',
+  surface: '#15141C',
+  surfaceElevated: '#1D1C26',
+  surfaceCard: '#21202B',
+  surfaceHighlight: '#292837',
+
+  // Subtle Status Tones
+  success: '#38D39F',
+  successSubtle: 'rgba(56, 211, 159, 0.14)',
+  warning: '#E5A93C',
+  warningSubtle: 'rgba(229, 169, 60, 0.14)',
+  error: '#FF5C5C',
+  errorSubtle: 'rgba(255, 92, 92, 0.14)',
+  info: '#64B5F6',
+
+  // Typography
   textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.7)',
-  textMuted: 'rgba(255, 255, 255, 0.4)',
-  textAccent: '#A29BFE',
-  
-  // Status
-  success: '#2ECC71',
-  warning: '#FFD93D',
-  error: '#FF4757',
-  info: '#74B9FF',
-  
-  // Borders
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderActive: 'rgba(108, 92, 231, 0.5)',
+  textSecondary: '#9A99A7',
+  textMuted: '#686777',
+  textDim: '#4B4A56',
+
+  // Gradients
+  gradientDark: ['#0D0D12', '#121118', '#15141C'],
+  gradientCard: ['#1C1B24', '#17161F'],
+  gradientPrimary: ['#6C5CE7', '#8474EE'],
+  gradientOnboarding: ['#0A0A0F', '#111019', '#161522'],
+
+  // Subtle Borders
+  border: 'rgba(255, 255, 255, 0.06)',
+  borderLight: 'rgba(255, 255, 255, 0.10)',
+  borderActive: 'rgba(197, 187, 237, 0.35)',
+
+  // Streaks & Stats
+  streak: '#FF8A50',
+  xp: '#FFD166',
 };
 
 export const SPACING = {
@@ -69,85 +56,56 @@ export const SPACING = {
   lg: 24,
   xl: 32,
   xxl: 48,
-  xxxl: 64,
 };
 
 export const FONT_SIZES = {
-  caption: 12,
+  caption: 11,
+  bodySmall: 13,
   body: 14,
   bodyLarge: 16,
   subtitle: 18,
   title: 22,
-  heading: 28,
-  hero: 36,
-  display: 48,
+  heading: 26,
+  hero: 34,
 };
 
 export const FONTS = {
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semiBold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
-  extraBold: 'Inter_800ExtraBold',
+  regular: 'System',
+  medium: 'System',
+  semiBold: 'System',
+  bold: 'System',
+  extraBold: 'System',
 };
 
 export const BORDER_RADIUS = {
-  sm: 8,
-  md: 12,
-  lg: 16,
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 18,
   xl: 24,
-  xxl: 32,
+  xxl: 30,
   pill: 999,
 };
 
 export const SHADOWS = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   glow: {
     shadowColor: '#6C5CE7',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  glowAccent: {
-    shadowColor: '#00D2FF',
-    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
-    elevation: 10,
-  },
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  soft: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
   },
 };
 
 export const ANIMATION = {
   fast: 200,
-  normal: 350,
+  normal: 300,
   slow: 500,
-  spring: {
-    damping: 15,
-    stiffness: 150,
-    mass: 1,
-  },
-  springBouncy: {
-    damping: 10,
-    stiffness: 180,
-    mass: 0.8,
-  },
-  springSmooth: {
-    damping: 20,
-    stiffness: 120,
-    mass: 1,
-  },
 };
