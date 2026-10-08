@@ -344,7 +344,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B13',
+    backgroundColor: '#08080C',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
 
   // Hero Card
   heroAttendanceCard: {
-    backgroundColor: '#201F2B',
+    backgroundColor: '#12121A',
     borderRadius: 24,
     paddingVertical: 22,
     paddingHorizontal: 22,
@@ -426,6 +426,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   heroCardLeft: {
     flex: 1,
@@ -450,7 +452,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#2F2E3E',
+    backgroundColor: '#1A1926',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -460,10 +462,12 @@ const styles = StyleSheet.create({
 
   // Nav Group Card
   navGroupCard: {
-    backgroundColor: '#161622',
+    backgroundColor: '#101016',
     borderRadius: 22,
     overflow: 'hidden',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
   },
   navRow: {
     flexDirection: 'row',
@@ -475,7 +479,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#252433',
+    backgroundColor: '#191824',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
