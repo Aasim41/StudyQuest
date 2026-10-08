@@ -45,7 +45,7 @@ export default function WelcomeLandingScreen() {
             <View style={styles.logoBadge}>
               <MaterialCommunityIcons name="check-decagram" size={20} color="#00D2FF" />
             </View>
-            <Text style={styles.logoText}>StudyQuest</Text>
+            <Text style={styles.logoText}>PocketLynx</Text>
           </View>
           <TouchableOpacity 
             style={styles.navLoginBtn}
