@@ -11,12 +11,12 @@ export const COLORS = {
   accent: '#C5BBED',
   accentSubtle: 'rgba(197, 187, 237, 0.12)',
 
-  // Matte Dark Surfaces (Minimalist & Sleek)
-  background: '#0D0D12',
-  surface: '#15141C',
-  surfaceElevated: '#1D1C26',
-  surfaceCard: '#21202B',
-  surfaceHighlight: '#292837',
+  // Matte Obsidian Surfaces (Sleek Minimalist Dark)
+  background: '#08080C',
+  surface: '#101016',
+  surfaceElevated: '#161620',
+  surfaceCard: '#191824',
+  surfaceHighlight: '#222130',
 
   // Subtle Status Tones
   success: '#38D39F',
@@ -34,13 +34,13 @@ export const COLORS = {
   textDim: '#4B4A56',
 
   // Gradients
-  gradientDark: ['#0D0D12', '#121118', '#15141C'],
-  gradientCard: ['#1C1B24', '#17161F'],
+  gradientDark: ['#08080C', '#0E0D14', '#12121B'],
+  gradientCard: ['#161622', '#111018'],
   gradientPrimary: ['#6C5CE7', '#8474EE'],
-  gradientOnboarding: ['#0A0A0F', '#111019', '#161522'],
+  gradientOnboarding: ['#07070B', '#0D0C13', '#12111B'],
 
   // Subtle Borders
-  border: 'rgba(255, 255, 255, 0.06)',
+  border: 'rgba(255, 255, 255, 0.05)',
   borderLight: 'rgba(255, 255, 255, 0.10)',
   borderActive: 'rgba(197, 187, 237, 0.35)',
 
