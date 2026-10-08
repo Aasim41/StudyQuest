@@ -546,6 +546,13 @@ export const UserProvider = ({ children }) => {
       }
       const newTimetable = filterTimetableForBatch(newBatch);
       await saveTimetable(newTimetable);
+
+      const newAttendance = getInitialAttendanceForBatch(newBatch);
+      setAttendanceRecords(newAttendance);
+      await setScopedItem('@attendanceRecords', JSON.stringify(newAttendance));
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: newAttendance }, { merge: true });
+      }
     } catch (e) {
       console.warn('Failed to switch batch', e);
     }
