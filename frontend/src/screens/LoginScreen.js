@@ -220,7 +220,7 @@ export default function LoginScreen({ navigation }) {
 
             <Animated.View entering={FadeIn.delay(800).duration(500)} style={styles.greetingBox}>
               <Text style={styles.greetingText}>{greeting}</Text>
-              <Text style={styles.heroSubText}>JUET CampusLynx Attendance Portal</Text>
+              <Text style={styles.heroSubText}>PocketLynx • JUET Attendance Tracker</Text>
             </Animated.View>
           </View>
 

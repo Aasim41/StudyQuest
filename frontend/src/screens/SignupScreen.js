@@ -144,7 +144,7 @@ export default function SignupScreen({ navigation }) {
             <View style={styles.iconCircle}>
               <MaterialCommunityIcons name="account-plus-outline" size={36} color="#00D2FF" />
             </View>
-            <Text style={styles.title}>Register for JUET Attendance</Text>
+            <Text style={styles.title}>Join PocketLynx</Text>
             <Text style={styles.subtitle}>Track classes, labs, and criteria with 0 manual math</Text>
           </View>
 
