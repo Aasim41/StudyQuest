@@ -50,7 +50,7 @@ export default function DashboardScreen() {
         const tot = rec.total || 0;
         attended += att;
         total += tot;
-        if (tot > 0 && (att / tot) * 100 < 70) {
+        if (tot > 0 && (att / tot) * 100 < 75) {
           lowCount++;
         }
       });
@@ -139,7 +139,7 @@ export default function DashboardScreen() {
           <View style={styles.heroCardLeft}>
             <Text style={styles.heroAttendanceTitle}>Attendance</Text>
             <Text style={styles.heroAttendanceStatus}>
-              {allClear ? 'All clear' : `${lowSubjectCount} subject${lowSubjectCount !== 1 ? 's' : ''} below 70%`}
+              {allClear ? 'All clear' : `${lowSubjectCount} subject${lowSubjectCount !== 1 ? 's' : ''} below 75%`}
             </Text>
           </View>
 
