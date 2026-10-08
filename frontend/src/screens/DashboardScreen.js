@@ -90,7 +90,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0B13" />
+      <StatusBar barStyle="light-content" backgroundColor="#08080C" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
