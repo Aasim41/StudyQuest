@@ -469,35 +469,18 @@ export const UserProvider = ({ children }) => {
       const attendanceStr = await getScopedItem('@attendanceRecords');
       if (attendanceStr) {
         const parsed = JSON.parse(attendanceStr);
-        // If B31 and not initialized with real LTP data, merge real portal data
-        if (activeBatch === 'B31') {
-          const hasRealData = Object.values(parsed).some(r => (r.total || 0) > 0);
-          if (!hasRealData) {
-            setAttendanceRecords(JUET_REAL_PORTAL_ATTENDANCE);
-            setScopedItem('@attendanceRecords', JSON.stringify(JUET_REAL_PORTAL_ATTENDANCE)).catch(() => {});
-          } else {
-            setAttendanceRecords(parsed);
-          }
+        const hasRealData = Object.values(parsed).some(r => (r.total || 0) > 0);
+        if (!hasRealData) {
+          const initRecords = getInitialAttendanceForBatch(activeBatch);
+          setAttendanceRecords(initRecords);
+          setScopedItem('@attendanceRecords', JSON.stringify(initRecords)).catch(() => {});
         } else {
           setAttendanceRecords(parsed);
         }
       } else {
-        const initialTt = filterTimetableForBatch(activeBatch);
-        const initialRecords = activeBatch === 'B31' ? { ...JUET_REAL_PORTAL_ATTENDANCE } : {};
-        initialTt.forEach(item => {
-          if (item.subject && !initialRecords[item.subject]) {
-            initialRecords[item.subject] = {
-              attended: 0, missed: 0, total: 0,
-              attendedL: 0, totalL: 0,
-              attendedT: 0, totalT: 0,
-              attendedP: 0, totalP: 0,
-              percentL: 0, percentT: 0, percentP: 0, overallPercent: 0,
-              history: {}
-            };
-          }
-        });
-        setAttendanceRecords(initialRecords);
-        setScopedItem('@attendanceRecords', JSON.stringify(initialRecords)).catch(() => {});
+        const initRecords = getInitialAttendanceForBatch(activeBatch);
+        setAttendanceRecords(initRecords);
+        setScopedItem('@attendanceRecords', JSON.stringify(initRecords)).catch(() => {});
       }
     } catch (e) {
       console.warn('Failed to load local data', e);
