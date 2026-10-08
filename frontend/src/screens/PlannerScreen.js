@@ -14,10 +14,9 @@ import { COLORS, SPACING, BORDER_RADIUS } from '../theme';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function PlannerScreen() {
-  const { timetable, attendanceRecords, markClassAttendance, userBatch } = useUser();
+  const { timetable, attendanceRecords, userBatch } = useUser();
 
   const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
   const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const currentDayIndex = today.getDay();
   const defaultDay = currentDayIndex === 0 ? 'Mon' : daysShort[currentDayIndex];
@@ -31,13 +30,17 @@ export default function PlannerScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0B13" />
+      <StatusBar barStyle="light-content" backgroundColor="#08080C" />
 
       {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Class Schedule</Text>
           <Text style={styles.headerSub}>Batch {userBatch || 'B31'} • JUET Timetable</Text>
+        </View>
+        <View style={styles.autoTag}>
+          <MaterialCommunityIcons name="cloud-check-outline" size={14} color="#38D39F" style={{ marginRight: 4 }} />
+          <Text style={styles.autoTagText}>Auto-Tracked</Text>
         </View>
       </View>
 
@@ -88,7 +91,10 @@ export default function PlannerScreen() {
           <View style={styles.cardGroup}>
             {dayClasses.map((item, index) => {
               const isLab = item.isLab || item.sessionType === 'P';
-              const currentStatus = attendanceRecords?.[item.subject]?.history?.[todayStr]?.[item.id];
+              const subjectRecord = attendanceRecords?.[item.subject];
+              const pct = subjectRecord?.overallPercent != null
+                ? subjectRecord.overallPercent
+                : (subjectRecord?.total > 0 ? (subjectRecord.attended / subjectRecord.total) * 100 : null);
 
               return (
                 <View
@@ -107,106 +113,41 @@ export default function PlannerScreen() {
                           </Text>
                         </View>
                         {item.room ? (
-                          <Text style={styles.roomText}>{item.room}</Text>
+                          <View style={styles.roomBadge}>
+                            <MaterialCommunityIcons name="map-marker-outline" size={11} color="#A29BFE" style={{ marginRight: 2 }} />
+                            <Text style={styles.roomText}>{item.room}</Text>
+                          </View>
                         ) : null}
                       </View>
 
                       <Text style={styles.subjectTitle}>{item.subject}</Text>
-                      <Text style={styles.timeText}>{item.time}</Text>
+                      <View style={styles.timeRow}>
+                        <MaterialCommunityIcons name="clock-outline" size={13} color="#8E8D9A" style={{ marginRight: 4 }} />
+                        <Text style={styles.timeText}>{item.time}</Text>
+                      </View>
                     </View>
 
-                    {currentStatus && (
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          currentStatus === 'present' ? styles.statusBadgePresent : styles.statusBadgeAbsent,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusBadgeText,
-                            currentStatus === 'present' ? styles.statusBadgeTextPresent : styles.statusBadgeTextAbsent,
-                          ]}
-                        >
-                          {currentStatus === 'present' ? 'Present' : 'Absent'}
+                    {pct !== null && (
+                      <View style={styles.percentBox}>
+                        <Text style={[styles.percentValue, { color: pct >= 75 ? '#38D39F' : '#E5A93C' }]}>
+                          {pct.toFixed(0)}%
                         </Text>
+                        <Text style={styles.percentLabel}>standing</Text>
                       </View>
                     )}
                   </View>
 
-                  {/* Minimal Marking Controls */}
-                  <View style={styles.markingControlsRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.markBtn,
-                        currentStatus === 'present' && styles.markBtnPresentActive,
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() =>
-                        markClassAttendance(item.subject, todayStr, item.id, 'present', item.sessionType)
-                      }
-                    >
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={15}
-                        color={currentStatus === 'present' ? '#FFF' : '#38D39F'}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text
-                        style={[
-                          styles.markBtnText,
-                          currentStatus === 'present' && styles.markBtnTextActive,
-                        ]}
-                      >
-                        Present
+                  {/* Automated Sync Status Bar */}
+                  <View style={styles.autoStatusBar}>
+                    <View style={styles.syncStatusLeft}>
+                      <View style={styles.livePulseDot} />
+                      <Text style={styles.syncStatusText}>
+                        Portal Synced • {subjectRecord?.attended || 0}/{subjectRecord?.total || 0} classes
                       </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.markBtn,
-                        currentStatus === 'absent' && styles.markBtnAbsentActive,
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() =>
-                        markClassAttendance(item.subject, todayStr, item.id, 'absent', item.sessionType)
-                      }
-                    >
-                      <MaterialCommunityIcons
-                        name="close"
-                        size={15}
-                        color={currentStatus === 'absent' ? '#FFF' : '#FF5C5C'}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text
-                        style={[
-                          styles.markBtnText,
-                          currentStatus === 'absent' && styles.markBtnTextActive,
-                        ]}
-                      >
-                        Absent
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.markBtnCompact,
-                        currentStatus === 'cancelled' && styles.markBtnOffActive,
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() =>
-                        markClassAttendance(item.subject, todayStr, item.id, 'cancelled', item.sessionType)
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.markBtnCompactText,
-                          currentStatus === 'cancelled' && styles.markBtnTextActive,
-                        ]}
-                      >
-                        Off
-                      </Text>
-                    </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.marginTag, { color: pct >= 75 ? '#38D39F' : '#FF5C5C' }]}>
+                      {pct >= 75 ? 'Safe standing' : 'Low attendance'}
+                    </Text>
                   </View>
                 </View>
               );
@@ -223,12 +164,15 @@ export default function PlannerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0B13',
+    backgroundColor: '#08080C',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 54,
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 14,
   },
   headerTitle: {
     fontSize: 22,
@@ -242,6 +186,19 @@ const styles = StyleSheet.create({
     color: '#8E8D9A',
     marginTop: 2,
   },
+  autoTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 211, 159, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  autoTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#38D39F',
+  },
   daysRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -252,7 +209,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -269,7 +226,7 @@ const styles = StyleSheet.create({
     color: '#8E8D9A',
   },
   dayTextActive: {
-    color: '#13111C',
+    color: '#08080C',
     fontWeight: '900',
   },
   dayTextToday: {
@@ -280,15 +237,37 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#C5BBED',
-    marginTop: 3,
+    marginTop: 4,
   },
   scrollList: {
     paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  emptyCard: {
+    backgroundColor: '#101016',
+    borderRadius: 20,
+    paddingVertical: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: '#8E8D9A',
   },
   cardGroup: {
-    backgroundColor: '#161622',
+    backgroundColor: '#101017',
     borderRadius: 20,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   classCard: {
     padding: 16,
@@ -301,130 +280,107 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   typeBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   theoryBadge: {
     backgroundColor: 'rgba(197, 187, 237, 0.12)',
   },
   labBadge: {
-    backgroundColor: 'rgba(56, 211, 159, 0.12)',
+    backgroundColor: 'rgba(255, 142, 83, 0.14)',
   },
   typeBadgeText: {
     fontSize: 10,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
   theoryBadgeText: {
     color: '#C5BBED',
   },
   labBadgeText: {
-    color: '#38D39F',
+    color: '#FF8E53',
+  },
+  roomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   roomText: {
-    fontSize: 11,
-    color: '#8E8D9A',
-    fontWeight: '600',
+    fontSize: 10,
+    color: '#A29BFE',
+    fontWeight: '700',
   },
   subjectTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFF',
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   timeText: {
     fontSize: 12,
+    fontWeight: '600',
     color: '#8E8D9A',
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  statusBadgePresent: {
-    backgroundColor: 'rgba(56, 211, 159, 0.16)',
-  },
-  statusBadgeAbsent: {
-    backgroundColor: 'rgba(255, 92, 92, 0.16)',
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  statusBadgeTextPresent: {
-    color: '#38D39F',
-  },
-  statusBadgeTextAbsent: {
-    color: '#FF5C5C',
-  },
-  markingControlsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  markBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  percentBox: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  markBtnPresentActive: {
-    backgroundColor: '#38D39F',
-  },
-  markBtnAbsentActive: {
-    backgroundColor: '#FF5C5C',
-  },
-  markBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#D1D0D8',
-  },
-  markBtnTextActive: {
-    color: '#FFF',
-    fontWeight: '800',
-  },
-  markBtnCompact: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markBtnOffActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  markBtnCompactText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8E8D9A',
-  },
-  emptyCard: {
     backgroundColor: '#161622',
-    borderRadius: 20,
-    padding: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
-  emptyTitle: {
+  percentValue: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: '900',
   },
-  emptySub: {
-    fontSize: 12,
+  percentLabel: {
+    fontSize: 9,
     color: '#8E8D9A',
-    marginTop: 2,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  autoStatusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  syncStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#38D39F',
+    marginRight: 6,
+  },
+  syncStatusText: {
+    fontSize: 11,
+    color: '#8E8D9A',
+    fontWeight: '500',
+  },
+  marginTag: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
