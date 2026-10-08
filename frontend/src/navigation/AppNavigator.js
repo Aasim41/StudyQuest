@@ -5,7 +5,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged } from 'firebase/auth';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
 import { auth } from '../../firebaseConfig';
 import { useUser } from '../context/UserContext';
@@ -17,14 +16,17 @@ import SignupScreen from '../screens/SignupScreen';
 import WelcomeLandingScreen from '../screens/WelcomeLandingScreen';
 import HowItWorksScreen from '../screens/HowItWorksScreen';
 
-// Setup & Profile Screens
-import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
-import TimetableCorrectionScreen from '../screens/TimetableCorrectionScreen';
-
-// Core Attendance Screens
+// Core Screens
 import DashboardScreen from '../screens/DashboardScreen';
+import AttendanceListScreen from '../screens/AttendanceListScreen';
 import PlannerScreen from '../screens/PlannerScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
+import MarksScreen from '../screens/MarksScreen';
+import ExamScheduleScreen from '../screens/ExamScheduleScreen';
+import FacultyScreen from '../screens/FacultyScreen';
+import RegisteredSubjectsScreen from '../screens/RegisteredSubjectsScreen';
+import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
+import TimetableCorrectionScreen from '../screens/TimetableCorrectionScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,26 +35,13 @@ const AuthStack = () => (
     screenOptions={{
       headerShown: false,
       animation: 'fade_from_bottom',
-      animationDuration: 350,
+      animationDuration: 300,
     }}
   >
     <Stack.Screen name="Welcome" component={WelcomeLandingScreen} />
     <Stack.Screen name="HowItWorks" component={HowItWorksScreen} />
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Signup" component={SignupScreen} />
-  </Stack.Navigator>
-);
-
-const OnboardingStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerShown: false,
-      animation: 'slide_from_right',
-      animationDuration: 350,
-    }}
-  >
-    <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
-    <Stack.Screen name="TimetableCorrection" component={TimetableCorrectionScreen} />
   </Stack.Navigator>
 );
 
@@ -64,42 +53,31 @@ const MainTabNavigator = () => (
       headerShown: false,
       tabBarStyle: {
         position: 'absolute',
-        bottom: 24,
-        left: 24,
-        right: 24,
-        height: 64,
-        borderRadius: 24,
-        backgroundColor: 'rgba(12, 12, 24, 0.94)',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        height: 62,
+        borderRadius: 22,
+        backgroundColor: 'rgba(18, 17, 26, 0.96)',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.08)',
+        borderColor: 'rgba(255, 255, 255, 0.07)',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
-        elevation: 10,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 8,
       },
-      tabBarBackground: () => (
-        <View 
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              backgroundColor: 'rgba(12, 12, 24, 0.96)',
-              borderRadius: 24,
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(255, 255, 255, 0.08)',
-            }
-          ]} 
-        />
-      ),
       tabBarShowLabel: false,
-      tabBarActiveTintColor: COLORS.accent,
-      tabBarInactiveTintColor: COLORS.textMuted,
+      tabBarActiveTintColor: '#C5BBED',
+      tabBarInactiveTintColor: '#686777',
       tabBarIcon: ({ color, size, focused }) => {
-        let iconName = '';
+        let iconName = 'home-variant-outline';
         if (route.name === 'Dashboard') {
+          iconName = focused ? 'home-variant' : 'home-variant-outline';
+        } else if (route.name === 'Attendance') {
           iconName = focused ? 'checkbox-marked-circle' : 'checkbox-marked-circle-outline';
-        } else if (route.name === 'Planner') {
-          iconName = focused ? 'calculator' : 'calculator-variant-outline';
+        } else if (route.name === 'Schedule') {
+          iconName = focused ? 'calendar-clock' : 'calendar-clock-outline';
         } else if (route.name === 'Analytics') {
           iconName = focused ? 'chart-box' : 'chart-box-outline';
         }
@@ -107,31 +85,25 @@ const MainTabNavigator = () => (
         return (
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
             {focused && (
-              <View style={{
-                position: 'absolute',
-                width: 42,
-                height: 42,
-                backgroundColor: 'rgba(108, 92, 231, 0.22)',
-                borderRadius: 21,
-              }} />
+              <View
+                style={{
+                  position: 'absolute',
+                  width: 38,
+                  height: 38,
+                  backgroundColor: 'rgba(197, 187, 237, 0.14)',
+                  borderRadius: 19,
+                }}
+              />
             )}
-            <MaterialCommunityIcons 
-              name={iconName} 
-              size={26} 
-              color={color} 
-              style={focused ? {
-                textShadowColor: COLORS.accentGlow,
-                textShadowOffset: { width: 0, height: 0 },
-                textShadowRadius: 10,
-              } : null}
-            />
+            <MaterialCommunityIcons name={iconName} size={24} color={color} />
           </View>
         );
       },
     })}
   >
     <Tab.Screen name="Dashboard" component={DashboardScreen} />
-    <Tab.Screen name="Planner" component={PlannerScreen} />
+    <Tab.Screen name="Attendance" component={AttendanceListScreen} />
+    <Tab.Screen name="Schedule" component={PlannerScreen} />
     <Tab.Screen name="Analytics" component={AnalyticsScreen} />
   </Tab.Navigator>
 );
@@ -140,33 +112,35 @@ const MainStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerShown: false,
-      animation: 'fade',
+      animation: 'slide_from_right',
+      animationDuration: 280,
     }}
   >
     <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-    <Stack.Screen 
-      name="AvatarSelection" 
-      component={AvatarSelectionScreen} 
+    <Stack.Screen name="AttendanceList" component={AttendanceListScreen} />
+    <Stack.Screen name="Marks" component={MarksScreen} />
+    <Stack.Screen name="ExamSchedule" component={ExamScheduleScreen} />
+    <Stack.Screen name="Faculty" component={FacultyScreen} />
+    <Stack.Screen name="RegisteredSubjects" component={RegisteredSubjectsScreen} />
+    <Stack.Screen
+      name="AvatarSelection"
+      component={AvatarSelectionScreen}
       options={{ presentation: 'fullScreenModal' }}
     />
-    <Stack.Screen 
-      name="TimetableCorrection" 
-      component={TimetableCorrectionScreen} 
-    />
+    <Stack.Screen name="TimetableCorrection" component={TimetableCorrectionScreen} />
   </Stack.Navigator>
 );
 
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
-    <LinearGradient colors={COLORS.gradientOnboarding} style={StyleSheet.absoluteFill} />
-    <ActivityIndicator size="large" color={COLORS.accent} />
+    <ActivityIndicator size="large" color="#C5BBED" />
   </View>
 );
 
 export default function AppNavigator() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const { onboardingComplete, loading: contextLoading, loadFirestoreStats, loadLocalStudyPlan } = useUser();
+  const { loadFirestoreStats, loadLocalStudyPlan } = useUser();
 
   useEffect(() => {
     fetch(`${API_BASE}/api/health`).catch(() => {});
@@ -192,17 +166,11 @@ export default function AppNavigator() {
     };
   }, []);
 
-  if (authLoading || contextLoading) return <LoadingScreen />;
+  if (authLoading) return <LoadingScreen />;
 
   return (
     <NavigationContainer>
-      {!user ? (
-        <AuthStack />
-      ) : !onboardingComplete ? (
-        <OnboardingStack />
-      ) : (
-        <MainStack />
-      )}
+      {!user ? <AuthStack /> : <MainStack />}
     </NavigationContainer>
   );
 }
@@ -212,7 +180,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#07070F',
+    backgroundColor: '#0B0B13',
     height: Platform.OS === 'web' ? '100vh' : '100%',
   },
 });
