@@ -359,6 +359,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 26,
   },
+  brandRow: {
+    marginBottom: 4,
+  },
+  brandBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#A29BFE',
+    letterSpacing: 1.5,
+  },
   studentNameText: {
     fontSize: 24,
     fontWeight: '800',
