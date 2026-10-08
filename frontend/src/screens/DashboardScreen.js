@@ -99,6 +99,9 @@ export default function DashboardScreen() {
         {/* ─── HEADER ──────────────────────────────────────────────────────── */}
         <View style={styles.headerRow}>
           <View>
+            <View style={styles.brandRow}>
+              <Text style={styles.brandBadgeText}>POCKETLYNX</Text>
+            </View>
             <Text style={styles.studentNameText}>{studentName}</Text>
             <View style={styles.subHeaderRow}>
               <Text style={styles.syncedText}>Synced today</Text>
