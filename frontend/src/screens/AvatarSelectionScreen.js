@@ -173,7 +173,7 @@ const CATEGORIES = [
 export default function AvatarSelectionScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userStats, saveStatsToFirestore } = useUser();
+  const { userStats, saveStatsToFirestore, completeOnboarding } = useUser();
   const isEditing = route.params?.isEditing || false;
 
   const [activeCategory, setActiveCategory] = useState('skin');

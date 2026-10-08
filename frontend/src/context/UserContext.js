@@ -29,94 +29,193 @@ if (Platform.OS !== 'web') {
 }
 
 // Real initial JUET CampusLynx records for B31 (synced from portal)
+// Real initial JUET CampusLynx records for B31 (synced from portal matching exact course catalog)
 export const JUET_REAL_PORTAL_ATTENDANCE = {
-  'Techniques for Decision Making (TDM)': {
-    attendedL: 17, totalL: 20, percentL: 85.0,
-    attendedT: 7, totalT: 10, percentT: 70.0,
-    attendedP: 0, totalP: 0, percentP: 0,
-    attended: 24, total: 30, missed: 6,
-    overallPercent: 80.0,
-    history: {}
-  },
-  'Data Structures (DS)': {
-    attendedL: 23, totalL: 27, percentL: 85.2,
-    attendedT: 10, totalT: 10, percentT: 100.0,
-    attendedP: 0, totalP: 0, percentP: 0,
-    attended: 33, total: 37, missed: 4,
-    overallPercent: 89.2,
-    history: {}
-  },
-  'Database Systems (DBMS)': {
-    attendedL: 14, totalL: 17, percentL: 82.4,
-    attendedT: 6, totalT: 8, percentT: 75.0,
-    attendedP: 0, totalP: 0, percentP: 0,
-    attended: 20, total: 25, missed: 5,
-    overallPercent: 80.0,
-    history: {}
-  },
-  'Career Management & Development (CMD)': {
-    attendedL: 16, totalL: 18, percentL: 88.9,
+  'Career Management and Development': {
+    code: 'HS007',
+    attendedL: 17, totalL: 19, percentL: 89.5,
     attendedT: 0, totalT: 0, percentT: 0,
     attendedP: 0, totalP: 0, percentP: 0,
-    attended: 16, total: 18, missed: 2,
-    overallPercent: 88.9,
-    history: {}
+    attended: 17, total: 19, missed: 2,
+    overallPercent: 89.5,
+    category: 'Theory',
+    isLab: false,
+    history: [
+      { id: 'cmd-19', date: '3 Oct', time: '10:00 AM', slot: 'L', status: 'present' },
+      { id: 'cmd-18', date: '1 Oct', time: '11:00 AM', slot: 'L', status: 'present' },
+      { id: 'cmd-17', date: '26 Sep', time: '10:00 AM', slot: 'L', status: 'present' },
+      { id: 'cmd-16', date: '24 Sep', time: '11:00 AM', slot: 'L', status: 'absent' },
+      { id: 'cmd-15', date: '19 Sep', time: '10:00 AM', slot: 'L', status: 'present' },
+    ]
   },
-  'Environmental Science (EVS)': {
+  'Techniques for Decision Making': {
+    code: 'HS103',
+    attendedL: 19, totalL: 22, percentL: 86.4,
+    attendedT: 7, totalT: 10, percentT: 70.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 26, total: 32, missed: 6,
+    overallPercent: 81.3,
+    category: 'Theory',
+    isLab: false,
+    history: [
+      { id: 'tdm-32', date: '3 Oct', time: '12:00 PM', slot: 'L', status: 'present' },
+      { id: 'tdm-31', date: '1 Oct', time: '3:00 PM', slot: 'T', status: 'present' },
+      { id: 'tdm-30', date: '29 Sep', time: '12:00 PM', slot: 'L', status: 'present' },
+      { id: 'tdm-29', date: '25 Sep', time: '3:00 PM', slot: 'T', status: 'absent' },
+    ]
+  },
+  'Environmental Science': {
+    code: 'GE001',
     attendedL: 12, totalL: 16, percentL: 75.0,
     attendedT: 0, totalT: 0, percentT: 0,
     attendedP: 0, totalP: 0, percentP: 0,
     attended: 12, total: 16, missed: 4,
     overallPercent: 75.0,
-    history: {}
+    category: 'Theory',
+    isLab: false,
+    history: [
+      { id: 'evs-16', date: '1 Oct', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-15', date: '25 Sep', time: '4:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-14', date: '24 Sep', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-13', date: '18 Sep', time: '4:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-12', date: '17 Sep', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-11', date: '11 Sep', time: '4:00 PM', slot: 'L', status: 'absent' },
+      { id: 'evs-10', date: '10 Sep', time: '2:00 PM', slot: 'L', status: 'absent' },
+      { id: 'evs-9', date: '4 Sep', time: '4:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-8', date: '3 Sep', time: '2:00 PM', slot: 'L', status: 'absent' },
+      { id: 'evs-7', date: '28 Aug', time: '4:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-6', date: '27 Aug', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-5', date: '21 Aug', time: '4:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-4', date: '20 Aug', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-3', date: '14 Aug', time: '4:00 PM', slot: 'L', status: 'absent' },
+      { id: 'evs-2', date: '13 Aug', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'evs-1', date: '7 Aug', time: '4:00 PM', slot: 'L', status: 'present' },
+    ]
   },
-  'Statistical Methods (SM)': {
-    attendedL: 26, totalL: 29, percentL: 89.7,
-    attendedT: 0, totalT: 0, percentT: 0,
+  'Data Structures': {
+    code: 'CS103',
+    attendedL: 24, totalL: 28, percentL: 85.7,
+    attendedT: 10, totalT: 10, percentT: 100.0,
     attendedP: 0, totalP: 0, percentP: 0,
-    attended: 26, total: 29, missed: 3,
-    overallPercent: 89.7,
-    history: {}
+    attended: 34, total: 38, missed: 4,
+    overallPercent: 89.5,
+    category: 'Theory',
+    isLab: false,
+    history: [
+      { id: 'ds-38', date: '3 Oct', time: '9:00 AM', slot: 'L', status: 'present' },
+      { id: 'ds-37', date: '2 Oct', time: '11:00 AM', slot: 'T', status: 'present' },
+      { id: 'ds-36', date: '30 Sep', time: '9:00 AM', slot: 'L', status: 'present' },
+      { id: 'ds-35', date: '26 Sep', time: '9:00 AM', slot: 'L', status: 'absent' },
+    ]
   },
-  'Data Structures Lab (DS Lab)': {
+  'Data Structures Lab': {
+    code: 'CS203',
     attendedL: 0, totalL: 0, percentL: 0,
     attendedT: 0, totalT: 0, percentT: 0,
     attendedP: 9, totalP: 9, percentP: 100.0,
     attended: 9, total: 9, missed: 0,
     overallPercent: 100.0,
-    history: {}
+    category: 'Lab',
+    isLab: true,
+    history: [
+      { id: 'dslab-9', date: '2 Oct', time: '2:00 PM', slot: 'P', status: 'present' },
+      { id: 'dslab-8', date: '25 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
+      { id: 'dslab-7', date: '18 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
+    ]
   },
-  'Database Systems Lab (DBMS Lab)': {
-    attendedL: 0, totalL: 0, percentL: 0,
-    attendedT: 0, totalT: 0, percentT: 0,
-    attendedP: 7, totalP: 9, percentP: 77.8,
-    attended: 7, total: 9, missed: 2,
+  'Database Systems': {
+    code: 'CS104',
+    attendedL: 15, totalL: 19, percentL: 78.9,
+    attendedT: 6, totalT: 8, percentT: 75.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 21, total: 27, missed: 6,
     overallPercent: 77.8,
-    history: {}
+    category: 'Theory',
+    isLab: false,
+    history: [
+      { id: 'dbms-27', date: '3 Oct', time: '2:00 PM', slot: 'L', status: 'present' },
+      { id: 'dbms-26', date: '1 Oct', time: '10:00 AM', slot: 'T', status: 'absent' },
+      { id: 'dbms-25', date: '29 Sep', time: '2:00 PM', slot: 'L', status: 'present' },
+    ]
   },
-  'Advanced Programming Lab-1 (AP Lab-1)': {
+  'Database Systems Lab': {
+    code: 'CS204',
     attendedL: 0, totalL: 0, percentL: 0,
     attendedT: 0, totalT: 0, percentT: 0,
-    attendedP: 7, totalP: 9, percentP: 77.8,
-    attended: 7, total: 9, missed: 2,
-    overallPercent: 77.8,
-    history: {}
+    attendedP: 9, totalP: 11, percentP: 81.8,
+    attended: 9, total: 11, missed: 2,
+    overallPercent: 81.8,
+    category: 'Lab',
+    isLab: true,
+    history: [
+      { id: 'dbmslab-11', date: '1 Oct', time: '4:00 PM', slot: 'P', status: 'present' },
+      { id: 'dbmslab-10', date: '24 Sep', time: '4:00 PM', slot: 'P', status: 'absent' },
+    ]
   },
-  'Statistical Methods Lab (SM Lab)': {
+  'Advanced Programming Lab-1': {
+    code: 'CS206',
     attendedL: 0, totalL: 0, percentL: 0,
     attendedT: 0, totalT: 0, percentT: 0,
-    attendedP: 8, totalP: 9, percentP: 88.9,
-    attended: 8, total: 9, missed: 1,
-    overallPercent: 88.9,
-    history: {}
+    attendedP: 8, totalP: 10, percentP: 80.0,
+    attended: 8, total: 10, missed: 2,
+    overallPercent: 80.0,
+    category: 'Lab',
+    isLab: true,
+    history: [
+      { id: 'aplab-10', date: '2 Oct', time: '4:00 PM', slot: 'P', status: 'present' },
+      { id: 'aplab-9', date: '25 Sep', time: '4:00 PM', slot: 'P', status: 'absent' },
+    ]
   },
-  'Unix Programming Lab (UNIX Lab)': {
+  'Statistical Methods': {
+    code: 'CS115',
+    attendedL: 28, totalL: 31, percentL: 90.3,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 28, total: 31, missed: 3,
+    overallPercent: 90.3,
+    category: 'Theory',
+    isLab: false,
+    history: [
+      { id: 'sm-31', date: '3 Oct', time: '4:00 PM', slot: 'L', status: 'present' },
+      { id: 'sm-30', date: '1 Oct', time: '9:00 AM', slot: 'L', status: 'present' },
+    ]
+  },
+  'Statistical Methods Lab': {
+    code: 'CS221',
     attendedL: 0, totalL: 0, percentL: 0,
     attendedT: 0, totalT: 0, percentT: 0,
-    attendedP: 8, totalP: 9, percentP: 88.9,
-    attended: 8, total: 9, missed: 1,
-    overallPercent: 88.9,
-    history: {}
+    attendedP: 9, totalP: 10, percentP: 90.0,
+    attended: 9, total: 10, missed: 1,
+    overallPercent: 90.0,
+    category: 'Lab',
+    isLab: true,
+    history: [
+      { id: 'smlab-10', date: '30 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
+    ]
+  },
+  'Unix Programming Lab': {
+    code: 'CS219',
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 7, totalP: 8, percentP: 87.5,
+    attended: 7, total: 8, missed: 1,
+    overallPercent: 87.5,
+    category: 'Lab',
+    isLab: true,
+    history: [
+      { id: 'unix-8', date: '29 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
+    ]
+  },
+  'Summer Internship': {
+    code: 'CS002',
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 0, total: 0, missed: 0,
+    overallPercent: null,
+    category: 'Project',
+    isLab: false,
+    history: []
   }
 };
 
@@ -145,6 +244,7 @@ export function matchCampusLynxSubject(rawString, targetSubjectName) {
     { code: 'CS116', lab: false },
     { code: 'HS007', lab: false },
     { code: 'GE001', lab: false },
+    { code: 'CS002', lab: false },
     { code: 'CS203', lab: true }, // DS Lab
     { code: 'CS204', lab: true }, // DBMS Lab
     { code: 'CS206', lab: true }, // AP Lab-1
@@ -171,6 +271,7 @@ export function matchCampusLynxSubject(rawString, targetSubjectName) {
   if (raw.includes('CAREER') && target.includes('CAREER')) return true;
   if (raw.includes('ENVIRONMENT') && target.includes('ENVIRONMENT')) return true;
   if (raw.includes('COMPUTATION') && target.includes('COMPUTATION')) return true;
+  if (raw.includes('INTERNSHIP') && target.includes('INTERNSHIP')) return true;
 
   if (raw.includes(target) || target.includes(raw)) return true;
 
@@ -180,8 +281,8 @@ export function matchCampusLynxSubject(rawString, targetSubjectName) {
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [onboardingComplete, setOnboardingComplete] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [userStats, setUserStats] = useState({ 
     level: 1, xp: 0, nextLevelXp: 1000, streak: 0, 
