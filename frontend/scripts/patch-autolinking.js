@@ -52,10 +52,17 @@ const webviewClientPath = path.join(
 
 if (fs.existsSync(webviewClientPath)) {
   let wvContent = fs.readFileSync(webviewClientPath, 'utf8');
-  if (wvContent.includes('handler.cancel();') && wvContent.includes('onReceivedSslError')) {
+  if (wvContent.includes('handler.proceed();\n        return;')) {
+    wvContent = wvContent.replace(
+      'handler.proceed();\n        return;',
+      'if (true) { handler.proceed(); return; }'
+    );
+    fs.writeFileSync(webviewClientPath, wvContent, 'utf8');
+    console.log('[patch-webview-ssl] Fixed unreachable statement in RNCWebViewClient.java');
+  } else if (wvContent.includes('handler.cancel();') && wvContent.includes('onReceivedSslError')) {
     wvContent = wvContent.replace(
       'handler.cancel();',
-      'handler.proceed();\n        return;'
+      'if (true) { handler.proceed(); return; }'
     );
     fs.writeFileSync(webviewClientPath, wvContent, 'utf8');
     console.log('[patch-webview-ssl] Successfully patched RNCWebViewClient.java to proceed on SSL cert errors');
