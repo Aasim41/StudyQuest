@@ -287,6 +287,8 @@ export default function CampusLynxSyncModal({ visible, onClose, onSyncComplete, 
                   domStorageEnabled={true}
                   sharedCookiesEnabled={true}
                   thirdPartyCookiesEnabled={true}
+                  mixedContentMode="always"
+                  originWhitelist={['*']}
                   style={{ flex: 1, backgroundColor: '#07070F' }}
                 />
               </>
