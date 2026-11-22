@@ -55,7 +55,7 @@ if (fs.existsSync(webviewClientPath)) {
   if (wvContent.includes('handler.cancel();') && wvContent.includes('onReceivedSslError')) {
     wvContent = wvContent.replace(
       'handler.cancel();',
-      'handler.proceed();\n        return;'
+      'handler.proceed();'
     );
     fs.writeFileSync(webviewClientPath, wvContent, 'utf8');
     console.log('[patch-webview-ssl] Successfully patched RNCWebViewClient.java to proceed on SSL cert errors');
@@ -63,4 +63,3 @@ if (fs.existsSync(webviewClientPath)) {
     console.log('[patch-webview-ssl] RNCWebViewClient.java already patched or pattern missing');
   }
 }
-
