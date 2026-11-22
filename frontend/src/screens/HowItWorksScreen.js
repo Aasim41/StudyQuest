@@ -54,7 +54,7 @@ export default function HowItWorksScreen({ navigation }) {
         <Animated.View entering={FadeInDown.delay(150).springify()}>
           <Text style={styles.subtitle}>CampusLynx Attendance Tracking</Text>
           <Text style={styles.description}>
-            PocketLynx is built specifically for JUET students to eliminate attendance anxiety. Here is how your attendance and bunk calculations are managed:
+            StudyQuest is built specifically for JUET students to eliminate attendance anxiety. Here is how your attendance and bunk calculations are managed:
           </Text>
         </Animated.View>
 

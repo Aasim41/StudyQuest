@@ -1,246 +1,148 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, StatusBar } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDER_RADIUS } from '../theme';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown, useSharedValue, withSpring, useAnimatedStyle, withTiming, Easing, withDelay } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
 import { useUser } from '../context/UserContext';
+import { GlassCard, ProgressBar } from '../components/ui';
+
+const { width, height } = Dimensions.get('window');
+
+const HeatmapSquare = ({ intensity, index }) => {
+  const scale = useSharedValue(0);
+  
+  useEffect(() => {
+    scale.value = withDelay(index * 20, withSpring(1));
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  // intensity 0-4
+  let bgColor = 'rgba(255,255,255,0.05)';
+  if (intensity === 1) bgColor = '#0e4429';
+  if (intensity === 2) bgColor = '#006d32';
+  if (intensity === 3) bgColor = '#26a641';
+  if (intensity >= 4) bgColor = '#39d353';
+
+  return (
+    <Animated.View style={[styles.heatmapSquare, animStyle, { backgroundColor: bgColor }]} />
+  );
+};
 
 export default function AnalyticsScreen() {
-  const { attendanceRecords, userBatch } = useUser();
+  const { userStats } = useUser();
+  const subjects = Object.keys(userStats.studyMinutesPerSubject || {});
+  
+  const chartData = subjects.length > 0 
+    ? subjects.map(sub => userStats.studyMinutesPerSubject[sub])
+    : [0, 0, 0, 0, 0];
+    
+  const totalStudyMins = chartData.reduce((a, b) => a + b, 0);
+  const totalHours = Math.floor(totalStudyMins / 60);
+  const avgSession = totalStudyMins > 0 ? Math.round(totalStudyMins / (userStats.level * 2 || 1)) : 0; // estimate
 
-  const analytics = useMemo(() => {
-    const subjects = Object.keys(attendanceRecords || {});
-    if (subjects.length === 0) {
-      return {
-        overallPercent: 0,
-        totalAttended: 0,
-        totalClasses: 0,
-        totalMissed: 0,
-        safeCount: 0,
-        warningCount: 0,
-        criticalCount: 0,
-        subjectStats: [],
-      };
-    }
+  // Generate 28 dummy days for heatmap
+  const [heatmapData, setHeatmapData] = useState([]);
+  useEffect(() => {
+    const dummy = Array.from({ length: 28 }).map(() => Math.floor(Math.random() * 5));
+    // Ensure the last day has activity
+    dummy[27] = Math.max(1, Math.floor(Math.random() * 5));
+    setHeatmapData(dummy);
+  }, []);
 
-    let sumAttended = 0;
-    let sumTotal = 0;
-    let safeCount = 0;
-    let warningCount = 0;
-    let criticalCount = 0;
-
-    const subjectStats = subjects.map((subName) => {
-      const rec = attendanceRecords[subName] || {};
-      const attended = Number(rec.attended || 0);
-      const total = Number(rec.total || 0);
-      const percent = total > 0 ? (attended / total) * 100 : 0;
-      const missed = total - attended;
-
-      sumAttended += attended;
-      sumTotal += total;
-
-      // Safe bunks calculation (70% JUET threshold)
-      const safeBunks = Math.max(0, Math.floor((attended - 0.70 * total) / 0.70));
-      const neededFor70 = percent < 70 ? Math.ceil((0.70 * total - attended) / 0.30) : 0;
-
-      let status = 'SAFE';
-      let statusColor = '#38D39F';
-      if (percent < 70) {
-        status = 'DETENTION RISK';
-        statusColor = '#FF5C5C';
-        criticalCount++;
-      } else if (percent < 75) {
-        status = 'NEAR CRITERIA';
-        statusColor = '#E5A93C';
-        warningCount++;
-      } else {
-        safeCount++;
-      }
-
-      const isLab = subName.toUpperCase().includes('LAB');
-
-      return {
-        name: subName,
-        code: rec.code || (isLab ? 'LAB' : 'THEORY'),
-        attended,
-        total,
-        missed,
-        percent: parseFloat(percent.toFixed(1)),
-        safeBunks,
-        neededFor70,
-        status,
-        statusColor,
-        isLab,
-      };
-    });
-
-    const overallPercent = sumTotal > 0 ? (sumAttended / sumTotal) * 100 : 0;
-
-    return {
-      overallPercent: parseFloat(overallPercent.toFixed(1)),
-      totalAttended: sumAttended,
-      totalClasses: sumTotal,
-      totalMissed: sumTotal - sumAttended,
-      safeCount,
-      warningCount,
-      criticalCount,
-      subjectStats,
-    };
-  }, [attendanceRecords]);
+  const cols = [];
+  for (let i = 0; i < 28; i += 4) {
+    cols.push(heatmapData.slice(i, i + 4));
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0B13" />
+      <StatusBar style="light" />
+      <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
-      {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Attendance Analytics</Text>
-          <Text style={styles.headerSub}>Batch {userBatch || 'B31'} • JUET 70% Criteria</Text>
-        </View>
-
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor:
-                analytics.overallPercent >= 70
-                  ? 'rgba(56, 211, 159, 0.12)'
-                  : 'rgba(255, 92, 92, 0.12)',
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.statusBadgeText,
-              { color: analytics.overallPercent >= 70 ? '#38D39F' : '#FF5C5C' },
-            ]}
-          >
-            {analytics.overallPercent >= 70 ? 'Criteria Met' : 'Shortage'}
-          </Text>
-        </View>
+        <Text style={styles.headerTitle}>Analytics</Text>
+        <Text style={styles.headerSub}>Your Learning Journey</Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero Card */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroRow}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        {/* Hero Stats */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.heroStatsContainer}>
+          <GlassCard style={styles.heroStatCard}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 71, 87, 0.2)' }]}>
+              <Text style={{fontSize: 20}}>⏱️</Text>
+            </View>
             <View>
-              <Text style={styles.heroLabel}>AGGREGATE ATTENDANCE</Text>
-              <Text style={styles.heroValue}>{analytics.overallPercent}%</Text>
-              <Text style={styles.heroSubText}>
-                {analytics.overallPercent >= 70
-                  ? `+${(analytics.overallPercent - 70).toFixed(1)}% above 70% threshold`
-                  : `${(70 - analytics.overallPercent).toFixed(1)}% below 70% criteria`}
-              </Text>
+              <Text style={styles.heroStatValue}>{totalHours}<Text style={styles.heroStatUnit}>h</Text></Text>
+              <Text style={styles.heroStatLabel}>Total Studied</Text>
             </View>
+          </GlassCard>
 
-            <View style={styles.metricRingBox}>
-              <View
-                style={[
-                  styles.metricCircle,
-                  { borderColor: analytics.overallPercent >= 70 ? '#38D39F' : '#FF5C5C' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.metricCircleText,
-                    { color: analytics.overallPercent >= 70 ? '#38D39F' : '#FF5C5C' },
-                  ]}
-                >
-                  {analytics.totalAttended}/{analytics.totalClasses}
-                </Text>
-              </View>
+          <GlassCard style={styles.heroStatCard}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(46, 204, 113, 0.2)' }]}>
+              <Text style={{fontSize: 20}}>📈</Text>
             </View>
-          </View>
+            <View>
+              <Text style={styles.heroStatValue}>{avgSession}<Text style={styles.heroStatUnit}>m</Text></Text>
+              <Text style={styles.heroStatLabel}>Avg Session</Text>
+            </View>
+          </GlassCard>
+        </Animated.View>
 
-          {/* Quick Stat Tiles */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statTile}>
-              <MaterialCommunityIcons name="check-circle-outline" size={16} color="#38D39F" />
-              <Text style={styles.statTileVal}>{analytics.totalAttended}</Text>
-              <Text style={styles.statTileLbl}>Attended</Text>
+        {/* Heatmap */}
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Activity Heatmap</Text>
+          <GlassCard style={styles.heatmapCard}>
+            <View style={styles.heatmapGrid}>
+              {cols.map((col, cIndex) => (
+                <View key={cIndex} style={styles.heatmapCol}>
+                  {col.map((intensity, rIndex) => (
+                    <HeatmapSquare key={rIndex} intensity={intensity} index={cIndex * 4 + rIndex} />
+                  ))}
+                </View>
+              ))}
             </View>
-            <View style={styles.statTile}>
-              <MaterialCommunityIcons name="close-circle-outline" size={16} color="#FF5C5C" />
-              <Text style={styles.statTileVal}>{analytics.totalMissed}</Text>
-              <Text style={styles.statTileLbl}>Missed</Text>
+            <View style={styles.heatmapLegend}>
+              <Text style={styles.legendText}>Less</Text>
+              <View style={[styles.legendBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#0e4429' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#006d32' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#26a641' }]} />
+              <View style={[styles.legendBox, { backgroundColor: '#39d353' }]} />
+              <Text style={styles.legendText}>More</Text>
             </View>
-            <View style={styles.statTile}>
-              <MaterialCommunityIcons name="shield-check-outline" size={16} color="#C5BBED" />
-              <Text style={styles.statTileVal}>{analytics.safeCount}</Text>
-              <Text style={styles.statTileLbl}>Safe Courses</Text>
-            </View>
-            <View style={styles.statTile}>
-              <MaterialCommunityIcons name="alert-outline" size={16} color="#E5A93C" />
-              <Text style={styles.statTileVal}>{analytics.warningCount + analytics.criticalCount}</Text>
-              <Text style={styles.statTileLbl}>Watchlist</Text>
-            </View>
-          </View>
-        </View>
+          </GlassCard>
+        </Animated.View>
 
-        {/* Section Header */}
-        <Text style={styles.sectionHeading}>Course Breakdown</Text>
-
-        {/* Subject Cards */}
-        <View style={styles.cardGroup}>
-          {analytics.subjectStats.map((item, index) => {
-            const barColor =
-              item.percent >= 80 ? '#38D39F' : item.percent >= 70 ? '#E5A93C' : '#FF5C5C';
-
-            return (
-              <View
-                key={item.name}
-                style={[
-                  styles.courseRow,
-                  index < analytics.subjectStats.length - 1 && styles.courseRowBorder,
-                ]}
-              >
-                <View style={styles.courseHeader}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <View style={styles.tagRow}>
-                      <Text style={styles.codeText}>{item.code}</Text>
-                      <View style={styles.dot} />
-                      <Text style={[styles.statusText, { color: item.statusColor }]}>
-                        {item.status}
-                      </Text>
+        {/* Subject Breakdown */}
+        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.section}>
+          <Text style={styles.sectionTitle}>Subject Breakdown</Text>
+          <GlassCard style={styles.breakdownCard}>
+            {subjects.length > 0 ? (
+              subjects.map((sub, idx) => {
+                const mins = userStats.studyMinutesPerSubject[sub];
+                const pct = (mins / totalStudyMins) * 100;
+                const colors = [COLORS.primary, COLORS.accent, '#2ECC71', '#F39C12', '#E74C3C'];
+                const color = colors[idx % colors.length];
+                return (
+                  <View key={sub} style={styles.breakdownRow}>
+                    <View style={styles.breakdownInfo}>
+                      <Text style={styles.breakdownSub}>{sub}</Text>
+                      <Text style={styles.breakdownMins}>{Math.floor(mins/60)}h {mins%60}m</Text>
                     </View>
-                    <Text style={styles.courseName}>{item.name}</Text>
+                    <ProgressBar progress={pct/100} height={8} gradient={[color, color]} style={{ width: '60%' }} />
                   </View>
-                  <Text style={[styles.coursePercent, { color: barColor }]}>
-                    {item.total > 0 ? `${item.percent}%` : '--'}
-                  </Text>
-                </View>
-
-                {/* Progress Bar */}
-                <View style={styles.progressBarBg}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      { width: `${Math.min(100, item.percent)}%`, backgroundColor: barColor },
-                    ]}
-                  />
-                </View>
-
-                {/* Course Details Footer */}
-                <View style={styles.courseFooter}>
-                  <Text style={styles.footerClasses}>
-                    Classes: <Text style={{ color: '#FFF', fontWeight: '700' }}>{item.attended}</Text> / {item.total}
-                  </Text>
-                  <Text style={styles.footerBunk}>
-                    {item.percent >= 70 ? (
-                      <Text style={{ color: '#38D39F' }}>Can bunk: +{item.safeBunks}</Text>
-                    ) : (
-                      <Text style={{ color: '#FF5C5C' }}>Need next {item.neededFor70} classes</Text>
-                    )}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyText}>No subjects studied yet. Complete a focus session!</Text>
+            )}
+          </GlassCard>
+        </Animated.View>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -249,191 +151,34 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0B13',
-  },
-  header: {
-    paddingTop: 54,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: -0.4,
-  },
-  headerSub: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#8E8D9A',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  heroCard: {
-    backgroundColor: '#1E1B2E',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 20,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  heroLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#A29BFE',
-    letterSpacing: 0.8,
-  },
-  heroValue: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#FFF',
-    marginVertical: 4,
-  },
-  heroSubText: {
-    fontSize: 12,
-    color: '#8E8D9A',
-  },
-  metricRingBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  metricCircleText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    paddingTop: 12,
-    gap: 8,
-  },
-  statTile: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  statTileVal: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: 3,
-  },
-  statTileLbl: {
-    color: '#8E8D9A',
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#8E8D9A',
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  cardGroup: {
-    backgroundColor: '#161622',
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  courseRow: {
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-  },
-  courseRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  courseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  codeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#A29BFE',
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#686777',
-    marginHorizontal: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  courseName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  coursePercent: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  progressBarBg: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    marginVertical: 10,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  courseFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  footerClasses: {
-    fontSize: 11,
-    color: '#8E8D9A',
-  },
-  footerBunk: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { paddingHorizontal: SPACING.xl, paddingTop: height * 0.08, paddingBottom: SPACING.md },
+  headerTitle: { fontSize: FONT_SIZES.heading, fontFamily: FONTS.extraBold, color: '#FFF', letterSpacing: -0.5 },
+  headerSub: { fontSize: FONT_SIZES.body, color: COLORS.accent, fontFamily: FONTS.semiBold, marginTop: 4 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 60, gap: SPACING.lg },
+  
+  heroStatsContainer: { flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.sm },
+  heroStatCard: { flex: 1, padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  heroStatValue: { fontSize: 24, fontFamily: FONTS.extraBold, color: '#FFF' },
+  heroStatUnit: { fontSize: 16, fontFamily: FONTS.semiBold, color: COLORS.textMuted },
+  heroStatLabel: { fontSize: FONT_SIZES.caption, fontFamily: FONTS.semiBold, color: COLORS.textSecondary },
+
+  section: { marginTop: SPACING.sm },
+  sectionTitle: { fontSize: FONT_SIZES.subtitle, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: SPACING.md },
+  
+  heatmapCard: { padding: SPACING.lg },
+  heatmapGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  heatmapCol: { gap: 6 },
+  heatmapSquare: { width: 14, height: 14, borderRadius: 3 },
+  heatmapLegend: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: SPACING.lg, gap: 6 },
+  legendBox: { width: 10, height: 10, borderRadius: 2 },
+  legendText: { fontSize: 10, fontFamily: FONTS.semiBold, color: COLORS.textMuted, marginHorizontal: 4 },
+
+  breakdownCard: { padding: SPACING.lg, gap: SPACING.lg },
+  breakdownRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  breakdownInfo: { flex: 1, marginRight: SPACING.md },
+  breakdownSub: { fontSize: FONT_SIZES.body, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+  breakdownMins: { fontSize: FONT_SIZES.caption, fontFamily: FONTS.semiBold, color: COLORS.textSecondary, marginTop: 2 },
+  emptyText: { fontSize: FONT_SIZES.body, fontFamily: FONTS.regular, color: COLORS.textMuted, textAlign: 'center', marginVertical: SPACING.md }
 });

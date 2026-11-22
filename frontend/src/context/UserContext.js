@@ -15,7 +15,7 @@ import {
   setupNotificationCategories,
   NOTIFICATION_ACTIONS,
   scheduleSmartEngagementNotifications,
-  scheduleClassEndNotifications,
+  testTriggerClassEndNotification,
 } from '../services/notificationService';
 
 if (Platform.OS !== 'web') {
@@ -29,247 +29,96 @@ if (Platform.OS !== 'web') {
 }
 
 // Real initial JUET CampusLynx records for B31 (synced from portal)
-// Real initial JUET CampusLynx records tailored dynamically for ALL batches
-export function getInitialAttendanceForBatch(batchCode = 'B31') {
-  const isAI = ['B21', 'B22', 'B23'].includes(batchCode);
-  const isStats = batchCode === 'B31';
-  // B1 to B9 are core CSE (Theory of Computation track)
-
-  const records = {
-    'Career Management and Development': {
-      code: 'HS007',
-      attendedL: 17, totalL: 19, percentL: 89.5,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 17, total: 19, missed: 2,
-      overallPercent: 89.5,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'cmd-19', date: '3 Oct', time: '10:00 AM', slot: 'L', status: 'present' },
-        { id: 'cmd-18', date: '1 Oct', time: '11:00 AM', slot: 'L', status: 'present' },
-        { id: 'cmd-17', date: '26 Sep', time: '10:00 AM', slot: 'L', status: 'present' },
-        { id: 'cmd-16', date: '24 Sep', time: '11:00 AM', slot: 'L', status: 'absent' },
-        { id: 'cmd-15', date: '19 Sep', time: '10:00 AM', slot: 'L', status: 'present' },
-      ]
-    },
-    'Techniques for Decision Making': {
-      code: 'HS103',
-      attendedL: 19, totalL: 22, percentL: 86.4,
-      attendedT: 7, totalT: 10, percentT: 70.0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 26, total: 32, missed: 6,
-      overallPercent: 81.3,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'tdm-32', date: '3 Oct', time: '12:00 PM', slot: 'L', status: 'present' },
-        { id: 'tdm-31', date: '1 Oct', time: '3:00 PM', slot: 'T', status: 'present' },
-        { id: 'tdm-30', date: '29 Sep', time: '12:00 PM', slot: 'L', status: 'present' },
-        { id: 'tdm-29', date: '25 Sep', time: '3:00 PM', slot: 'T', status: 'absent' },
-      ]
-    },
-    'Environmental Science': {
-      code: 'GE001',
-      attendedL: 12, totalL: 16, percentL: 75.0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 12, total: 16, missed: 4,
-      overallPercent: 75.0,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'evs-16', date: '1 Oct', time: '2:00 PM', slot: 'L', status: 'present' },
-        { id: 'evs-15', date: '25 Sep', time: '4:00 PM', slot: 'L', status: 'present' },
-        { id: 'evs-14', date: '24 Sep', time: '2:00 PM', slot: 'L', status: 'present' },
-        { id: 'evs-13', date: '18 Sep', time: '4:00 PM', slot: 'L', status: 'present' },
-        { id: 'evs-12', date: '17 Sep', time: '2:00 PM', slot: 'L', status: 'present' },
-        { id: 'evs-11', date: '11 Sep', time: '4:00 PM', slot: 'L', status: 'absent' },
-        { id: 'evs-10', date: '10 Sep', time: '2:00 PM', slot: 'L', status: 'absent' },
-        { id: 'evs-9', date: '4 Sep', time: '4:00 PM', slot: 'L', status: 'present' },
-        { id: 'evs-8', date: '3 Sep', time: '2:00 PM', slot: 'L', status: 'absent' },
-      ]
-    },
-    'Data Structures': {
-      code: 'CS103',
-      attendedL: 24, totalL: 28, percentL: 85.7,
-      attendedT: 10, totalT: 10, percentT: 100.0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 34, total: 38, missed: 4,
-      overallPercent: 89.5,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'ds-38', date: '3 Oct', time: '9:00 AM', slot: 'L', status: 'present' },
-        { id: 'ds-37', date: '2 Oct', time: '11:00 AM', slot: 'T', status: 'present' },
-        { id: 'ds-36', date: '30 Sep', time: '9:00 AM', slot: 'L', status: 'present' },
-        { id: 'ds-35', date: '26 Sep', time: '9:00 AM', slot: 'L', status: 'absent' },
-      ]
-    },
-    'Data Structures Lab': {
-      code: 'CS203',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 9, totalP: 9, percentP: 100.0,
-      attended: 9, total: 9, missed: 0,
-      overallPercent: 100.0,
-      category: 'Lab',
-      isLab: true,
-      history: [
-        { id: 'dslab-9', date: '2 Oct', time: '2:00 PM', slot: 'P', status: 'present' },
-        { id: 'dslab-8', date: '25 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
-        { id: 'dslab-7', date: '18 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
-      ]
-    },
-    'Database Systems': {
-      code: 'CS104',
-      attendedL: 15, totalL: 19, percentL: 78.9,
-      attendedT: 6, totalT: 8, percentT: 75.0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 21, total: 27, missed: 6,
-      overallPercent: 77.8,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'dbms-27', date: '3 Oct', time: '2:00 PM', slot: 'L', status: 'present' },
-        { id: 'dbms-26', date: '1 Oct', time: '10:00 AM', slot: 'T', status: 'absent' },
-        { id: 'dbms-25', date: '29 Sep', time: '2:00 PM', slot: 'L', status: 'present' },
-      ]
-    },
-    'Database Systems Lab': {
-      code: 'CS204',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 9, totalP: 11, percentP: 81.8,
-      attended: 9, total: 11, missed: 2,
-      overallPercent: 81.8,
-      category: 'Lab',
-      isLab: true,
-      history: [
-        { id: 'dbmslab-11', date: '1 Oct', time: '4:00 PM', slot: 'P', status: 'present' },
-        { id: 'dbmslab-10', date: '24 Sep', time: '4:00 PM', slot: 'P', status: 'absent' },
-      ]
-    },
-    'Advanced Programming Lab-1': {
-      code: 'CS206',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 8, totalP: 10, percentP: 80.0,
-      attended: 8, total: 10, missed: 2,
-      overallPercent: 80.0,
-      category: 'Lab',
-      isLab: true,
-      history: [
-        { id: 'aplab-10', date: '2 Oct', time: '4:00 PM', slot: 'P', status: 'present' },
-        { id: 'aplab-9', date: '25 Sep', time: '4:00 PM', slot: 'P', status: 'absent' },
-      ]
-    },
-    'Unix Programming Lab': {
-      code: 'CS219',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 7, totalP: 8, percentP: 87.5,
-      attended: 7, total: 8, missed: 1,
-      overallPercent: 87.5,
-      category: 'Lab',
-      isLab: true,
-      history: [
-        { id: 'unix-8', date: '29 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
-      ]
-    },
-    'Summer Internship': {
-      code: 'CS002',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 0, total: 0, missed: 0,
-      overallPercent: null,
-      category: 'Project',
-      isLab: false,
-      history: []
-    }
-  };
-
-  // Branch Specializations
-  if (isAI) {
-    records['Foundation of AI'] = {
-      code: 'CS116',
-      attendedL: 24, totalL: 28, percentL: 85.7,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 24, total: 28, missed: 4,
-      overallPercent: 85.7,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'foai-28', date: '3 Oct', time: '3:00 PM', slot: 'L', status: 'present' },
-        { id: 'foai-27', date: '1 Oct', time: '11:00 AM', slot: 'L', status: 'present' },
-      ]
-    };
-    records['AI Lab'] = {
-      code: 'CS222',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 8, totalP: 9, percentP: 88.9,
-      attended: 8, total: 9, missed: 1,
-      overallPercent: 88.9,
-      category: 'Lab',
-      isLab: true,
-      history: [
-        { id: 'ailab-9', date: '2 Oct', time: '2:00 PM', slot: 'P', status: 'present' },
-      ]
-    };
-  } else if (isStats) {
-    records['Statistical Methods'] = {
-      code: 'CS115',
-      attendedL: 28, totalL: 31, percentL: 90.3,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 28, total: 31, missed: 3,
-      overallPercent: 90.3,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'sm-31', date: '3 Oct', time: '4:00 PM', slot: 'L', status: 'present' },
-        { id: 'sm-30', date: '1 Oct', time: '9:00 AM', slot: 'L', status: 'present' },
-      ]
-    };
-    records['Statistical Methods Lab'] = {
-      code: 'CS221',
-      attendedL: 0, totalL: 0, percentL: 0,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 9, totalP: 10, percentP: 90.0,
-      attended: 9, total: 10, missed: 1,
-      overallPercent: 90.0,
-      category: 'Lab',
-      isLab: true,
-      history: [
-        { id: 'smlab-10', date: '30 Sep', time: '2:00 PM', slot: 'P', status: 'present' },
-      ]
-    };
-  } else {
-    // Core CSE Track (B1, B2, B3, B4, B5, B6, B7, B8, B9)
-    records['Theory of Computation'] = {
-      code: 'CS110',
-      attendedL: 25, totalL: 30, percentL: 83.3,
-      attendedT: 0, totalT: 0, percentT: 0,
-      attendedP: 0, totalP: 0, percentP: 0,
-      attended: 25, total: 30, missed: 5,
-      overallPercent: 83.3,
-      category: 'Theory',
-      isLab: false,
-      history: [
-        { id: 'toc-30', date: '3 Oct', time: '11:00 AM', slot: 'L', status: 'present' },
-        { id: 'toc-29', date: '1 Oct', time: '12:00 PM', slot: 'L', status: 'present' },
-        { id: 'toc-28', date: '29 Sep', time: '11:00 AM', slot: 'L', status: 'absent' },
-      ]
-    };
+export const JUET_REAL_PORTAL_ATTENDANCE = {
+  'Techniques for Decision Making (TDM)': {
+    attendedL: 17, totalL: 20, percentL: 85.0,
+    attendedT: 7, totalT: 10, percentT: 70.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 24, total: 30, missed: 6,
+    overallPercent: 80.0,
+    history: {}
+  },
+  'Data Structures (DS)': {
+    attendedL: 23, totalL: 27, percentL: 85.2,
+    attendedT: 10, totalT: 10, percentT: 100.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 33, total: 37, missed: 4,
+    overallPercent: 89.2,
+    history: {}
+  },
+  'Database Systems (DBMS)': {
+    attendedL: 14, totalL: 17, percentL: 82.4,
+    attendedT: 6, totalT: 8, percentT: 75.0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 20, total: 25, missed: 5,
+    overallPercent: 80.0,
+    history: {}
+  },
+  'Career Management & Development (CMD)': {
+    attendedL: 16, totalL: 18, percentL: 88.9,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 16, total: 18, missed: 2,
+    overallPercent: 88.9,
+    history: {}
+  },
+  'Environmental Science (EVS)': {
+    attendedL: 12, totalL: 16, percentL: 75.0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 12, total: 16, missed: 4,
+    overallPercent: 75.0,
+    history: {}
+  },
+  'Statistical Methods (SM)': {
+    attendedL: 26, totalL: 29, percentL: 89.7,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 0, totalP: 0, percentP: 0,
+    attended: 26, total: 29, missed: 3,
+    overallPercent: 89.7,
+    history: {}
+  },
+  'Data Structures Lab (DS Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 9, totalP: 9, percentP: 100.0,
+    attended: 9, total: 9, missed: 0,
+    overallPercent: 100.0,
+    history: {}
+  },
+  'Database Systems Lab (DBMS Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 7, totalP: 9, percentP: 77.8,
+    attended: 7, total: 9, missed: 2,
+    overallPercent: 77.8,
+    history: {}
+  },
+  'Advanced Programming Lab-1 (AP Lab-1)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 7, totalP: 9, percentP: 77.8,
+    attended: 7, total: 9, missed: 2,
+    overallPercent: 77.8,
+    history: {}
+  },
+  'Statistical Methods Lab (SM Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 8, totalP: 9, percentP: 88.9,
+    attended: 8, total: 9, missed: 1,
+    overallPercent: 88.9,
+    history: {}
+  },
+  'Unix Programming Lab (UNIX Lab)': {
+    attendedL: 0, totalL: 0, percentL: 0,
+    attendedT: 0, totalT: 0, percentT: 0,
+    attendedP: 8, totalP: 9, percentP: 88.9,
+    attended: 8, total: 9, missed: 1,
+    overallPercent: 88.9,
+    history: {}
   }
-
-  return records;
-}
-
-export const JUET_REAL_PORTAL_ATTENDANCE = getInitialAttendanceForBatch('B31');
+};
 
 // Helper to match CampusLynx raw subject codes with StudyQuest subjects
 // CRITICAL: Practical / Lab subjects are strictly treated as separate, distinct subjects!
@@ -296,7 +145,6 @@ export function matchCampusLynxSubject(rawString, targetSubjectName) {
     { code: 'CS116', lab: false },
     { code: 'HS007', lab: false },
     { code: 'GE001', lab: false },
-    { code: 'CS002', lab: false },
     { code: 'CS203', lab: true }, // DS Lab
     { code: 'CS204', lab: true }, // DBMS Lab
     { code: 'CS206', lab: true }, // AP Lab-1
@@ -323,7 +171,6 @@ export function matchCampusLynxSubject(rawString, targetSubjectName) {
   if (raw.includes('CAREER') && target.includes('CAREER')) return true;
   if (raw.includes('ENVIRONMENT') && target.includes('ENVIRONMENT')) return true;
   if (raw.includes('COMPUTATION') && target.includes('COMPUTATION')) return true;
-  if (raw.includes('INTERNSHIP') && target.includes('INTERNSHIP')) return true;
 
   if (raw.includes(target) || target.includes(raw)) return true;
 
@@ -333,12 +180,12 @@ export function matchCampusLynxSubject(rawString, targetSubjectName) {
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [onboardingComplete, setOnboardingComplete] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [userStats, setUserStats] = useState({ 
     level: 1, xp: 0, nextLevelXp: 1000, streak: 0, 
-    lastStudyDate: null, avatarUrl: null,
+    lastStudyDate: null, avatarUrl: null, unlockedBadges: [], studyMinutesPerSubject: {} 
   });
   const [userBatch, setUserBatchState] = useState('B31');
   const [studyPlan, setStudyPlan] = useState([]);
@@ -402,37 +249,26 @@ export const UserProvider = ({ children }) => {
     }
   }, []);
 
-  // Automated recurring notification scheduler based on timetable & attendance
-  useEffect(() => {
-    if (Platform.OS !== 'web' && timetable && timetable.length > 0) {
-      const today = new Date();
-      const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const todayName = daysShort[today.getDay()];
-      const todayStr = today.toISOString().split('T')[0];
-      const todaysClasses = timetable.filter(c => c.day === todayName);
-
-      scheduleClassEndNotifications(todaysClasses, todayStr).catch(() => {});
-      scheduleSmartEngagementNotifications({
-        timetable,
-        attendanceRecords,
-        userStats,
-        userBatch,
-      }).catch(() => {});
-    }
-  }, [timetable, attendanceRecords, userBatch]);
-
-  // Background auto-sync worker that keeps attendance permanently up-to-date
-  useEffect(() => {
-    const bgSyncInterval = setInterval(() => {
-      if (attendanceRecords && Object.keys(attendanceRecords).length > 0) {
-        setScopedItem('@attendanceRecords', JSON.stringify(attendanceRecords)).catch(() => {});
-      }
-    }, 15 * 60 * 1000); // sync every 15 minutes in background
-
-    return () => clearInterval(bgSyncInterval);
-  }, [attendanceRecords]);
-
-
+  const scheduleStudyNotifications = async (plan) => {
+    // Cancel all previously scheduled notifications
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
+    plan.forEach((session, index) => {
+      // In a real app we'd parse the session.date / session.time correctly.
+      // For this demo, we'll just stagger them by a few seconds for testing 
+      // or assume they are hours away.
+      // Here we schedule a dummy notification 10 seconds from now for the first session, 
+      // just to prove it works in the background.
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Time to study: ${session.subject} 📚`,
+          body: session.topic || "Open StudyQuest to begin your focus timer!",
+          sound: true,
+        },
+        trigger: { seconds: 10 + (index * 5) },
+      });
+    });
+  };
 
   const completeOnboarding = async () => {
     try {
@@ -499,18 +335,35 @@ export const UserProvider = ({ children }) => {
       const attendanceStr = await getScopedItem('@attendanceRecords');
       if (attendanceStr) {
         const parsed = JSON.parse(attendanceStr);
-        const hasRealData = Object.values(parsed).some(r => (r.total || 0) > 0);
-        if (!hasRealData) {
-          const initRecords = getInitialAttendanceForBatch(activeBatch);
-          setAttendanceRecords(initRecords);
-          setScopedItem('@attendanceRecords', JSON.stringify(initRecords)).catch(() => {});
+        // If B31 and not initialized with real LTP data, merge real portal data
+        if (activeBatch === 'B31') {
+          const hasRealData = Object.values(parsed).some(r => (r.total || 0) > 0);
+          if (!hasRealData) {
+            setAttendanceRecords(JUET_REAL_PORTAL_ATTENDANCE);
+            setScopedItem('@attendanceRecords', JSON.stringify(JUET_REAL_PORTAL_ATTENDANCE)).catch(() => {});
+          } else {
+            setAttendanceRecords(parsed);
+          }
         } else {
           setAttendanceRecords(parsed);
         }
       } else {
-        const initRecords = getInitialAttendanceForBatch(activeBatch);
-        setAttendanceRecords(initRecords);
-        setScopedItem('@attendanceRecords', JSON.stringify(initRecords)).catch(() => {});
+        const initialTt = filterTimetableForBatch(activeBatch);
+        const initialRecords = activeBatch === 'B31' ? { ...JUET_REAL_PORTAL_ATTENDANCE } : {};
+        initialTt.forEach(item => {
+          if (item.subject && !initialRecords[item.subject]) {
+            initialRecords[item.subject] = {
+              attended: 0, missed: 0, total: 0,
+              attendedL: 0, totalL: 0,
+              attendedT: 0, totalT: 0,
+              attendedP: 0, totalP: 0,
+              percentL: 0, percentT: 0, percentP: 0, overallPercent: 0,
+              history: {}
+            };
+          }
+        });
+        setAttendanceRecords(initialRecords);
+        setScopedItem('@attendanceRecords', JSON.stringify(initialRecords)).catch(() => {});
       }
     } catch (e) {
       console.warn('Failed to load local data', e);
@@ -534,7 +387,11 @@ export const UserProvider = ({ children }) => {
           nextLevelXp: data.nextLevelXp || 1000,
           streak: data.streak || 0,
           lastStudyDate: data.lastStudyDate || null,
+          userType: data.userType || null,
+          institute: data.institute || null,
           avatarUrl: data.avatarUrl || null,
+          unlockedBadges: data.unlockedBadges || [],
+          studyMinutesPerSubject: data.studyMinutesPerSubject || {},
         });
 
         if (data.timetable && Array.isArray(data.timetable)) {
@@ -576,13 +433,6 @@ export const UserProvider = ({ children }) => {
       }
       const newTimetable = filterTimetableForBatch(newBatch);
       await saveTimetable(newTimetable);
-
-      const newAttendance = getInitialAttendanceForBatch(newBatch);
-      setAttendanceRecords(newAttendance);
-      await setScopedItem('@attendanceRecords', JSON.stringify(newAttendance));
-      if (auth.currentUser) {
-        await setDoc(doc(db, 'users', auth.currentUser.uid), { attendanceRecords: newAttendance }, { merge: true });
-      }
     } catch (e) {
       console.warn('Failed to switch batch', e);
     }
@@ -869,6 +719,97 @@ export const UserProvider = ({ children }) => {
 
 
 
+  const BADGE_DEFINITIONS = {
+    first_focus: { id: 'first_focus', name: 'Focus Novice', icon: '🎯', description: 'Complete your first Focus Session' },
+    marathon: { id: 'marathon', name: 'Marathoner', icon: '🏃', description: 'Study for 2 hours in a row' },
+    night_owl: { id: 'night_owl', name: 'Night Owl', icon: '🦉', description: 'Study past 10 PM' },
+    streak_3: { id: 'streak_3', name: 'Hot Streak', icon: '🔥', description: 'Achieve a 3-day streak' },
+    early_bird: { id: 'early_bird', name: 'Early Bird', icon: '🌅', description: 'Study before 8 AM' }
+  };
+
+  const unlockBadge = async (badgeId) => {
+    const currentBadges = userStats.unlockedBadges || [];
+    if (!currentBadges.includes(badgeId) && BADGE_DEFINITIONS[badgeId]) {
+      const newBadges = [...currentBadges, badgeId];
+      const newStats = { ...userStats, unlockedBadges: newBadges };
+      setUserStats(newStats);
+      
+      // Update Firestore
+      if (auth.currentUser) {
+        try {
+          await setDoc(doc(db, 'users', auth.currentUser.uid), { unlockedBadges: newBadges }, { merge: true });
+        } catch (e) {
+          console.warn('Failed to unlock badge', e);
+        }
+      }
+      return BADGE_DEFINITIONS[badgeId]; // Return badge so UI can show a toast
+    }
+    return null;
+  };
+
+  const logStudySession = async (subject, durationMinutes) => {
+    const xpGained = durationMinutes * 10;
+    const newXp = userStats.xp + xpGained;
+    let newLevel = userStats.level;
+    let nextLevelXp = userStats.nextLevelXp;
+    let leveledUp = false;
+
+    if (newXp >= nextLevelXp) {
+      newLevel += 1;
+      nextLevelXp = Math.floor(nextLevelXp * 1.5);
+      leveledUp = true;
+    }
+
+    const currentSubjectMinutes = userStats.studyMinutesPerSubject?.[subject] || 0;
+    
+    const newStats = {
+      ...userStats,
+      xp: newXp,
+      level: newLevel,
+      nextLevelXp: nextLevelXp,
+      studyMinutesPerSubject: {
+        ...(userStats.studyMinutesPerSubject || {}),
+        [subject]: currentSubjectMinutes + durationMinutes
+      }
+    };
+
+    setUserStats(newStats);
+
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), newStats, { merge: true });
+      } catch (e) {
+        console.warn('Failed to save study session stats', e);
+      }
+    }
+
+    // Check Badges
+    const unlocked = [];
+    if (!userStats.unlockedBadges?.includes('first_focus')) {
+      const b = await unlockBadge('first_focus');
+      if (b) unlocked.push(b);
+    }
+    if (durationMinutes >= 120 && !userStats.unlockedBadges?.includes('marathon')) {
+      const b = await unlockBadge('marathon');
+      if (b) unlocked.push(b);
+    }
+    const hour = new Date().getHours();
+    if (hour >= 22 || hour <= 3) {
+      if (!userStats.unlockedBadges?.includes('night_owl')) {
+        const b = await unlockBadge('night_owl');
+        if (b) unlocked.push(b);
+      }
+    }
+    if (hour >= 5 && hour <= 8) {
+      if (!userStats.unlockedBadges?.includes('early_bird')) {
+        const b = await unlockBadge('early_bird');
+        if (b) unlocked.push(b);
+      }
+    }
+
+    return { leveledUp, newLevel, unlockedBadges: unlocked, xpGained };
+  };
+
   return (
     <UserContext.Provider value={{
       onboardingComplete,
@@ -883,6 +824,7 @@ export const UserProvider = ({ children }) => {
       BATCH_GROUPS,
       getDistinctSubjectsForBatch,
       filterTimetableForBatch,
+      testTriggerClassEndNotification,
       studyPlan,
       loadLocalStudyPlan,
       updateStudyPlan,
@@ -892,6 +834,9 @@ export const UserProvider = ({ children }) => {
       markClassAttendance,
       updateManualAttendance,
       syncCampusLynxData,
+      BADGE_DEFINITIONS,
+      unlockBadge,
+      logStudySession
     }}>
       {children}
     </UserContext.Provider>

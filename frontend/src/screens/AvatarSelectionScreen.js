@@ -173,7 +173,7 @@ const CATEGORIES = [
 export default function AvatarSelectionScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userStats, saveStatsToFirestore, completeOnboarding } = useUser();
+  const { userStats, saveStatsToFirestore } = useUser();
   const isEditing = route.params?.isEditing || false;
 
   const [activeCategory, setActiveCategory] = useState('skin');
@@ -274,21 +274,19 @@ export default function AvatarSelectionScreen() {
     setTimeout(() => setLoading(false), 400);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    // Fire and forget: update context and start Firestore save in background
     saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
+    
     if (isEditing) {
       navigation.goBack();
     } else {
-      await completeOnboarding();
+      navigation.navigate('UserType');
     }
   };
 
-  const handleSkip = async () => {
-    if (isEditing) {
-      navigation.goBack();
-    } else {
-      await completeOnboarding();
-    }
+  const handleSkip = () => {
+    navigation.navigate('UserType');
   };
 
   const activeCat = CATEGORIES.find(c => c.id === activeCategory);
