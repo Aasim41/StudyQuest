@@ -15,6 +15,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../context/UserContext';
 import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
 
@@ -173,7 +174,7 @@ const CATEGORIES = [
 export default function AvatarSelectionScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userStats, saveStatsToFirestore } = useUser();
+  const { userStats, saveStatsToFirestore, completeOnboarding } = useUser();
   const isEditing = route.params?.isEditing || false;
 
   const [activeCategory, setActiveCategory] = useState('skin');
@@ -194,58 +195,58 @@ export default function AvatarSelectionScreen() {
     clothesColor: '3c4f5c',
   });
 
-  // Parse existing avatar URL when editing
+  // Parse existing avatar URL when editing (Crash-proof without requiring URL polyfills)
   useEffect(() => {
     if (isEditing && userStats?.avatarUrl) {
       try {
-        const url = new URL(userStats.avatarUrl);
-        const params = url.searchParams;
-        setConfig(prev => ({
+        const query = userStats.avatarUrl.split('?')[1] || '';
+        const pairs = query.split('&');
+        const map = {};
+        pairs.forEach((p) => {
+          const [k, v] = p.split('=');
+          if (k && v) map[k] = decodeURIComponent(v);
+        });
+        setConfig((prev) => ({
           ...prev,
-          skin: params.get('skinColor') || prev.skin,
-          top: params.get('top') || prev.top,
-          hairColor: params.get('hairColor') || prev.hairColor,
-          eyes: params.get('eyes') || prev.eyes,
-          eyebrows: params.get('eyebrows') || prev.eyebrows,
-          mouth: params.get('mouth') || prev.mouth,
-          facialHair: params.get('facialHair') || '',
-          accessories: params.get('accessories') || '',
-          clothing: params.get('clothing') || prev.clothing,
-          clothesColor: params.get('clothesColor') || prev.clothesColor,
+          skin: map.skinColor || prev.skin,
+          top: map.top || prev.top,
+          hairColor: map.hairColor || prev.hairColor,
+          eyes: map.eyes || prev.eyes,
+          eyebrows: map.eyebrows || prev.eyebrows,
+          mouth: map.mouth || prev.mouth,
+          facialHair: map.facialHair || '',
+          accessories: map.accessories || '',
+          clothing: map.clothing || prev.clothing,
+          clothesColor: map.clothesColor || prev.clothesColor,
         }));
       } catch (e) {
-        // If URL parsing fails, keep defaults
+        // If parsing fails, keep defaults safely
       }
     }
   }, []);
 
-  // Build the DiceBear URL
+  // Build the DiceBear URL (natively PNG for 100% Android Image compatibility)
   const buildAvatarUrl = useCallback(() => {
-    const base = 'https://api.dicebear.com/9.x/avataaars/svg';
-    const params = new URLSearchParams();
-    params.set('skinColor', config.skin);
-    params.set('top', config.top);
-    params.set('hairColor', config.hairColor);
-    params.set('eyes', config.eyes);
-    params.set('eyebrows', config.eyebrows);
-    params.set('mouth', config.mouth);
+    const base = 'https://api.dicebear.com/9.x/avataaars/png';
+    const params = [
+      `skinColor=${encodeURIComponent(config.skin || 'ffdbb4')}`,
+      `top=${encodeURIComponent(config.top || 'shortFlat')}`,
+      `hairColor=${encodeURIComponent(config.hairColor || '2c1b18')}`,
+      `eyes=${encodeURIComponent(config.eyes || 'default')}`,
+      `eyebrows=${encodeURIComponent(config.eyebrows || 'default')}`,
+      `mouth=${encodeURIComponent(config.mouth || 'smile')}`,
+      `facialHair=${encodeURIComponent(config.facialHair || '')}`,
+      `facialHairProbability=${config.facialHair ? '100' : '0'}`,
+      `accessories=${encodeURIComponent(config.accessories || '')}`,
+      `accessoriesProbability=${config.accessories ? '100' : '0'}`,
+      `clothing=${encodeURIComponent(config.clothing || 'hoodie')}`,
+      `clothesColor=${encodeURIComponent(config.clothesColor || '3c4f5c')}`,
+      `backgroundColor=b6e3f4`,
+    ];
     if (config.facialHair) {
-      params.set('facialHair', config.facialHair);
-      params.set('facialHairProbability', '100');
-      params.set('facialHairColor', config.hairColor);
-    } else {
-      params.set('facialHairProbability', '0');
+      params.push(`facialHairColor=${encodeURIComponent(config.hairColor || '2c1b18')}`);
     }
-    if (config.accessories) {
-      params.set('accessories', config.accessories);
-      params.set('accessoriesProbability', '100');
-    } else {
-      params.set('accessoriesProbability', '0');
-    }
-    params.set('clothing', config.clothing);
-    params.set('clothesColor', config.clothesColor);
-    params.set('backgroundColor', 'b6e3f4');
-    return `${base}?${params.toString()}`;
+    return `${base}?${params.join('&')}`;
   }, [config]);
 
   const currentAvatarUrl = buildAvatarUrl();
@@ -274,19 +275,60 @@ export default function AvatarSelectionScreen() {
     setTimeout(() => setLoading(false), 400);
   };
 
-  const handleSave = () => {
-    // Fire and forget: update context and start Firestore save in background
-    saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
-    
-    if (isEditing) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('UserType');
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
+      await AsyncStorage.setItem('@avatarUrl', currentAvatarUrl).catch(() => {});
+      if (completeOnboarding) {
+        await completeOnboarding();
+      }
+      if (isEditing || navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        });
+      }
+    } catch (e) {
+      console.warn('Save avatar error', e);
+      if (completeOnboarding) await completeOnboarding();
+      if (isEditing || navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSkip = () => {
-    navigation.navigate('UserType');
+  const handleSkip = async () => {
+    try {
+      setSaving(true);
+      if (completeOnboarding) {
+        await completeOnboarding();
+      }
+      if (isEditing || navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        });
+      }
+    } catch (e) {
+      console.warn('Skip avatar error', e);
+      if (completeOnboarding) await completeOnboarding();
+      if (isEditing || navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const activeCat = CATEGORIES.find(c => c.id === activeCategory);

@@ -1,499 +1,429 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   ScrollView,
-  Image,
+  TextInput,
+  StatusBar,
+  Dimensions,
   Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  Easing,
-  FadeInDown,
-} from 'react-native-reanimated';
-import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { auth } from '../../firebaseConfig';
+import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS, FONTS } from '../theme';
-import { ModernButton, ModernCard, MinimalProgress, GSAPStagger, SleekPill, PulseIndicator } from '../components/ui';
-import { ACADEMIC_CALENDAR } from '../config/academicCalendar';
-import {
-  scheduleClassEndNotifications,
-  testTriggerClassEndNotification,
-} from '../services/notificationService';
-import CampusLynxSyncModal from '../components/CampusLynxSyncModal';
+import { EXAM_TARGETS, SUBJECT_TOPICS, COMMON_SUBJECTS } from '../config/studyGuideData';
+import { generateAndShareCheatSheetPdf } from '../services/pdfService';
+import MarkingSimulatorModal from '../components/MarkingSimulatorModal';
 
 const { width } = Dimensions.get('window');
-
-const BATCH_GROUP_INFO = {
-  BX: {
-    title: 'GROUP BX (Batches B1, B2, B3)',
-    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
-    badgeColor: '#6C5CE7',
-    tag: 'ToC Track',
-    batches: ['B1', 'B2', 'B3']
-  },
-  BY: {
-    title: 'GROUP BY (Batches B4, B5, B6)',
-    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
-    badgeColor: '#6C5CE7',
-    tag: 'ToC Track',
-    batches: ['B4', 'B5', 'B6']
-  },
-  BZ: {
-    title: 'GROUP BZ (Batches B7, B8, B9)',
-    desc: 'Core CSE Track • Includes Theory of Computation (ToC)',
-    badgeColor: '#6C5CE7',
-    tag: 'ToC Track',
-    batches: ['B7', 'B8', 'B9']
-  },
-  BX1_AI: {
-    title: 'GROUP BX1 — AI & ML Specialization',
-    desc: 'Specialization Track • Foundation of AI (FOAI) + AI Lab',
-    badgeColor: '#8B5CF6',
-    tag: 'AI & ML',
-    batches: ['B21', 'B22', 'B23']
-  },
-  BX1_B31: {
-    title: 'GROUP BX1 — Batch B31 (Data Science / Stats)',
-    desc: 'Stats Track • Statistical Methods (SM) + SM Lab (No ToC)',
-    badgeColor: '#00D2FF',
-    tag: 'SM & Stats',
-    batches: ['B31']
-  }
-};
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const {
     userStats,
-    timetable,
-    attendanceRecords,
-    markClassAttendance,
-    userBatch,
-    switchBatch,
-    syncCampusLynxData,
+    targetExam,
+    setTargetExam,
+    savedGuides,
+    toggleSaveGuide,
   } = useUser();
-  const [greeting, setGreeting] = useState('');
-  const [batchModalVisible, setBatchModalVisible] = useState(false);
-  const [campusLynxModalVisible, setCampusLynxModalVisible] = useState(false);
 
-  // Date and day calculations
-  const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
-  const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const currentDayShort = daysShort[today.getDay()];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('All');
+  const [targetModalVisible, setTargetModalVisible] = useState(false);
+  const [customExamInput, setCustomExamInput] = useState('');
+  const [simulatorItem, setSimulatorItem] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  // JUET Academic suspension & fest checks
-  const suspensionInfo = useMemo(() => ACADEMIC_CALENDAR.isClassSuspended(todayStr), [todayStr]);
-  const festInfo = useMemo(() => ACADEMIC_CALENDAR.isFestOrDicey(todayStr), [todayStr]);
-
-  // Today's classes from timetable
-  const todaysClasses = useMemo(() => {
-    if (!timetable || !Array.isArray(timetable)) return [];
-    return timetable.filter(item => item.day === currentDayShort);
-  }, [timetable, currentDayShort]);
-
-  // Schedule class-end interactive notifications for today's classes
-  useEffect(() => {
-    if (todaysClasses && todaysClasses.length > 0) {
-      scheduleClassEndNotifications(todaysClasses, todayStr);
+  const handleExportPdf = async () => {
+    try {
+      setPdfLoading(true);
+      const res = await generateAndShareCheatSheetPdf(
+        selectedSubject === 'All' ? 'High-Yield Topics' : selectedSubject,
+        activeExamLabel,
+        displayedTopics.slice(0, 8)
+      );
+      if (!res.success) {
+        Alert.alert('PDF Export', res.error || 'Could not generate PDF.');
+      }
+    } catch (e) {
+      Alert.alert('Export Error', 'Failed to generate cheat sheet PDF.');
+    } finally {
+      setPdfLoading(false);
     }
-  }, [todaysClasses, todayStr]);
+  };
 
-  // Overall attendance calculation
-  const overallAttendancePercent = useMemo(() => {
-    let attended = 0;
-    let total = 0;
-    if (attendanceRecords) {
-      Object.values(attendanceRecords).forEach(rec => {
-        attended += rec.attended || 0;
-        total += rec.total || 0;
+  // Flatten all topics
+  const allTopics = useMemo(() => {
+    const list = [];
+    Object.entries(SUBJECT_TOPICS).forEach(([subj, topics]) => {
+      topics.forEach((t) => {
+        list.push({ ...t, subject: subj });
       });
+    });
+    return list;
+  }, []);
+
+  // Filtered topics based on search and subject
+  const displayedTopics = useMemo(() => {
+    let list = allTopics;
+    if (selectedSubject !== 'All') {
+      list = list.filter((t) => t.subject === selectedSubject);
     }
-    return total > 0 ? (attended / total) * 100 : 0;
-  }, [attendanceRecords]);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.subject.toLowerCase().includes(q) ||
+          t.summary.toLowerCase().includes(q) ||
+          (t.aiBlindspots && t.aiBlindspots.some((b) => b.point.toLowerCase().includes(q)))
+      );
+    }
+    return list;
+  }, [allTopics, selectedSubject, searchQuery]);
 
-  // GSAP-like Hero & Gauge Spring animation
-  const gaugeScale = useSharedValue(0.9);
-  const gaugeOpacity = useSharedValue(0);
-  const cardStagger = useSharedValue(20);
+  // Current active exam label
+  const activeExamLabel = useMemo(() => {
+    const match = EXAM_TARGETS.find((e) => e.id === targetExam || e.label === targetExam);
+    return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
+  }, [targetExam]);
 
-  useEffect(() => {
-    const hour = today.getHours();
-    if (hour < 12) setGreeting('Good morning');
-    else if (hour < 18) setGreeting('Good afternoon');
-    else setGreeting('Good evening');
+  const handleOpenGuide = (guide) => {
+    navigation.navigate('StudyGuideDetail', { guide });
+  };
 
-    // Orchestrated GSAP entry
-    gaugeOpacity.value = withTiming(1, { duration: 400 });
-    gaugeScale.value = withSpring(1, { damping: 14, stiffness: 120 });
-    cardStagger.value = withSpring(0, { damping: 16, stiffness: 100 });
-  }, [userStats]);
+  const handleOpenAuditor = (mode = 'TOPIC', initialTopic = '', initialSubject = 'Physics') => {
+    navigation.navigate('AIGapAuditor', {
+      mode,
+      initialTopic,
+      initialSubject,
+    });
+  };
 
-  const gaugeAnimStyle = useAnimatedStyle(() => ({
-    opacity: gaugeOpacity.value,
-    transform: [{ scale: gaugeScale.value }],
-  }));
+  const handleSelectExam = (examLabel) => {
+    setTargetExam(examLabel);
+    setTargetModalVisible(false);
+  };
 
-  const getStatusColor = (percent) => {
-    if (percent >= 75) return '#2ECC71';
-    if (percent >= 70) return '#F1C40F';
-    return '#E74C3C';
+  const handleApplyCustomExam = () => {
+    if (customExamInput.trim()) {
+      setTargetExam(customExamInput.trim());
+      setCustomExamInput('');
+      setTargetModalVisible(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A1A" />
 
-      {/* Subtle modern top glow */}
-      <View style={styles.ambientTopGlow} />
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* ─── SLEEK HEADER ──────────────────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.institutionRow}>
-              <View style={styles.institutionBadge}>
-                <Text style={styles.institutionBadgeText}>JUET GUNA • ODD SEM 2026</Text>
-              </View>
-              <SleekPill
-                label={`Batch: ${userBatch || 'B31'}`}
-                icon={<MaterialCommunityIcons name="account-group" size={13} color="#00D2FF" />}
-                active={true}
-                activeColor="#00D2FF"
-                onPress={() => setBatchModalVisible(true)}
-                style={styles.batchPill}
-              />
-
-              <TouchableOpacity
-                style={styles.syncLynxPill}
-                activeOpacity={0.85}
-                onPress={() => setCampusLynxModalVisible(true)}
-              >
-                <PulseIndicator size={6} color="#2ECC71" />
-                <MaterialCommunityIcons name="cloud-sync-outline" size={13} color="#2ECC71" style={{ marginHorizontal: 4 }} />
-                <Text style={styles.syncLynxPillText}>Sync</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.greetingText}>{greeting},</Text>
-            <Text style={styles.userNameText}>{auth.currentUser?.displayName || 'Student'}</Text>
+      {/* Clean Minimal Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.brandTitle}>StudyQuest</Text>
+            <Text style={styles.brandSubtitle}>AI Exam Blindspot Auditor</Text>
           </View>
 
+          <View style={styles.userBadge}>
+            <MaterialCommunityIcons name="star-shooting" size={15} color="#FFD32A" />
+            <Text style={styles.userBadgeText}>{userStats?.xp || 0} XP</Text>
+          </View>
+        </View>
+
+        {/* Target Exam Button */}
+        <TouchableOpacity
+          style={styles.targetExamBar}
+          onPress={() => setTargetModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.targetExamLeft}>
+            <MaterialCommunityIcons name="target" size={17} color="#00D2FF" />
+            <Text style={styles.targetExamText} numberOfLines={1}>
+              Target: <Text style={styles.targetExamHighlight}>{activeExamLabel}</Text>
+            </Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-down" size={18} color="#8E8EA8" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Clean Hero Card */}
+        <View style={styles.heroCard}>
+          <Text style={styles.heroTitle}>Catch What AI Misses</Text>
+          <Text style={styles.heroDesc}>
+            Generic AI leaves out critical edge cases, proof steps & marking rubrics.
+            Audit your topic or notes before your exam.
+          </Text>
+
+          <View style={styles.heroActionsRow}>
+            <TouchableOpacity
+              style={styles.heroBtnPrimary}
+              onPress={() => handleOpenAuditor('TOPIC')}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="lightning-bolt" size={16} color="#FFFFFF" />
+              <Text style={styles.heroBtnPrimaryText}>Audit a Topic</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.heroBtnSecondary}
+              onPress={() => handleOpenAuditor('ANSWER')}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="file-document-edit-outline" size={16} color="#00D2FF" />
+              <Text style={styles.heroBtnSecondaryText}>Check Notes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Clean 3-Feature Quick Tools Bar */}
+        <View style={styles.quickToolsRow}>
           <TouchableOpacity
-            style={styles.avatarTouch}
+            style={styles.quickToolBtn}
+            onPress={() => navigation.navigate('Flashcards')}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('AvatarSelection', { isEditing: true })}
           >
-            {userStats?.avatarUrl ? (
-              <Image
-                source={{ uri: userStats.avatarUrl.replace('/svg?', '/png?') }}
-                style={styles.avatarImg}
-              />
+            <MaterialCommunityIcons name="cards-outline" size={17} color="#A29BFE" />
+            <Text style={styles.quickToolText}>60s Deck</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickToolBtn}
+            onPress={() => navigation.navigate('Predictor')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="radar" size={17} color="#00D2FF" />
+            <Text style={styles.quickToolText}>Exam Radar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickToolBtn}
+            onPress={handleExportPdf}
+            disabled={pdfLoading}
+            activeOpacity={0.8}
+          >
+            {pdfLoading ? (
+              <ActivityIndicator size="small" color="#FFD32A" />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <MaterialCommunityIcons name="account" size={26} color={COLORS.textSecondary} />
-              </View>
+              <>
+                <MaterialCommunityIcons name="file-pdf-box" size={17} color="#FFD32A" />
+                <Text style={styles.quickToolText}>Cheat Sheet</Text>
+              </>
             )}
           </TouchableOpacity>
-        </Animated.View>
-
-        {/* ─── JUET SUSPENSION / FEST BANNER ─────────────────────────────────────── */}
-        {suspensionInfo.suspended && (
-          <Animated.View entering={FadeInDown.delay(100).duration(350)} style={styles.alertBanner}>
-            <MaterialCommunityIcons name="information" size={18} color="#FF6B35" style={{ marginRight: 8 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.alertTitle}>Classes Suspended Today</Text>
-              <Text style={styles.alertSub}>{suspensionInfo.reason} • No attendance counted</Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {festInfo.isDicey && (
-          <Animated.View entering={FadeInDown.delay(100).duration(350)} style={[styles.alertBanner, { borderColor: '#9B59B6' }]}>
-            <MaterialCommunityIcons name="party-popper" size={18} color="#9B59B6" style={{ marginRight: 8 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.alertTitle, { color: '#9B59B6' }]}>JYC Technical Fest</Text>
-              <Text style={styles.alertSub}>Classes are dicey. Mark as Off if professors don't lecture.</Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* ─── MODERN MINIMAL ATTENDANCE HERO CARD (GSAP animated) ────────────────── */}
-        <Animated.View style={[styles.heroCardWrapper, gaugeAnimStyle]}>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={styles.heroCard}
-            onPress={() => navigation.navigate('Planner')}
-          >
-            <View style={styles.heroCardTop}>
-              <View>
-                <Text style={styles.heroOverline}>TOTAL ATTENDANCE</Text>
-                <Text style={[styles.heroBigPercent, { color: getStatusColor(overallAttendancePercent) }]}>
-                  {overallAttendancePercent.toFixed(1)}%
-                </Text>
-              </View>
-              <View style={styles.criteriaTag}>
-                <Text style={[styles.criteriaTagText, { color: getStatusColor(overallAttendancePercent) }]}>
-                  {overallAttendancePercent >= 70 ? '70% TARGET MET' : 'CRITICAL DETENTION RISK'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.progressBox}>
-              <MinimalProgress
-                progress={overallAttendancePercent / 100}
-                color={getStatusColor(overallAttendancePercent)}
-                height={5}
-              />
-            </View>
-
-            <View style={styles.heroFooter}>
-              <Text style={styles.heroFooterText}>
-                JUET Rule: Minimum 70% required to write T-3 exams.
-              </Text>
-              <View style={styles.hubLinkRow}>
-                <Text style={styles.hubLinkText}>Open Calculator</Text>
-                <MaterialCommunityIcons name="arrow-right" size={14} color={COLORS.accent} />
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* ─── STREAK & LEVEL STATS (Minimalist duo) ─────────────────────────────── */}
-        <View style={styles.statsRow}>
-          <ModernCard style={styles.statMiniCard}>
-            <View style={styles.statIconCircle}>
-              <MaterialCommunityIcons name="lightning-bolt" size={20} color="#00D2FF" />
-            </View>
-            <View>
-              <Text style={styles.statMiniLabel}>LEVEL</Text>
-              <Text style={styles.statMiniVal}>{userStats.level || 1} <Text style={styles.statMiniSub}>({userStats.xp || 0} XP)</Text></Text>
-            </View>
-          </ModernCard>
-
-          <ModernCard style={styles.statMiniCard}>
-            <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255,107,53,0.15)' }]}>
-              <MaterialCommunityIcons name="fire" size={20} color="#FF6B35" />
-            </View>
-            <View>
-              <Text style={styles.statMiniLabel}>STREAK</Text>
-              <Text style={styles.statMiniVal}>{userStats.streak || 0} <Text style={styles.statMiniSub}>Days</Text></Text>
-            </View>
-          </ModernCard>
         </View>
 
-        {/* ─── TODAY'S CLASSES (GSAP Staggered Cards) ────────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <View>
-            <Text style={styles.sectionTitle}>Today's Schedule ({currentDayShort})</Text>
-            <Text style={styles.sectionCount}>{todaysClasses.length} Classes Scheduled</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.testNotificationBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              const sampleClass = todaysClasses[0] || { subject: 'Database Systems (DBMS)', room: 'LT1' };
-              testTriggerClassEndNotification(sampleClass.subject, sampleClass.room);
-            }}
-          >
-            <MaterialCommunityIcons name="bell-ring-outline" size={13} color="#00D2FF" style={{ marginRight: 4 }} />
-            <Text style={styles.testNotificationText}>Test Notification</Text>
-          </TouchableOpacity>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <MaterialCommunityIcons name="magnify" size={20} color="#777799" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search any topic, formula, or concept..."
+            placeholderTextColor="#666688"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#8E8EA8" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {todaysClasses.length === 0 ? (
-          <ModernCard style={styles.emptyScheduleCard}>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={36} color={COLORS.textMuted} style={{ marginBottom: 8 }} />
-            <Text style={styles.emptyScheduleTitle}>No Classes Scheduled Today</Text>
-            <Text style={styles.emptyScheduleSub}>Enjoy your time off or simulate bunks in the Attendance Hub.</Text>
-          </ModernCard>
-        ) : (
-          <GSAPStagger delay={150} stagger={70}>
-            {todaysClasses.map((item, index) => {
-              const currentStatus = attendanceRecords?.[item.subject]?.history?.[todayStr]?.[item.id];
-              const isLab = item.isLab || item.sessionType === 'P' || item.subject.toLowerCase().includes('lab');
-
+        {/* Clean Subject Filter Chips */}
+        <View style={styles.subjectTabsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectTabsScroll}>
+            {['All', ...COMMON_SUBJECTS.filter((s) => s !== 'Other / Custom Subject')].map((subj) => {
+              const isSelected = selectedSubject === subj;
               return (
-                <View key={item.id || index} style={[styles.classCard, isLab && styles.classCardLab]}>
-                  <View style={styles.classTopRow}>
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <View style={styles.classBadgeRow}>
-                        {isLab ? (
-                          <View style={styles.badgeLab}>
-                            <MaterialCommunityIcons name="flask-outline" size={11} color="#00D2FF" style={{ marginRight: 3 }} />
-                            <Text style={styles.badgeLabText}>PRACTICAL • 2 HRS</Text>
-                          </View>
-                        ) : item.sessionType === 'T' ? (
-                          <View style={styles.badgeTut}>
-                            <MaterialCommunityIcons name="book-open-variant" size={11} color="#F1C40F" style={{ marginRight: 3 }} />
-                            <Text style={styles.badgeTutText}>TUTORIAL</Text>
-                          </View>
-                        ) : (
-                          <View style={styles.badgeLec}>
-                            <MaterialCommunityIcons name="account-tie-voice" size={11} color="#A29BFE" style={{ marginRight: 3 }} />
-                            <Text style={styles.badgeLecText}>LECTURE</Text>
-                          </View>
-                        )}
-                        {item.room ? (
-                          <View style={styles.badgeRoom}>
-                            <MaterialCommunityIcons name="map-marker-outline" size={11} color={COLORS.textSecondary} style={{ marginRight: 2 }} />
-                            <Text style={styles.badgeRoomText}>{item.room}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      <Text style={styles.classSubject} numberOfLines={1}>{item.subject}</Text>
-                      <Text style={styles.classSlot}>
-                        {item.time} {item.roomLocation ? `• ${item.roomLocation}` : ''}
-                      </Text>
-                    </View>
-
-                    {currentStatus && (
-                      <View style={[
-                        styles.badgeStatus,
-                        currentStatus === 'present' ? styles.badgePresent :
-                        currentStatus === 'absent' ? styles.badgeAbsent : styles.badgeOff
-                      ]}>
-                        <Text style={styles.badgeStatusText}>
-                          {currentStatus === 'present' ? 'PRESENT' : currentStatus === 'absent' ? 'BUNKED' : 'OFF'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* GSAP-like Instant Action buttons */}
-                  <View style={styles.actionBtnRow}>
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      style={[styles.btnAction, currentStatus === 'present' && styles.btnActionPresentActive]}
-                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'present', item.sessionType)}
-                    >
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={16}
-                        color={currentStatus === 'present' ? '#FFF' : '#2ECC71'}
-                      />
-                      <Text style={[styles.btnActionText, currentStatus === 'present' && styles.btnActionTextActive]}>
-                        Present (+25 XP)
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      style={[styles.btnAction, currentStatus === 'absent' && styles.btnActionAbsentActive]}
-                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'absent', item.sessionType)}
-                    >
-                      <MaterialCommunityIcons
-                        name="close"
-                        size={16}
-                        color={currentStatus === 'absent' ? '#FFF' : '#E74C3C'}
-                      />
-                      <Text style={[styles.btnActionText, currentStatus === 'absent' && styles.btnActionTextActive]}>
-                        Absent
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      style={[styles.btnActionCompact, currentStatus === 'cancelled' && styles.btnActionOffActive]}
-                      onPress={() => markClassAttendance(item.subject, todayStr, item.id, 'cancelled', item.sessionType)}
-                    >
-                      <Text style={[styles.btnActionCompactText, currentStatus === 'cancelled' && styles.btnActionTextActive]}>
-                        Off
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <TouchableOpacity
+                  key={subj}
+                  style={[styles.subjectChip, isSelected && styles.subjectChipActive]}
+                  onPress={() => setSelectedSubject(subj)}
+                >
+                  <Text style={[styles.subjectChipText, isSelected && styles.subjectChipTextActive]}>
+                    {subj}
+                  </Text>
+                </TouchableOpacity>
               );
             })}
-          </GSAPStagger>
-        )}
+          </ScrollView>
+        </View>
+
+        {/* Study Guides List */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {selectedSubject === 'All' ? 'Curated Exam Guides' : `${selectedSubject} Guides`}
+          </Text>
+          <Text style={styles.sectionCount}>({displayedTopics.length})</Text>
+        </View>
+
+        <View style={styles.topicList}>
+          {displayedTopics.map((topic) => {
+            const isSaved = savedGuides.some(
+              (g) => (g.id && g.id === topic.id) || g.title === topic.title
+            );
+
+            return (
+              <View key={topic.id} style={styles.topicCard}>
+                <View style={styles.topicCardTop}>
+                  <Text style={styles.topicSubjectText}>{topic.subject}</Text>
+                  <TouchableOpacity
+                    onPress={() => toggleSaveGuide(topic)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons
+                      name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                      size={20}
+                      color={isSaved ? '#00D2FF' : '#777799'}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.topicTitle}>{topic.title}</Text>
+                <Text style={styles.topicRelevance}>{topic.examRelevance}</Text>
+
+                {topic.aiBlindspots && topic.aiBlindspots[0] && (
+                  <View style={styles.blindspotPreviewBox}>
+                    <Text style={styles.blindspotPreviewHeading}>
+                      ⚠️ AI Blindspot: {topic.aiBlindspots[0].point}
+                    </Text>
+                    <Text style={styles.blindspotPreviewBody} numberOfLines={2}>
+                      {topic.aiBlindspots[0].whatAiMisses}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.topicCardActions}>
+                  <TouchableOpacity
+                    style={styles.openGuideBtn}
+                    onPress={() => handleOpenGuide(topic)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.openGuideBtnText}>Guide</Text>
+                    <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.simulateTopicBtn}
+                    onPress={() => setSimulatorItem({
+                      topic: topic.title,
+                      subject: topic.subject,
+                      marks: 5,
+                      keyPoints: topic.coreConcepts || [],
+                    })}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="calculator-variant-outline" size={14} color="#00D2FF" />
+                    <Text style={styles.simulateTopicBtnText}>Simulate</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.auditTopicBtn}
+                    onPress={() =>
+                      handleOpenAuditor('TOPIC', topic.title, topic.subject)
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="shield-search" size={14} color="#A29BFE" />
+                    <Text style={styles.auditTopicBtnText}>Audit</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
 
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      {/* ─── BATCH SELECTION MODAL ──────────────────────────────────────────────── */}
+      {/* Clean Exam Selection Modal */}
       <Modal
-        visible={batchModalVisible}
+        visible={targetModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setBatchModalVisible(false)}
+        onRequestClose={() => setTargetModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.batchModalCard}>
-            <View style={styles.batchModalHeader}>
-              <View>
-                <Text style={styles.batchModalTitle}>Select Your College Batch</Text>
-                <Text style={styles.batchModalSub}>Filters your exact timetable, theory & 2-hr lab courses</Text>
-              </View>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setTargetModalVisible(false)}
+        >
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Target Exam</Text>
+              <TouchableOpacity onPress={() => setTargetModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Works for all Competitive, Board, and College exams.
+            </Text>
+
+            {/* Custom Exam Input */}
+            <View style={styles.customExamRow}>
+              <TextInput
+                style={styles.customExamInput}
+                placeholder="Or type custom exam (e.g. CUET, GRE)..."
+                placeholderTextColor="#777799"
+                value={customExamInput}
+                onChangeText={setCustomExamInput}
+              />
               <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setBatchModalVisible(false)}
+                style={styles.customExamApplyBtn}
+                onPress={handleApplyCustomExam}
               >
-                <MaterialCommunityIcons name="close" size={20} color={COLORS.textMuted} />
+                <Text style={styles.customExamApplyText}>Set</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
-              {BATCH_GROUP_INFO && Object.entries(BATCH_GROUP_INFO).map(([groupKey, info]) => (
-                <View key={groupKey} style={styles.batchGroupSection}>
-                  <View style={styles.batchGroupTitleRow}>
-                    <Text style={styles.batchGroupTitle}>{info.title}</Text>
-                    <View style={[styles.batchGroupBadge, { borderColor: info.badgeColor }]}>
-                      <Text style={[styles.batchGroupBadgeText, { color: info.badgeColor }]}>{info.tag}</Text>
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {EXAM_TARGETS.map((target) => {
+                const isSelected = activeExamLabel === target.label;
+                return (
+                  <TouchableOpacity
+                    key={target.id}
+                    style={[styles.modalOption, isSelected && styles.modalOptionActive]}
+                    onPress={() => handleSelectExam(target.label)}
+                  >
+                    <View style={styles.modalOptionContent}>
+                      <Text style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelActive]}>
+                        {target.label}
+                      </Text>
+                      <Text style={styles.modalOptionDesc} numberOfLines={1}>
+                        {target.desc}
+                      </Text>
                     </View>
-                  </View>
-                  <Text style={styles.batchGroupDesc}>{info.desc}</Text>
-
-                  <View style={styles.batchGrid}>
-                    {info.batches.map(batchCode => {
-                      const isSelected = (userBatch === batchCode);
-                      return (
-                        <TouchableOpacity
-                          key={batchCode}
-                          activeOpacity={0.8}
-                          style={[styles.batchCard, isSelected && styles.batchCardActive]}
-                          onPress={async () => {
-                            await switchBatch(batchCode);
-                            setBatchModalVisible(false);
-                          }}
-                        >
-                          <Text style={[styles.batchCardText, isSelected && styles.batchCardTextActive]}>
-                            {batchCode}
-                          </Text>
-                          {isSelected && (
-                            <MaterialCommunityIcons name="check-circle" size={14} color="#00D2FF" style={{ marginLeft: 4 }} />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
+                    {isSelected && (
+                      <MaterialCommunityIcons name="check" size={18} color="#00D2FF" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
-      {/* ─── CAMPUSLYNX LIVE SYNC MODAL ────────────────────────────────────────── */}
-      <CampusLynxSyncModal
-        visible={campusLynxModalVisible}
-        onClose={() => setCampusLynxModalVisible(false)}
-        userUid={auth.currentUser?.uid}
-        onSyncComplete={async (records) => {
-          await syncCampusLynxData(records);
-        }}
-      />
+      {/* Interactive Marking Simulator Modal */}
+      {simulatorItem && (
+        <MarkingSimulatorModal
+          visible={!!simulatorItem}
+          onClose={() => setSimulatorItem(null)}
+          topicTitle={simulatorItem.topic}
+          subject={simulatorItem.subject}
+          targetExam={activeExamLabel}
+          questionData={simulatorItem}
+        />
+      )}
     </View>
   );
 }
@@ -501,570 +431,404 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#07070F',
+    backgroundColor: '#0A0A1A',
   },
-  ambientTopGlow: {
-    position: 'absolute',
-    top: 0,
-    left: width * 0.2,
-    width: width * 0.6,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(108, 92, 231, 0.08)',
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: 65,
-    paddingBottom: 40,
-  },
-
-  // Header
   header: {
+    paddingTop: 48,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    backgroundColor: '#0D0D20',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: 12,
   },
-  institutionBadge: {
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BORDER_RADIUS.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.2)',
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  institutionBadgeText: {
-    fontSize: 10,
+  brandTitle: {
+    fontSize: 22,
     fontWeight: '800',
-    color: '#00D2FF',
-    letterSpacing: 0.5,
-  },
-  greetingText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    fontWeight: '600',
-  },
-  userNameText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     letterSpacing: -0.5,
   },
-  avatarTouch: {
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    padding: 2,
-  },
-  avatarImg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Alert
-  alertBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 107, 53, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 53, 0.4)',
-    borderRadius: BORDER_RADIUS.md,
-    padding: 12,
-    marginBottom: SPACING.md,
-  },
-  alertTitle: {
+  brandSubtitle: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#FF6B35',
+    color: '#8E8EA8',
+    marginTop: 1,
   },
-  alertSub: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-
-  // Hero Card
-  heroCardWrapper: {
-    marginBottom: SPACING.md,
-  },
-  heroCard: {
-    backgroundColor: '#0F0F1E',
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: SPACING.lg,
-    ...SHADOWS.card,
-  },
-  heroCardTop: {
+  userBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 5,
   },
-  heroOverline: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 1.2,
+  userBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFD32A',
   },
-  heroBigPercent: {
-    fontSize: 42,
-    fontWeight: '900',
-    letterSpacing: -1,
-    marginVertical: 2,
-  },
-  criteriaTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  criteriaTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  progressBox: {
-    marginVertical: SPACING.md,
-  },
-  heroFooter: {
+  targetExamBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    paddingTop: SPACING.sm,
+    backgroundColor: 'rgba(20, 20, 42, 0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  heroFooterText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+  targetExamLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  hubLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  targetExamText: {
+    fontSize: 13,
+    color: '#8E8EA8',
     marginLeft: 8,
   },
-  hubLinkText: {
-    fontSize: 11,
+  targetExamHighlight: {
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+  },
+  heroCard: {
+    backgroundColor: '#13132B',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 92, 231, 0.3)',
+  },
+  heroTitle: {
+    fontSize: 18,
     fontWeight: '800',
-    color: COLORS.accent,
-    marginRight: 4,
+    color: '#FFFFFF',
+    marginBottom: 6,
   },
-
-  // Stats Row
-  statsRow: {
+  heroDesc: {
+    fontSize: 13,
+    color: '#A0A0C0',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  heroActionsRow: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
+    gap: 10,
   },
-  statMiniCard: {
+  heroBtnPrimary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#0F0F1E',
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    justifyContent: 'center',
+    backgroundColor: '#6C5CE7',
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
   },
-  statIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+  heroBtnPrimaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  heroBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+    gap: 6,
   },
-  statMiniLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.8,
+  heroBtnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#00D2FF',
   },
-  statMiniVal: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#FFF',
+  quickToolsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
   },
-  statMiniSub: {
-    fontSize: 11,
+  quickToolBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+    gap: 6,
+  },
+  quickToolText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DDDDEE',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#13132B',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  subjectTabsContainer: {
+    marginBottom: 16,
+  },
+  subjectTabsScroll: {
+    gap: 8,
+  },
+  subjectChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  subjectChipActive: {
+    backgroundColor: '#6C5CE7',
+    borderColor: '#6C5CE7',
+  },
+  subjectChipText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textMuted,
+    color: '#8E8EA8',
   },
-
-  // Section Header
+  subjectChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sectionCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textMuted,
+    fontSize: 13,
+    color: '#8E8EA8',
+    marginLeft: 6,
   },
-
-  // Empty Schedule
-  emptyScheduleCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.xl,
-    backgroundColor: '#0F0F1E',
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+  topicList: {
+    gap: 12,
   },
-  emptyScheduleTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-  emptyScheduleSub: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-
-  // Class Card
-  classCard: {
-    backgroundColor: '#0F0F1E',
-    borderRadius: BORDER_RADIUS.lg,
+  topicCard: {
+    backgroundColor: '#121228',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
   },
-  classTopRow: {
+  topicCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.sm,
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  classSubject: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-  classSlot: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  classType: {
-    color: COLORS.accent,
+  topicSubjectText: {
+    fontSize: 11,
     fontWeight: '700',
+    color: '#A29BFE',
+    textTransform: 'uppercase',
   },
-  badgeStatus: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+  topicTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 3,
   },
-  badgePresent: {
-    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+  topicRelevance: {
+    fontSize: 12,
+    color: '#FFA502',
+    marginBottom: 10,
   },
-  badgeAbsent: {
-    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+  blindspotPreviewBox: {
+    backgroundColor: 'rgba(255, 71, 87, 0.08)',
+    borderRadius: 10,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF4757',
+    marginBottom: 12,
   },
-  badgeOff: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  blindspotPreviewHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF6B81',
+    marginBottom: 3,
   },
-  badgeStatusText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 0.5,
+  blindspotPreviewBody: {
+    fontSize: 12,
+    color: '#CCD0E0',
+    lineHeight: 16,
   },
-
-  // Action Button Row
-  actionBtnRow: {
+  topicCardActions: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
   },
-  btnAction: {
+  openGuideBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#6C5CE7',
     paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: '#16162A',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    gap: 5,
   },
-  btnActionPresentActive: {
-    backgroundColor: '#2ECC71',
-    borderColor: '#2ECC71',
+  openGuideBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  btnActionAbsentActive: {
-    backgroundColor: '#E74C3C',
-    borderColor: '#E74C3C',
-  },
-  btnActionCompact: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.sm,
-    backgroundColor: '#16162A',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+  simulateTopicBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  btnActionOffActive: {
-    backgroundColor: '#444',
-    borderColor: '#666',
-  },
-  btnActionText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  btnActionCompactText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-  },
-  btnActionTextActive: {
-    color: '#FFF',
-    fontWeight: '900',
-  },
-
-  // Institution Row & Batch Pill
-  institutionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  batchPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.3)',
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  batchPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  syncLynxPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(46, 204, 113, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(46, 204, 113, 0.35)',
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  syncLynxPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2ECC71',
-  },
-
-  // Test Notification Button
-  testNotificationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(0, 210, 255, 0.25)',
-    borderRadius: BORDER_RADIUS.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 4,
   },
-  testNotificationText: {
-    fontSize: 10,
-    fontWeight: '800',
+  simulateTopicBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#00D2FF',
   },
-
-  // Badges & Class Card Lab
-  classCardLab: {
-    borderColor: 'rgba(0, 210, 255, 0.25)',
-    backgroundColor: '#0A0F1E',
-  },
-  classBadgeRow: {
+  auditTopicBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  badgeLab: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.3)',
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+    gap: 4,
   },
-  badgeLabText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#00D2FF',
-    letterSpacing: 0.5,
-  },
-  badgeTut: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(241, 196, 15, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(241, 196, 15, 0.3)',
-  },
-  badgeTutText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#F1C40F',
-    letterSpacing: 0.5,
-  },
-  badgeLec: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(162, 155, 254, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(162, 155, 254, 0.3)',
-  },
-  badgeLecText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#A29BFE',
-    letterSpacing: 0.5,
-  },
-  badgeRoom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeRoomText: {
-    fontSize: 9,
+  auditTopicBtnText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: '#00D2FF',
   },
-
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-end',
-  },
-  batchModalCard: {
-    backgroundColor: '#0D0D18',
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-    padding: SPACING.xl,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  batchModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    padding: 20,
   },
-  batchModalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-  },
-  batchModalSub: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  modalCloseBtn: {
-    padding: 6,
-  },
-  batchGroupSection: {
-    marginBottom: SPACING.md,
-  },
-  batchGroupTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  batchGroupTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: 0.5,
-  },
-  batchGroupBadge: {
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#121228',
+    borderRadius: 20,
+    padding: 20,
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS.pill,
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  batchGroupBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  batchGroupDesc: {
-    fontSize: 10,
-    color: COLORS.textMuted,
-    marginBottom: 8,
-  },
-  batchGrid: {
+  modalHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#8E8EA8',
+    marginBottom: 14,
+  },
+  customExamRow: {
+    flexDirection: 'row',
     gap: 8,
+    marginBottom: 14,
   },
-  batchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#131322',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: BORDER_RADIUS.md,
+  customExamInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    minWidth: 70,
+    fontSize: 13,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  customExamApplyBtn: {
+    backgroundColor: '#00D2FF',
+    paddingHorizontal: 14,
     justifyContent: 'center',
+    borderRadius: 10,
   },
-  batchCardActive: {
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    borderColor: '#00D2FF',
-  },
-  batchCardText: {
-    fontSize: 12,
+  customExamApplyText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: '#0A0A1A',
   },
-  batchCardTextActive: {
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  modalOptionActive: {
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+  },
+  modalOptionContent: {
+    flex: 1,
+  },
+  modalOptionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DDDDEE',
+  },
+  modalOptionLabelActive: {
     color: '#00D2FF',
-    fontWeight: '900',
+  },
+  modalOptionDesc: {
+    fontSize: 11,
+    color: '#8888AA',
+    marginTop: 2,
   },
 });

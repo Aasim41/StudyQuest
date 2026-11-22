@@ -3,36 +3,36 @@ import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../theme';
+import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, FONTS } from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
 const WORKFLOW_STEPS = [
   {
-    icon: 'card-account-details-outline',
-    title: '1. Enrollment No. & Password',
-    desc: 'Sign in directly with your JUET Enrollment Number and CampusLynx password. Your credentials stay secure on your device.'
+    icon: 'school-outline',
+    title: '1. Select Your Target Exam',
+    desc: 'Choose from CBSE 10th/12th Boards, JEE Main/Advanced, NEET UG, College Semesters, GATE, UPSC, or define a Custom exam target.'
   },
   {
-    icon: 'account-group-outline',
-    title: '2. Select Your Batch (e.g. B31)',
-    desc: 'Select your batch to automatically load your exact semester class timetable, including lectures, tutorials, and practicals.'
+    icon: 'shield-search',
+    title: '2. Audit Blindspots That Standard AI Misses',
+    desc: 'Paste a syllabus topic or upload question notes. StudyQuest pinpoints exact omission areas—definitions, edge cases, and graph intercepts that generic LLMs fail to mention.'
   },
   {
-    icon: 'sync',
-    title: '3. 1-Tap CampusLynx Sync',
-    desc: 'Sync real-time attendance directly from the portal without having to repeatedly solve captchas or re-login.'
+    icon: 'format-list-checks',
+    title: '3. Examiner Marking Scheme Rubrics',
+    desc: 'Access official step-marking rubrics. Know exactly how many marks examiners allocate for intermediate formulas, units, labeled diagrams, and concluding remarks.'
   },
   {
-    icon: 'calculator-variant-outline',
-    title: '4. Smart Bunk Calculator',
-    desc: 'See exactly how many upcoming classes you can safely miss, or how many you must attend consecutively to hit 75% or 80%.'
+    icon: 'radar',
+    title: '4. 5-Year Question Probability Radar',
+    desc: 'Review questions ranked by recurring patterns and examiner likelihood over the past 5 years so you prioritize high-probability topics first.'
   },
   {
-    icon: 'flask-outline',
-    title: '5. Strict Theory vs Lab Isolation',
-    desc: 'Practicals and Labs are scored independently from theory so a low lab attendance is never hidden by lectures.'
+    icon: 'file-pdf-box',
+    title: '5. 60s Flashcards & 1-Page Cheat Sheet PDF',
+    desc: 'Flip interactive 3D flashcards on exam morning for rapid retention, or export a formatted 1-page printable cheat sheet PDF with one tap.'
   }
 ];
 
@@ -42,32 +42,32 @@ export default function HowItWorksScreen({ navigation }) {
       <StatusBar style="light" />
       <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
-      <Animated.View entering={FadeIn.duration(600)} style={styles.header}>
+      <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>How It Works</Text>
-        <View style={{ width: 40 }} /> 
+        <View style={{ width: 40 }} />
       </Animated.View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.delay(150).springify()}>
-          <Text style={styles.subtitle}>CampusLynx Attendance Tracking</Text>
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <Text style={styles.subtitle}>The AI Exam Blindspot Workflow</Text>
           <Text style={styles.description}>
-            StudyQuest is built specifically for JUET students to eliminate attendance anxiety. Here is how your attendance and bunk calculations are managed:
+            StudyQuest is built to eliminate mark loss from overlooked syllabus points and unstandardized answers. Here is how your preparation is secured:
           </Text>
         </Animated.View>
 
         <View style={styles.stepsContainer}>
           {WORKFLOW_STEPS.map((step, index) => (
-            <Animated.View 
-              key={index} 
-              entering={FadeInDown.delay(250 + index * 80).springify()}
+            <Animated.View
+              key={index}
+              entering={FadeInDown.delay(150 + index * 70).springify()}
               style={styles.stepCard}
             >
               <LinearGradient colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']} style={styles.stepGradient}>
                 <View style={styles.iconContainer}>
-                  <MaterialCommunityIcons name={step.icon} size={26} color="#00D2FF" />
+                  <MaterialCommunityIcons name={step.icon} size={24} color="#00D2FF" />
                 </View>
                 <View style={styles.stepTextContainer}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
@@ -78,10 +78,10 @@ export default function HowItWorksScreen({ navigation }) {
           ))}
         </View>
 
-        <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Login')}>
+        <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.footer}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Signup')}>
             <LinearGradient colors={['#6C5CE7', '#00D2FF']} style={styles.primaryBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Text style={styles.primaryBtnText}>Sign In Now</Text>
+              <Text style={styles.primaryBtnText}>Start Free Exam Audit</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -105,53 +105,53 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '800',
+    color: '#FFF',
+    fontSize: 18,
+    fontFamily: FONTS.bold,
   },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.xxl,
+    paddingBottom: 40,
   },
   subtitle: {
     color: '#00D2FF',
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 8,
+    fontSize: 18,
+    fontFamily: FONTS.extraBold,
+    marginBottom: 6,
   },
   description: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-    marginBottom: SPACING.xl,
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: FONTS.regular,
+    marginBottom: SPACING.lg,
   },
   stepsContainer: {
-    gap: 14,
+    gap: 12,
   },
   stepCard: {
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.07)',
   },
   stepGradient: {
     flexDirection: 'row',
     padding: 16,
     alignItems: 'flex-start',
+    gap: 14,
   },
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
     alignItems: 'center',
-    marginRight: 14,
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0, 210, 255, 0.25)',
   },
@@ -159,32 +159,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stepTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: FONTS.bold,
     marginBottom: 4,
   },
   stepDesc: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: FONTS.regular,
   },
   footer: {
-    marginTop: SPACING.xxl,
-    marginBottom: SPACING.xl,
+    marginTop: 24,
   },
   primaryBtn: {
     borderRadius: BORDER_RADIUS.pill,
     overflow: 'hidden',
   },
   primaryBtnGradient: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryBtnText: {
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontFamily: FONTS.bold,
+    letterSpacing: 0.3,
   },
 });

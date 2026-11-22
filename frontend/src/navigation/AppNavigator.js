@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { onAuthStateChanged } from 'firebase/auth';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme';
@@ -19,12 +19,15 @@ import HowItWorksScreen from '../screens/HowItWorksScreen';
 
 // Setup & Profile Screens
 import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
-import TimetableCorrectionScreen from '../screens/TimetableCorrectionScreen';
 
-// Core Attendance Screens
+// Core Study Guide & Exam Helper Screens
 import DashboardScreen from '../screens/DashboardScreen';
-import PlannerScreen from '../screens/PlannerScreen';
+import AIGapAuditorScreen from '../screens/AIGapAuditorScreen';
+import ExamTargetsScreen from '../screens/ExamTargetsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
+import StudyGuideDetailScreen from '../screens/StudyGuideDetailScreen';
+import FlashcardsScreen from '../screens/FlashcardsScreen';
+import PredictorScreen from '../screens/PredictorScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 
@@ -54,7 +57,7 @@ const OnboardingStack = () => (
     }}
   >
     <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
-    <Stack.Screen name="TimetableCorrection" component={TimetableCorrectionScreen} />
+    <Stack.Screen name="MainTabs" component={MainTabNavigator} />
   </Stack.Navigator>
 );
 
@@ -66,44 +69,49 @@ const MainTabNavigator = () => (
       headerShown: false,
       tabBarStyle: {
         position: 'absolute',
-        bottom: 24,
-        left: 24,
-        right: 24,
+        bottom: 22,
+        left: 28,
+        right: 28,
         height: 64,
-        borderRadius: 24,
-        backgroundColor: 'rgba(12, 12, 24, 0.94)',
+        borderRadius: 22,
+        backgroundColor: '#0E0E20',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.08)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.5,
-        shadowRadius: 20,
+        shadowRadius: 18,
         elevation: 10,
+        paddingBottom: 8,
+        paddingTop: 8,
       },
       tabBarBackground: () => (
         <View 
           style={[
             StyleSheet.absoluteFill,
             {
-              backgroundColor: 'rgba(12, 12, 24, 0.96)',
-              borderRadius: 24,
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#0E0E20',
+              borderRadius: 22,
             }
           ]} 
         />
       ),
-      tabBarShowLabel: false,
-      tabBarActiveTintColor: COLORS.accent,
-      tabBarInactiveTintColor: COLORS.textMuted,
+      tabBarShowLabel: true,
+      tabBarActiveTintColor: '#00D2FF',
+      tabBarInactiveTintColor: '#777799',
+      tabBarLabelStyle: {
+        fontSize: 11,
+        fontWeight: '700',
+        marginTop: 2,
+      },
       tabBarIcon: ({ color, size, focused }) => {
-        let iconName = '';
+        let iconName = 'book-open-page-variant';
         if (route.name === 'Dashboard') {
-          iconName = focused ? 'checkbox-marked-circle' : 'checkbox-marked-circle-outline';
-        } else if (route.name === 'Planner') {
-          iconName = focused ? 'calculator' : 'calculator-variant-outline';
+          iconName = focused ? 'book-open-page-variant' : 'book-open-page-variant-outline';
+        } else if (route.name === 'AIGapAuditor') {
+          iconName = focused ? 'shield-search' : 'shield-search';
         } else if (route.name === 'Analytics') {
-          iconName = focused ? 'chart-box' : 'chart-box-outline';
+          iconName = focused ? 'chart-line' : 'chart-line-variant';
         }
 
         return (
@@ -111,30 +119,37 @@ const MainTabNavigator = () => (
             {focused && (
               <View style={{
                 position: 'absolute',
-                width: 42,
-                height: 42,
-                backgroundColor: 'rgba(108, 92, 231, 0.22)',
-                borderRadius: 21,
+                width: 36,
+                height: 36,
+                backgroundColor: 'rgba(0, 210, 255, 0.15)',
+                borderRadius: 18,
               }} />
             )}
             <MaterialCommunityIcons 
               name={iconName} 
-              size={26} 
+              size={24} 
               color={color} 
-              style={focused ? {
-                textShadowColor: COLORS.accentGlow,
-                textShadowOffset: { width: 0, height: 0 },
-                textShadowRadius: 10,
-              } : null}
             />
           </View>
         );
       },
     })}
   >
-    <Tab.Screen name="Dashboard" component={DashboardScreen} />
-    <Tab.Screen name="Planner" component={PlannerScreen} />
-    <Tab.Screen name="Analytics" component={AnalyticsScreen} />
+    <Tab.Screen 
+      name="Dashboard" 
+      component={DashboardScreen} 
+      options={{ tabBarLabel: 'Guides' }}
+    />
+    <Tab.Screen 
+      name="AIGapAuditor" 
+      component={AIGapAuditorScreen} 
+      options={{ tabBarLabel: 'AI Auditor' }}
+    />
+    <Tab.Screen 
+      name="Analytics" 
+      component={AnalyticsScreen} 
+      options={{ tabBarLabel: 'Mastery' }}
+    />
   </Tab.Navigator>
 );
 
@@ -147,6 +162,31 @@ const MainStack = () => (
   >
     <Stack.Screen name="MainTabs" component={MainTabNavigator} />
     <Stack.Screen 
+      name="StudyGuideDetail" 
+      component={StudyGuideDetailScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
+      name="AIGapAuditor" 
+      component={AIGapAuditorScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
+      name="Flashcards" 
+      component={FlashcardsScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
+      name="Predictor" 
+      component={PredictorScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
+      name="ExamTargets" 
+      component={ExamTargetsScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
       name="AvatarSelection" 
       component={AvatarSelectionScreen} 
       options={{ presentation: 'fullScreenModal' }}
@@ -158,10 +198,6 @@ const MainStack = () => (
     <Stack.Screen 
       name="Achievements" 
       component={AchievementsScreen} 
-    />
-    <Stack.Screen 
-      name="TimetableCorrection" 
-      component={TimetableCorrectionScreen} 
     />
   </Stack.Navigator>
 );
@@ -176,7 +212,7 @@ const LoadingScreen = () => (
 export default function AppNavigator() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const { onboardingComplete, loading: contextLoading, loadFirestoreStats, loadLocalStudyPlan } = useUser();
+  const { onboardingComplete, isGuest, loading: contextLoading, loadFirestoreStats } = useUser();
 
   useEffect(() => {
     fetch(`${API_BASE}/api/health`).catch(() => {});
@@ -185,7 +221,6 @@ export default function AppNavigator() {
       if (firebaseUser) {
         setUser(firebaseUser);
         await loadFirestoreStats();
-        if (loadLocalStudyPlan) await loadLocalStudyPlan();
       } else {
         setUser(null);
       }
@@ -204,9 +239,11 @@ export default function AppNavigator() {
 
   if (authLoading || contextLoading) return <LoadingScreen />;
 
+  const isAuthenticated = !!user || isGuest;
+
   return (
     <NavigationContainer>
-      {!user ? (
+      {!isAuthenticated ? (
         <AuthStack />
       ) : !onboardingComplete ? (
         <OnboardingStack />

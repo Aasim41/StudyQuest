@@ -181,6 +181,7 @@ const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [userStats, setUserStats] = useState({ 
@@ -192,13 +193,29 @@ export const UserProvider = ({ children }) => {
   const [timetable, setTimetable] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState({});
 
+  // Study Guide & AI Blindspot Auditor States (Generic for all competitive & school exams)
+  const [targetExam, setTargetExamState] = useState('CBSE Class 12 Boards');
+  const [savedGuides, setSavedGuides] = useState([]);
+  const [auditedHistory, setAuditedHistory] = useState([]);
+  const [masteredGapsCount, setMasteredGapsCount] = useState(7);
+
 
   useEffect(() => {
     const init = async () => {
       try {
-        const complete = await AsyncStorage.getItem('@onboardingComplete');
+        const [complete, guestVal, storedExam] = await Promise.all([
+          AsyncStorage.getItem('@onboardingComplete'),
+          AsyncStorage.getItem('@isGuest'),
+          AsyncStorage.getItem('@targetExam')
+        ]);
         if (complete === 'true') {
           setOnboardingComplete(true);
+        }
+        if (guestVal === 'true') {
+          setIsGuest(true);
+        }
+        if (storedExam) {
+          setTargetExamState(storedExam);
         }
       } catch (e) {
         console.warn('Error reading onboarding status', e);
@@ -285,6 +302,26 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const enterGuestMode = async () => {
+    try {
+      setIsGuest(true);
+      setOnboardingComplete(true);
+      await AsyncStorage.setItem('@isGuest', 'true');
+      await AsyncStorage.setItem('@onboardingComplete', 'true');
+    } catch (e) {
+      console.warn('Failed to enter guest mode', e);
+    }
+  };
+
+  const exitGuestMode = async () => {
+    try {
+      setIsGuest(false);
+      await AsyncStorage.removeItem('@isGuest');
+    } catch (e) {
+      console.warn('Failed to exit guest mode', e);
+    }
+  };
+
   // Student Data Isolation: Partition local storage keys by Firebase User UID
   const getScopedItem = async (baseKey) => {
     try {
@@ -322,6 +359,15 @@ export const UserProvider = ({ children }) => {
       const batchStr = await getScopedItem('@userBatch');
       const activeBatch = batchStr || 'B31';
       setUserBatchState(activeBatch);
+
+      const savedExam = await getScopedItem('@targetExam');
+      if (savedExam) setTargetExamState(savedExam);
+
+      const savedGuidesStr = await getScopedItem('@savedGuides');
+      if (savedGuidesStr) setSavedGuides(JSON.parse(savedGuidesStr));
+
+      const auditedHistStr = await getScopedItem('@auditedHistory');
+      if (auditedHistStr) setAuditedHistory(JSON.parse(auditedHistStr));
 
       const timetableStr = await getScopedItem('@timetable');
       if (timetableStr) {
@@ -810,10 +856,59 @@ export const UserProvider = ({ children }) => {
     return { leveledUp, newLevel, unlockedBadges: unlocked, xpGained };
   };
 
+  const setTargetExam = (exam) => {
+    setTargetExamState(exam);
+    setScopedItem('@targetExam', exam).catch(() => {});
+  };
+
+  const awardCustomXp = (amount, reason = '') => {
+    let newXp = (userStats.xp || 0) + amount;
+    let newLevel = userStats.level || 1;
+    let nextLevelXp = userStats.nextLevelXp || 1000;
+    if (newXp >= nextLevelXp) {
+      newLevel += 1;
+      newXp = newXp - nextLevelXp;
+      nextLevelXp = Math.floor(nextLevelXp * 1.5);
+    }
+    const newStats = { ...userStats, xp: newXp, level: newLevel, nextLevelXp };
+    setUserStats(newStats);
+    saveStatsToFirestore(newStats);
+  };
+
+  const toggleSaveGuide = async (guide) => {
+    const exists = savedGuides.some(g => (g.id && g.id === guide.id) || g.title === guide.title);
+    let updated;
+    if (exists) {
+      updated = savedGuides.filter(g => (g.id && g.id !== guide.id) || g.title !== guide.title);
+    } else {
+      updated = [guide, ...savedGuides];
+      awardCustomXp(20, 'Saved Study Guide');
+    }
+    setSavedGuides(updated);
+    await setScopedItem('@savedGuides', JSON.stringify(updated));
+  };
+
+  const saveAuditResult = async (audit) => {
+    const item = { ...audit, id: audit.id || `audit_${Date.now()}`, auditedAt: new Date().toISOString() };
+    const updated = [item, ...auditedHistory.slice(0, 19)];
+    setAuditedHistory(updated);
+    awardCustomXp(35, 'Audited Exam Blindspots');
+    await setScopedItem('@auditedHistory', JSON.stringify(updated));
+  };
+
+  const markGapMastered = async (gapId) => {
+    setMasteredGapsCount(prev => prev + 1);
+    awardCustomXp(25, 'Mastered Exam Gap');
+  };
+
   return (
     <UserContext.Provider value={{
       onboardingComplete,
       completeOnboarding,
+      setOnboardingComplete,
+      isGuest,
+      enterGuestMode,
+      exitGuestMode,
       loading,
       userStats,
       loadFirestoreStats,
@@ -836,7 +931,16 @@ export const UserProvider = ({ children }) => {
       syncCampusLynxData,
       BADGE_DEFINITIONS,
       unlockBadge,
-      logStudySession
+      logStudySession,
+      targetExam,
+      setTargetExam,
+      savedGuides,
+      toggleSaveGuide,
+      auditedHistory,
+      saveAuditResult,
+      masteredGapsCount,
+      markGapMastered,
+      awardCustomXp
     }}>
       {children}
     </UserContext.Provider>

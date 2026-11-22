@@ -12,53 +12,56 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  withDelay,
-  FadeIn,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../theme';
+import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONT_SIZES, FONTS } from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../firebaseConfig';
 import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useUser } from '../context/UserContext';
-import { ALL_BATCHES } from '../config/masterTimetable';
+import { EXAM_TARGETS } from '../config/studyGuideData';
 
 const { width } = Dimensions.get('window');
 
+const EXAM_OPTIONS = [
+  { id: 'CBSE Class 12 Boards', label: 'CBSE 12th Boards', icon: 'school-outline' },
+  { id: 'JEE Main & Advanced', label: 'JEE Main & Adv', icon: 'rocket-launch-outline' },
+  { id: 'NEET UG Medical', label: 'NEET UG', icon: 'hospital-box-outline' },
+  { id: 'College Semester Exams', label: 'College Semesters', icon: 'domain' },
+  { id: 'GATE Engineering', label: 'GATE Exam', icon: 'cog-outline' },
+  { id: 'UPSC Civil Services', label: 'UPSC CSE', icon: 'scale-balance' },
+  { id: 'Custom / Other Exam', label: 'Custom Exam', icon: 'notebook-edit-outline' },
+];
+
 export default function SignupScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
-  const [enrollment, setEnrollment] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedBatch, setSelectedBatch] = useState('B31');
+  const [selectedExam, setSelectedExam] = useState('CBSE Class 12 Boards');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [focusedField, setFocusedField] = useState(null);
 
-  const { switchBatch, completeOnboarding } = useUser();
+  const { setTargetExam, enterGuestMode } = useUser();
 
   const validate = () => {
     const errs = {};
     if (!fullName.trim()) errs.fullName = 'Full name is required';
-    
-    const cleanEnroll = enrollment.trim().toUpperCase();
-    if (!cleanEnroll) {
-      errs.enrollment = 'Enrollment number is required';
-    } else if (cleanEnroll.length < 5) {
-      errs.enrollment = 'Enter a valid JUET enrollment (e.g. 231B001)';
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      errs.email = 'Email address is required';
+    } else if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      errs.email = 'Enter a valid email address';
     }
 
     if (!password) {
-      errs.password = 'CampusLynx portal password is required';
-    } else if (password.length < 4) {
-      errs.password = 'Password must be at least 4 characters';
+      errs.password = 'Password is required';
+    } else if (password.length < 6) {
+      errs.password = 'Password must be at least 6 characters';
     }
 
     setErrors(errs);
@@ -69,60 +72,58 @@ export default function SignupScreen({ navigation }) {
     if (!validate()) return;
     setLoading(true);
 
-    const cleanEnroll = enrollment.trim().toUpperCase();
-    const virtualEmail = `${cleanEnroll.toLowerCase()}@juet.ac.in`;
+    const cleanEmail = email.trim().toLowerCase();
 
     try {
       let userCredential;
       try {
-        userCredential = await createUserWithEmailAndPassword(auth, virtualEmail, password);
+        userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       } catch (createErr) {
         if (createErr.code === 'auth/email-already-in-use') {
-          userCredential = await signInWithEmailAndPassword(auth, virtualEmail, password);
+          userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
         } else {
           throw createErr;
         }
       }
 
       const uid = userCredential.user.uid;
-      await updateProfile(userCredential.user, { displayName: fullName.trim() });
+      await updateProfile(userCredential.user, { displayName: fullName.trim() }).catch(() => {});
 
-      // Save credentials for automated 1-tap CampusLynx Sync
-      await AsyncStorage.setItem(
-        `@campuslynx_creds_${uid}`,
-        JSON.stringify({ username: cleanEnroll, password: password })
-      );
-
-      // Save selected batch
-      if (switchBatch) {
-        await switchBatch(selectedBatch);
+      if (setTargetExam) {
+        setTargetExam(selectedExam);
       }
-      await AsyncStorage.setItem(`@userBatch_${uid}`, selectedBatch);
-      await AsyncStorage.setItem('@onboardingComplete', 'true');
+      await AsyncStorage.setItem('@targetExam', selectedExam);
+      await AsyncStorage.setItem('@userName', fullName.trim());
 
-      // Update Firestore user record
+      // Save initial student profile
       setDoc(
         doc(db, 'users', uid),
         {
           displayName: fullName.trim(),
-          enrollmentNumber: cleanEnroll,
-          userBatch: selectedBatch,
-          onboardingComplete: true,
+          email: cleanEmail,
+          targetExam: selectedExam,
+          level: 1,
+          xp: 100,
           updatedAt: new Date().toISOString(),
         },
         { merge: true }
       ).catch(() => {});
 
-      if (completeOnboarding) {
-        await completeOnboarding();
-      }
-
+      // Proceed to Avatar Customization
+      navigation.navigate('AvatarSelection');
     } catch (error) {
-      let msg = 'Registration failed. Please verify your details.';
-      if (error.code === 'auth/weak-password') msg = 'Password is too weak.';
+      let msg = error.message || 'Registration failed. Please check your credentials.';
+      if (error.code === 'auth/invalid-email') msg = 'Please enter a valid email format.';
+      if (error.code === 'auth/weak-password') msg = 'Password must be at least 6 characters.';
       Alert.alert('Sign Up Error', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGuestEntry = async () => {
+    if (enterGuestMode) {
+      await enterGuestMode();
     }
   };
 
@@ -140,16 +141,16 @@ export default function SignupScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
             <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="account-plus-outline" size={36} color="#00D2FF" />
+              <MaterialCommunityIcons name="shield-star-outline" size={36} color="#00D2FF" />
             </View>
-            <Text style={styles.title}>Register for JUET Attendance</Text>
-            <Text style={styles.subtitle}>Track classes, labs, and criteria with 0 manual math</Text>
-          </View>
+            <Text style={styles.title}>Join StudyQuest</Text>
+            <Text style={styles.subtitle}>Audit exam blindspots, rubrics & high-yield topics</Text>
+          </Animated.View>
 
-          {/* Form */}
-          <View style={styles.card}>
+          {/* Form Card */}
+          <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.card}>
             {/* Full Name */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>FULL NAME</Text>
@@ -168,7 +169,7 @@ export default function SignupScreen({ navigation }) {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. Rahul Sharma"
+                  placeholder="e.g. Aarav Sharma"
                   placeholderTextColor={COLORS.textMuted}
                   value={fullName}
                   onChangeText={(txt) => {
@@ -183,43 +184,44 @@ export default function SignupScreen({ navigation }) {
               {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
             </View>
 
-            {/* Enrollment Number */}
+            {/* Email Address */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>ENROLLMENT NUMBER</Text>
+              <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
               <View
                 style={[
                   styles.inputContainer,
-                  focusedField === 'enrollment' && styles.inputFocused,
-                  errors.enrollment && styles.inputError,
+                  focusedField === 'email' && styles.inputFocused,
+                  errors.email && styles.inputError,
                 ]}
               >
                 <MaterialCommunityIcons
-                  name="card-account-details-outline"
+                  name="email-outline"
                   size={20}
-                  color={focusedField === 'enrollment' ? '#00D2FF' : COLORS.textMuted}
+                  color={focusedField === 'email' ? '#00D2FF' : COLORS.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. 231B001"
+                  placeholder="e.g. student@gmail.com"
                   placeholderTextColor={COLORS.textMuted}
-                  value={enrollment}
+                  value={email}
                   onChangeText={(txt) => {
-                    setEnrollment(txt.toUpperCase());
-                    if (errors.enrollment) setErrors((prev) => ({ ...prev, enrollment: null }));
+                    setEmail(txt);
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: null }));
                   }}
-                  autoCapitalize="characters"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                   autoCorrect={false}
-                  onFocus={() => setFocusedField('enrollment')}
+                  onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
                 />
               </View>
-              {errors.enrollment && <Text style={styles.errorText}>{errors.enrollment}</Text>}
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
-            {/* CampusLynx Password */}
+            {/* Password */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>CAMPUSLYNX PORTAL PASSWORD</Text>
+              <Text style={styles.fieldLabel}>PASSWORD</Text>
               <View
                 style={[
                   styles.inputContainer,
@@ -235,7 +237,7 @@ export default function SignupScreen({ navigation }) {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Your CampusLynx portal password"
+                  placeholder="At least 6 characters"
                   placeholderTextColor={COLORS.textMuted}
                   value={password}
                   onChangeText={(txt) => {
@@ -246,7 +248,7 @@ export default function SignupScreen({ navigation }) {
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <MaterialCommunityIcons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
@@ -257,20 +259,27 @@ export default function SignupScreen({ navigation }) {
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
 
-            {/* Batch Selector */}
+            {/* Target Exam Selector */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>SELECT YOUR BATCH</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.batchScroll}>
-                {ALL_BATCHES.map((b) => {
-                  const isSel = selectedBatch === b;
+              <Text style={styles.fieldLabel}>TARGET EXAM</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.examScroll}>
+                {EXAM_OPTIONS.map((exam) => {
+                  const isSel = selectedExam === exam.id;
                   return (
                     <TouchableOpacity
-                      key={b}
-                      onPress={() => setSelectedBatch(b)}
-                      style={[styles.batchPill, isSel && styles.batchPillActive]}
+                      key={exam.id}
+                      onPress={() => setSelectedExam(exam.id)}
+                      style={[styles.examPill, isSel && styles.examPillActive]}
+                      activeOpacity={0.7}
                     >
-                      <Text style={[styles.batchPillText, isSel && styles.batchPillTextActive]}>
-                        {b}
+                      <MaterialCommunityIcons
+                        name={exam.icon}
+                        size={15}
+                        color={isSel ? '#00D2FF' : COLORS.textMuted}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={[styles.examPillText, isSel && styles.examPillTextActive]}>
+                        {exam.label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -285,21 +294,36 @@ export default function SignupScreen({ navigation }) {
               onPress={handleRegister}
               disabled={loading}
             >
-              <View style={styles.buttonGradient}>
+              <LinearGradient
+                colors={['#6C5CE7', '#00D2FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
                 <MaterialCommunityIcons
                   name={loading ? 'loading' : 'check-circle-outline'}
-                  size={22}
+                  size={20}
                   color="#FFFFFF"
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.registerButtonText}>
-                  {loading ? 'Setting Up...' : 'Register & Start Tracking'}
+                  {loading ? 'Creating Account...' : 'Create Account & Continue'}
                 </Text>
-              </View>
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
 
-          {/* Already have an account */}
+            {/* Quick Guest Bypass Button */}
+            <TouchableOpacity
+              style={styles.guestButton}
+              activeOpacity={0.75}
+              onPress={handleGuestEntry}
+            >
+              <MaterialCommunityIcons name="account-eye-outline" size={18} color="#00D2FF" style={{ marginRight: 8 }} />
+              <Text style={styles.guestButtonText}>Explore Instantly as Guest</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Already have an account link */}
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -320,59 +344,61 @@ const styles = StyleSheet.create({
   keyboardView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: SPACING.xl,
-    paddingTop: Platform.OS === 'web' ? 40 : 60,
+    paddingTop: Platform.OS === 'web' ? 40 : 54,
     paddingBottom: 40,
     alignItems: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: 'rgba(0, 210, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(0, 210, 255, 0.3)',
-    marginBottom: 14,
+    marginBottom: 12,
     ...SHADOWS.glowAccent,
   },
   title: {
     color: COLORS.textPrimary,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   subtitle: {
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
     fontSize: 13,
     textAlign: 'center',
   },
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: 'rgba(16, 16, 36, 0.92)',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: 'rgba(16, 16, 36, 0.94)',
+    borderRadius: 22,
+    padding: 22,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  fieldGroup: { marginBottom: 18 },
+  fieldGroup: {
+    marginBottom: 16,
+  },
   fieldLabel: {
-    color: 'rgba(255, 255, 255, 0.55)',
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -382,81 +408,106 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 14,
     paddingHorizontal: 14,
-    height: 52,
+    height: 50,
   },
   inputFocused: {
     borderColor: '#00D2FF',
     backgroundColor: 'rgba(0, 210, 255, 0.04)',
   },
-  inputError: { borderColor: '#FF4757' },
-  inputIcon: { marginRight: 10 },
+  inputError: {
+    borderColor: '#FF4757',
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
   input: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   errorText: {
     color: '#FF4757',
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 4,
     marginLeft: 4,
   },
-  batchScroll: {
+  examScroll: {
     flexDirection: 'row',
     paddingVertical: 4,
   },
-  batchPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  examPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 13,
+    paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     marginRight: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  batchPillActive: {
-    backgroundColor: 'rgba(0, 210, 255, 0.2)',
+  examPillActive: {
+    backgroundColor: 'rgba(0, 210, 255, 0.18)',
     borderColor: '#00D2FF',
   },
-  batchPillText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 13,
+  examPillText: {
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  examPillTextActive: {
+    color: '#00D2FF',
     fontWeight: '800',
   },
-  batchPillTextActive: { color: '#00D2FF' },
   registerButton: {
     borderRadius: BORDER_RADIUS.pill,
     overflow: 'hidden',
-    marginTop: 8,
+    marginTop: 6,
+    marginBottom: 10,
     ...SHADOWS.glowAccent,
   },
   buttonGradient: {
     flexDirection: 'row',
-    backgroundColor: '#6C5CE7',
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BORDER_RADIUS.pill,
   },
   registerButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  guestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.pill,
+    backgroundColor: 'rgba(0, 210, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+  },
+  guestButtonText: {
+    color: '#00D2FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   footerRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    justifyContent: 'center',
+    marginTop: 22,
   },
   footerText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
+    color: COLORS.textMuted,
+    fontSize: 13,
   },
   footerLink: {
     color: '#00D2FF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });
