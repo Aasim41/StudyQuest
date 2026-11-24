@@ -96,6 +96,140 @@ export const EXAM_TARGETS = [
     subjects: ['Science (Physics/Chem/Bio)', 'Mathematics', 'Social Science', 'English Language'],
   },
 
+  // ICSE / ISC (CISCE Board)
+  {
+    id: 'ICSE_10',
+    category: 'BOARD',
+    label: 'ICSE Class 10',
+    desc: 'English, Mathematics, Science, History & Civics, Geography • Application-based questions, internal/external assessment split',
+    weightage: '80 Marks External + 20 Marks Internal per subject',
+    examType: 'Board',
+    markingScheme: 'External exam 80 marks (2.5 hrs). Internal assessment 20 marks (project + practicals). Section A is compulsory; Section B offers internal choice (attempt 4 out of 7). Neat labeled diagrams carry dedicated marks.',
+    subjects: ['English', 'Mathematics', 'Science (Physics/Chem/Bio)', 'History & Civics', 'Geography'],
+  },
+  {
+    id: 'ISC_12',
+    category: 'BOARD',
+    label: 'ISC Class 12',
+    desc: 'English, Physics, Chemistry, Maths, Biology/CS • Rigorous application & analysis, project-based internal assessment',
+    weightage: '70 Marks External + 30 Marks Internal (Practical/Project)',
+    examType: 'Board',
+    markingScheme: 'Theory paper 70 marks (3 hrs). Internal assessment 30 marks (practical + project + viva). Section A compulsory; Section B attempt 4 out of 6. Answer must include diagrams, derivations, and applications.',
+    subjects: ['English', 'Physics', 'Chemistry', 'Mathematics', 'Biology/Computer Science'],
+  },
+
+  // State Board Exams
+  {
+    id: 'MH_BOARD',
+    category: 'BOARD',
+    label: 'Maharashtra Board (HSC)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • MSBSHSE pattern with 70/30 theory-practical split, activity-based questions',
+    weightage: '70 Marks Theory + 30 Marks Practical per subject',
+    examType: 'Board',
+    markingScheme: 'Theory paper 70 marks (3 hrs). Practical/oral 30 marks. Numericals carry 3-4 marks each; diagram-based questions carry 2 marks for labeled diagram alone. Activity-based questions mandatory in Section D.',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'KA_BOARD',
+    category: 'BOARD',
+    label: 'Karnataka Board (PUC II)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • Blueprint-based question paper pattern with fixed unit-wise mark distribution',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Blueprint pattern: 1-mark (VSA), 2-mark (SA), 3-mark (SA), 5-mark (LA with choice) sections. Fixed unit-wise weightage published annually. Practical 30 marks includes record + viva + experiment.',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'TN_BOARD',
+    category: 'BOARD',
+    label: 'Tamil Nadu Board (HSC +2)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • Samacheer Kalvi syllabus, volume-based textbooks, state-specific content',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Part I: 15×1 MCQ (15 marks). Part II: 6×2 SA (12 marks). Part III: 6×3 SA (18 marks). Part IV: 5×5 LA with internal choice (25 marks). Total theory 70 marks. State-specific examples and Tamil Nadu geography/history integrated.',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'KL_BOARD',
+    category: 'BOARD',
+    label: 'Kerala Board (DHSE +2)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • SCERT Kerala syllabus, focus on conceptual understanding and application',
+    weightage: '60 Marks Theory + 20 Marks Practical + 20 Marks CE',
+    examType: 'Board',
+    markingScheme: 'Theory 60 marks. Practical 20 marks. Continuous Evaluation (CE) 20 marks. Questions include 1-mark (fill/MCQ), 2-mark (short answer), 3-mark (paragraph), 5-mark (essay with choice). CE includes assignments, seminars, lab records.',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'UP_BOARD',
+    category: 'BOARD',
+    label: 'UP Board (Intermediate)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • NCERT-aligned since 2018 but retains legacy UP Board question patterns',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Theory 70 marks (3 hrs). Practical 30 marks. Bilingual paper (Hindi & English). MCQ section (20 marks), Very Short (10 marks), Short Answer (20 marks), Long Answer (20 marks). Legacy numerical patterns alongside NCERT alignment.',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'MP_BOARD',
+    category: 'BOARD',
+    label: 'MP Board (HSC)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • MPBSE syllabus with blueprint-based marking and quarterly assessment',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Theory 70 marks. Objective (1-mark MCQ/fill-in), Very Short (2 marks), Short Answer (3 marks), Long Answer (4-5 marks). Blueprint published with unit-wise marks. Practical 30 marks (experiment + viva + record).',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'RJ_BOARD',
+    category: 'BOARD',
+    label: 'Rajasthan Board (RBSE Sr. Sec)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • RBSE syllabus with NCERT-based content and state-specific supplements',
+    weightage: '56 Marks Theory + 20 Marks Practical + 24 Marks Internal',
+    examType: 'Board',
+    markingScheme: 'Theory 56 marks (3.25 hrs). Practical 20 marks. Internal assessment 24 marks (project + assignment + attendance). Objective section (1 mark × 8), SA (2 marks × 8), LA (4 marks × 4), Very LA (5 marks × 2).',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'WB_BOARD',
+    category: 'BOARD',
+    label: 'West Bengal Board (HS)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • WBCHSE syllabus with MCQ + SAQ + LAQ pattern',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Group A: MCQ 15×1 (15 marks). Group B: SAQ (attempt 18 out of 21 at 1 mark each). Group C: Descriptive 3-5 marks with internal choice. Total theory 70 marks. Practical 30 marks (experiment + project + viva).',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'AP_BOARD',
+    category: 'BOARD',
+    label: 'AP/Telangana Board (IPE)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • BIEAP/TSBIE Intermediate pattern with Section A/B/C structure',
+    weightage: '60 Marks Theory + 30 Marks Practical + 10 Marks Internal',
+    examType: 'Board',
+    markingScheme: 'Section A: 10×2 VSAQ (20 marks). Section B: 6×4 SAQ attempt 6 out of 8 (24 marks). Section C: 2×8 LAQ attempt 2 out of 4 (16 marks). Theory total 60 marks. Practical 30 marks. Internal 10 marks.',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'BIHAR_BOARD',
+    category: 'BOARD',
+    label: 'Bihar Board (BSEB Intermediate)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • BSEB pattern with 50% objective + 50% subjective split',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Paper split into two halves: Objective (35 marks, 70 MCQs with OMR) + Subjective (35 marks, short + long answers). Total theory 70 marks. Practical 30 marks. Each half has separate time allocation (1.5 hrs each).',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+  {
+    id: 'GJ_BOARD',
+    category: 'BOARD',
+    label: 'Gujarat Board (GSEB HSC)',
+    desc: 'Physics, Chemistry, Mathematics, Biology • GSEB syllabus with MCQ-heavy pattern and Gujarati/English medium',
+    weightage: '70 Marks Theory + 30 Marks Practical',
+    examType: 'Board',
+    markingScheme: 'Section A: MCQ (1 mark each, ~16 marks). Section B: VSA 1-2 marks. Section C: SA 3 marks. Section D: LA 5 marks with internal choice. Total theory 70 marks. Practical 30 marks (experiment + journal + oral).',
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  },
+
   // College & University Exams
   {
     id: 'COLLEGE_SEM',
@@ -127,6 +261,8 @@ export const EXAM_KNOWLEDGEBASE = {
   // ─── CBSE CLASS 12 BOARDS ──────────────────────────────────────────────────
   CBSE_12: {
     name: 'CBSE Class 12 Boards',
+    syllabusYear: '2026-27',
+    lastUpdated: '2026-11-24',
     subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English Core'],
     topics: [
       {
@@ -311,6 +447,8 @@ export const EXAM_KNOWLEDGEBASE = {
   // ─── JEE MAIN & ADVANCED ───────────────────────────────────────────────────
   JEE: {
     name: 'JEE Main & Advanced',
+    syllabusYear: '2026-27',
+    lastUpdated: '2026-11-24',
     subjects: ['Physics', 'Chemistry', 'Mathematics'],
     topics: [
       {
@@ -443,6 +581,8 @@ export const EXAM_KNOWLEDGEBASE = {
   // ─── NEET (UG) MEDICAL ─────────────────────────────────────────────────────
   NEET: {
     name: 'NEET (UG)',
+    syllabusYear: '2026-27',
+    lastUpdated: '2026-11-24',
     subjects: ['Botany', 'Zoology', 'Chemistry', 'Physics'],
     topics: [
       {
@@ -539,6 +679,8 @@ export const EXAM_KNOWLEDGEBASE = {
   // ─── COLLEGE & UNIVERSITY SEMESTER EXAMS ────────────────────────────────────
   COLLEGE_SEM: {
     name: 'College Semester Exams',
+    syllabusYear: '2026-27',
+    lastUpdated: '2026-11-24',
     subjects: ['Data Structures & Algorithms', 'Database Systems (DBMS)', 'Operating Systems', 'Computer Networks', 'Software Engineering'],
     topics: [
       {
