@@ -767,6 +767,8 @@ export const EXAM_KNOWLEDGEBASE = {
   // ─── GATE CS / IT ──────────────────────────────────────────────────────────
   GATE: {
     name: 'GATE / PSU Exam',
+    syllabusYear: '2026-27',
+    lastUpdated: '2026-11-24',
     subjects: ['Algorithms & Complexity', 'Theory of Computation', 'Operating Systems', 'Computer Networks', 'Database Systems'],
     topics: [
       {
@@ -815,6 +817,8 @@ export const EXAM_KNOWLEDGEBASE = {
   // ─── UPSC CIVIL SERVICES ───────────────────────────────────────────────────
   UPSC: {
     name: 'UPSC / Civil Services',
+    syllabusYear: '2026-27',
+    lastUpdated: '2026-11-24',
     subjects: ['Polity & Governance', 'Modern History & Culture', 'Economy & Budget', 'Geography & Environment', 'Ethics & Integrity'],
     topics: [
       {

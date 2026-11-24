@@ -34,7 +34,31 @@ function getExamContext(examTarget = '') {
     return 'GATE standard (strict mathematical rigor, asymptotic analysis edge cases, Numerical Answer Type (NAT) precision, hardware/cache alignment invariants, zero tolerance for missing boundary limits).';
   } else if (t.includes('upsc')) {
     return 'UPSC Civil Services standard (multi-dimensional analytical framework, constitutional articles & landmark SC judgments, balanced arguments, contemporary governance linkages).';
-  } else if (t.includes('board') || t.includes('cbse') || t.includes('icse') || t.includes('school') || t.includes('10') || t.includes('12')) {
+  } else if (t.includes('icse') || t.includes('isc') || t.includes('cisce')) {
+    return 'ICSE/ISC Board standard (application-based analytical questions, internal assessment weightage, structured essay-style answers with introduction-body-conclusion, comprehension-heavy English sections, formal letter/notice/report writing, Selina/Concise textbook precision).';
+  } else if (t.includes('maharashtra') || t.includes('msbshse') || t.includes('mh_board')) {
+    return 'Maharashtra Board (MSBSHSE) standard (activity-based questions worth 2-3 marks, numerical-heavy Physics/Chemistry papers, HSC-specific diagram marking criteria, Balbharati textbook alignment, 70-mark theory + 30-mark practical split).';
+  } else if (t.includes('karnataka') || t.includes('kseeb') || t.includes('puc') || t.includes('ka_board')) {
+    return 'Karnataka PUC Board (KSEEB) standard (blueprint-based question paper pattern, strict unit-wise mark distribution, 1-mark MCQ + 2-mark short + 5-mark long answer format, NCERT-aligned with Karnataka state supplements).';
+  } else if (t.includes('tamil') || t.includes('samacheer') || t.includes('tn_board')) {
+    return 'Tamil Nadu Board (Samacheer Kalvi) standard (volume-based textbook content, state-specific scientific and historical context, Tamil medium option questions, Board-specific practical and project weightage).';
+  } else if (t.includes('kerala') || t.includes('dhse') || t.includes('kl_board')) {
+    return 'Kerala Board (DHSE) standard (conceptual application focus, graded question difficulty within sections, continuous evaluation weightage, strong emphasis on problem-solving over rote memorization).';
+  } else if (t.includes('up board') || t.includes('up_board') || t.includes('uttar pradesh')) {
+    return 'UP Board (Intermediate) standard (NCERT-aligned since 2018, legacy pattern emphasis on definitions and derivations, Hindi medium numerical formatting, state-specific marking tolerances, 70+30 theory-practical split).';
+  } else if (t.includes('rajasthan') || t.includes('rbse') || t.includes('rj_board')) {
+    return 'Rajasthan Board (RBSE) standard (NCERT-mapped syllabus, bilingual paper option, strong emphasis on solved examples from textbooks, derivation-heavy Physics papers).';
+  } else if (t.includes('west bengal') || t.includes('wbbse') || t.includes('wb_board')) {
+    return 'West Bengal Board (WBCHSE) standard (alternative question choice within sections, conceptual descriptive answers, Bengali medium variants, strong emphasis on organic Chemistry mechanisms).';
+  } else if (t.includes('andhra') || t.includes('telangana') || t.includes('ap_board')) {
+    return 'AP/Telangana Board (IPE) standard (Section A/B/C structure with increasing marks, SCERT textbook alignment, bilingual English-Telugu/Urdu paper option, derivation and diagram-heavy questions).';
+  } else if (t.includes('bihar') || t.includes('bseb') || t.includes('bihar_board')) {
+    return 'Bihar Board (BSEB) standard (50% objective + 50% subjective format, NCERT-aligned content, Hindi medium primary, strict time management for objective section, long-answer 5-markers).';
+  } else if (t.includes('gujarat') || t.includes('gseb') || t.includes('gj_board')) {
+    return 'Gujarat Board (GSEB) standard (Gujarati medium primary, NCERT-aligned with GSEB supplements, MCQ + descriptive hybrid format, state-specific industrial and geographic applications).';
+  } else if (t.includes('madhya') || t.includes('mp_board') || t.includes('mp board')) {
+    return 'MP Board (HSC) standard (NCERT-aligned, blueprint-based marking, choice-based internal options, Hindi medium emphasis, balanced numerical and theoretical questions).';
+  } else if (t.includes('board') || t.includes('cbse') || t.includes('school') || t.includes('10') || t.includes('12')) {
     return 'Board Examination standard (strict NCERT step-marking schemes, explicit formula declaration before numerical substitution, SI unit consistency, underlined keywords, neatly drawn labeled diagrams).';
   } else {
     return 'College & University Degree Semester standard (10-mark structured answers, system architecture block diagrams, formal proofs, step-by-step algorithms with time/space complexity analysis, practical code snippets).';
