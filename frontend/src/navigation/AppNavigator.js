@@ -22,6 +22,8 @@ import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
 
 // Core Study Guide & Exam Helper Screens
 import DashboardScreen from '../screens/DashboardScreen';
+import FlowScreen from '../screens/FlowScreen';
+import RegainFocusScreen from '../screens/RegainFocusScreen';
 import AIGapAuditorScreen from '../screens/AIGapAuditorScreen';
 import ExamTargetsScreen from '../screens/ExamTargetsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
@@ -69,49 +71,48 @@ const MainTabNavigator = () => (
       headerShown: false,
       tabBarStyle: {
         position: 'absolute',
-        bottom: 22,
-        left: 28,
-        right: 28,
-        height: 64,
-        borderRadius: 22,
-        backgroundColor: '#0E0E20',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.08)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 18,
+        bottom: Platform.OS === 'ios' ? 24 : 14,
+        left: 16,
+        right: 16,
+        height: 62,
+        borderRadius: 14,
+        backgroundColor: '#10111A',
+        borderWidth: 1.5,
+        borderColor: '#24263A',
         elevation: 10,
-        paddingBottom: 8,
-        paddingTop: 8,
+        paddingBottom: 6,
+        paddingTop: 6,
       },
       tabBarBackground: () => (
         <View 
           style={[
             StyleSheet.absoluteFill,
             {
-              backgroundColor: '#0E0E20',
-              borderRadius: 22,
+              backgroundColor: '#10111A',
+              borderRadius: 14,
             }
           ]} 
         />
       ),
       tabBarShowLabel: true,
-      tabBarActiveTintColor: '#00D2FF',
-      tabBarInactiveTintColor: '#777799',
+      tabBarActiveTintColor: '#00E5FF',
+      tabBarInactiveTintColor: '#6E7187',
       tabBarLabelStyle: {
-        fontSize: 11,
-        fontWeight: '700',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.2,
         marginTop: 2,
       },
       tabBarIcon: ({ color, size, focused }) => {
-        let iconName = 'book-open-page-variant';
+        let iconName = 'book-open-outline';
         if (route.name === 'Dashboard') {
           iconName = focused ? 'book-open-page-variant' : 'book-open-page-variant-outline';
+        } else if (route.name === 'Flow') {
+          iconName = focused ? 'play-circle' : 'play-circle-outline';
+        } else if (route.name === 'Regain') {
+          iconName = focused ? 'shield-lock' : 'shield-lock-outline';
         } else if (route.name === 'AIGapAuditor') {
-          iconName = focused ? 'shield-search' : 'shield-search';
-        } else if (route.name === 'Analytics') {
-          iconName = focused ? 'chart-line' : 'chart-line-variant';
+          iconName = focused ? 'file-search' : 'file-search-outline';
         }
 
         return (
@@ -119,16 +120,18 @@ const MainTabNavigator = () => (
             {focused && (
               <View style={{
                 position: 'absolute',
-                width: 36,
-                height: 36,
-                backgroundColor: 'rgba(0, 210, 255, 0.15)',
-                borderRadius: 18,
+                width: 38,
+                height: 30,
+                backgroundColor: 'rgba(0, 229, 255, 0.12)',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: 'rgba(0, 229, 255, 0.3)',
               }} />
             )}
             <MaterialCommunityIcons 
               name={iconName} 
-              size={24} 
-              color={color} 
+              size={22} 
+              color={focused ? '#00E5FF' : color} 
             />
           </View>
         );
@@ -141,14 +144,19 @@ const MainTabNavigator = () => (
       options={{ tabBarLabel: 'Guides' }}
     />
     <Tab.Screen 
-      name="AIGapAuditor" 
-      component={AIGapAuditorScreen} 
-      options={{ tabBarLabel: 'AI Auditor' }}
+      name="Flow" 
+      component={FlowScreen} 
+      options={{ tabBarLabel: 'Flow' }}
     />
     <Tab.Screen 
-      name="Analytics" 
-      component={AnalyticsScreen} 
-      options={{ tabBarLabel: 'Mastery' }}
+      name="Regain" 
+      component={RegainFocusScreen} 
+      options={{ tabBarLabel: 'Regain' }}
+    />
+    <Tab.Screen 
+      name="AIGapAuditor" 
+      component={AIGapAuditorScreen} 
+      options={{ tabBarLabel: 'Auditor' }}
     />
   </Tab.Navigator>
 );
@@ -161,6 +169,16 @@ const MainStack = () => (
     }}
   >
     <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+    <Stack.Screen 
+      name="Flow" 
+      component={FlowScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
+      name="RegainFocus" 
+      component={RegainFocusScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
     <Stack.Screen 
       name="StudyGuideDetail" 
       component={StudyGuideDetailScreen} 
@@ -184,6 +202,11 @@ const MainStack = () => (
     <Stack.Screen 
       name="ExamTargets" 
       component={ExamTargetsScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
+      name="Analytics" 
+      component={AnalyticsScreen} 
       options={{ animation: 'slide_from_right' }}
     />
     <Stack.Screen 
