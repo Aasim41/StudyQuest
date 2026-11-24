@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -42,6 +43,10 @@ export default function DashboardScreen() {
     refreshSyllabusData,
   } = useUser();
 
+  // Active Card Tab: 'plan' | 'guides' | 'tools'
+  const [activeTab, setActiveTab] = useState('plan');
+  const tabAnim = useRef(new Animated.Value(1)).current;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [targetModalVisible, setTargetModalVisible] = useState(false);
@@ -49,7 +54,16 @@ export default function DashboardScreen() {
   const [customExamInput, setCustomExamInput] = useState('');
   const [simulatorItem, setSimulatorItem] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [showFullPlan, setShowFullPlan] = useState(false);
+
+  // Switch tabs with smooth animation
+  const switchTab = (newTab) => {
+    if (newTab === activeTab) return;
+    Animated.sequence([
+      Animated.timing(tabAnim, { toValue: 0.85, duration: 80, useNativeDriver: true }),
+      Animated.timing(tabAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+    setActiveTab(newTab);
+  };
 
   // Active exam label
   const activeExamLabel = useMemo(() => {
@@ -144,376 +158,453 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0A1A" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C12" />
 
-      {/* Clean Minimal Header */}
+      {/* Minimal Top Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View>
+          <View style={styles.brandRow}>
             <Text style={styles.brandTitle}>StudyQuest</Text>
-            <Text style={styles.brandSubtitle}>AI Exam Blindspot Auditor</Text>
+            <TouchableOpacity
+              style={styles.targetExamChip}
+              onPress={() => setTargetModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="target" size={13} color="#00E5FF" />
+              <Text style={styles.targetExamChipText} numberOfLines={1}>
+                {activeExamLabel}
+              </Text>
+              <MaterialCommunityIcons name="chevron-down" size={13} color="#8E8EA8" />
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.userBadge}>
-            <MaterialCommunityIcons name="star-shooting" size={15} color="#FFD32A" />
-            <Text style={styles.userBadgeText}>{userStats?.xp || 0} XP</Text>
+          <View style={styles.rightHeaderActions}>
+            <TouchableOpacity
+              style={styles.trendsIconBtn}
+              onPress={() => setTrendsModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="trending-up" size={16} color="#00D2FF" />
+            </TouchableOpacity>
+
+            <View style={styles.xpPill}>
+              <MaterialCommunityIcons name="lightning-bolt" size={13} color="#FFD32A" />
+              <Text style={styles.xpPillText}>{userStats?.xp || 0} XP</Text>
+            </View>
           </View>
         </View>
 
-        {/* Dynamic Target Exam Switcher */}
-        <TouchableOpacity
-          style={styles.targetExamBar}
-          onPress={() => setTargetModalVisible(true)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.targetExamLeft}>
-            <MaterialCommunityIcons name="target" size={17} color="#00D2FF" />
-            <Text style={styles.targetExamText} numberOfLines={1}>
-              Target: <Text style={styles.targetExamHighlight}>{activeExamLabel}</Text>
-            </Text>
-          </View>
-          <View style={styles.changeBadge}>
-            <Text style={styles.changeBadgeText}>Change</Text>
-            <MaterialCommunityIcons name="chevron-down" size={15} color="#00D2FF" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Dynamic 2026-27 Pattern & Syllabus Freshness Indicator */}
-        <View style={styles.syllabusFreshnessBar}>
-          <View style={styles.syllabusFreshnessLeft}>
-            <MaterialCommunityIcons name="shield-check" size={14} color="#2ED573" />
-            <Text style={styles.syllabusFreshnessText} numberOfLines={1}>
-              2026-27 Pattern Verified • <Text style={{ color: '#00D2FF' }}>Live Curation</Text>
-            </Text>
-          </View>
+        {/* 3-Card Segmented Tabs Switcher */}
+        <View style={styles.cardTabsRow}>
           <TouchableOpacity
-            style={styles.trendsBtn}
-            onPress={() => setTrendsModalVisible(true)}
-            activeOpacity={0.8}
+            style={[styles.cardTab, activeTab === 'plan' && styles.cardTabActive]}
+            onPress={() => switchTab('plan')}
+            activeOpacity={0.85}
           >
-            {isRefreshingSyllabus ? (
-              <ActivityIndicator size="small" color="#00D2FF" style={{ transform: [{ scale: 0.7 }] }} />
-            ) : (
-              <MaterialCommunityIcons name="trending-up" size={13} color="#00D2FF" />
-            )}
-            <Text style={styles.trendsBtnText}>
-              {isRefreshingSyllabus ? 'Syncing...' : 'Trends'}
+            <MaterialCommunityIcons
+              name="calendar-check"
+              size={15}
+              color={activeTab === 'plan' ? '#00E5FF' : '#777799'}
+            />
+            <Text style={[styles.cardTabText, activeTab === 'plan' && styles.cardTabTextActive]}>
+              Study Plan
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.cardTab, activeTab === 'guides' && styles.cardTabActive]}
+            onPress={() => switchTab('guides')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name="book-open-page-variant"
+              size={15}
+              color={activeTab === 'guides' ? '#00E5FF' : '#777799'}
+            />
+            <Text style={[styles.cardTabText, activeTab === 'guides' && styles.cardTabTextActive]}>
+              Guides & Rubrics
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.cardTab, activeTab === 'tools' && styles.cardTabActive]}
+            onPress={() => switchTab('tools')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name="view-grid-plus-outline"
+              size={15}
+              color={activeTab === 'tools' ? '#00E5FF' : '#777799'}
+            />
+            <Text style={[styles.cardTabText, activeTab === 'tools' && styles.cardTabTextActive]}>
+              Toolkit
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        style={{ transform: [{ scale: tabAnim }] }}
       >
-        {/* Curated Study Plan Card */}
-        <View style={styles.planCard}>
-          <View style={styles.planCardHeader}>
-            <View style={styles.planHeaderLeft}>
-              <View style={styles.planIconBox}>
-                <MaterialCommunityIcons name="calendar-check-outline" size={18} color="#00D2FF" />
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* CARD TAB 1: CURATED STUDY PLAN                                */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'plan' && (
+          <View style={styles.tabContent}>
+            {/* Plan Progress Header */}
+            <View style={styles.planOverviewCard}>
+              <View style={styles.planOverviewHeader}>
+                <View>
+                  <Text style={styles.planSectionTitle}>Milestone Timeline</Text>
+                  <Text style={styles.planSectionSub}>
+                    {completedPlanCount} of {planItems.length} Milestones Completed ({planProgressPercent}%)
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.planQuickActionBtn}
+                  onPress={() => handleOpenAuditor('TOPIC')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="shield-search" size={14} color="#0B0C12" />
+                  <Text style={styles.planQuickActionText}>Audit Today</Text>
+                </TouchableOpacity>
               </View>
-              <View>
-                <Text style={styles.planTitle}>Curated Study Plan</Text>
-                <Text style={styles.planSubtitle}>
-                  {activeExamLabel} • {completedPlanCount}/{planItems.length} Milestones Done
+
+              {/* Progress Bar Track */}
+              <View style={styles.planProgressTrack}>
+                <View style={[styles.planProgressFill, { width: `${planProgressPercent}%` }]} />
+              </View>
+            </View>
+
+            {/* Milestones List */}
+            <View style={styles.milestonesList}>
+              {planItems.map((item) => (
+                <View
+                  key={item.id}
+                  style={[styles.milestoneCard, item.isCompleted && styles.milestoneCardDone]}
+                >
+                  <TouchableOpacity
+                    style={[styles.milestoneCheckbox, item.isCompleted && styles.milestoneCheckboxChecked]}
+                    onPress={() => togglePlanItemCompleted(item.id)}
+                    activeOpacity={0.8}
+                  >
+                    {item.isCompleted && (
+                      <MaterialCommunityIcons name="check" size={14} color="#0B0C12" />
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={styles.milestoneBody}>
+                    <View style={styles.milestoneTagRow}>
+                      <Text style={styles.milestoneDayTag}>{item.day || item.week}</Text>
+                      <Text style={styles.milestoneSubjectTag}>{item.subject}</Text>
+                      {item.priority === 'CRITICAL' && (
+                        <Text style={styles.milestonePriorityTag}>CRITICAL</Text>
+                      )}
+                    </View>
+
+                    <Text
+                      style={[styles.milestoneTopicTitle, item.isCompleted && styles.milestoneTopicDone]}
+                    >
+                      {item.topic}
+                    </Text>
+
+                    <Text style={styles.milestoneFocusText} numberOfLines={2}>
+                      🎯 {item.focus}
+                    </Text>
+
+                    <View style={styles.milestoneActionRow}>
+                      <TouchableOpacity
+                        style={styles.milestoneAuditBtn}
+                        onPress={() => handleOpenAuditor('TOPIC', item.topic, item.subject)}
+                        activeOpacity={0.8}
+                      >
+                        <MaterialCommunityIcons name="shield-search" size={13} color="#00E5FF" />
+                        <Text style={styles.milestoneAuditBtnText}>Audit Blindspots</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.milestoneFlowBtn}
+                        onPress={() => navigation.navigate('Flow', { searchQuery: item.topic })}
+                        activeOpacity={0.8}
+                      >
+                        <MaterialCommunityIcons name="play-circle" size={13} color="#FFB800" />
+                        <Text style={styles.milestoneFlowBtnText}>Watch Lecture</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* CARD TAB 2: GUIDES & EXAMINER RUBRICS                         */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'guides' && (
+          <View style={styles.tabContent}>
+            {/* Search Input */}
+            <View style={styles.searchBar}>
+              <MaterialCommunityIcons name="magnify" size={18} color="#777799" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={`Search ${activeExamLabel} topics, formulas...`}
+                placeholderTextColor="#666688"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <MaterialCommunityIcons name="close-circle" size={16} color="#8E8EA8" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Subject Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.subjectChipsScroll}
+            >
+              {examSubjects.map((subj) => {
+                const isSelected = selectedSubject === subj;
+                return (
+                  <TouchableOpacity
+                    key={subj}
+                    style={[styles.subjectChip, isSelected && styles.subjectChipActive]}
+                    onPress={() => setSelectedSubject(subj)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.subjectChipText, isSelected && styles.subjectChipTextActive]}>
+                      {subj}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Topics List */}
+            <View style={styles.topicsGrid}>
+              {displayedTopics.map((topic) => {
+                const isSaved = savedGuides.some(
+                  (g) => (g.id && g.id === topic.id) || g.title === topic.title
+                );
+
+                return (
+                  <View key={topic.id} style={styles.topicCard}>
+                    <View style={styles.topicHeaderRow}>
+                      <View style={styles.topicSubjectBadge}>
+                        <Text style={styles.topicSubjectBadgeText}>{topic.subject}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => toggleSaveGuide(topic)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <MaterialCommunityIcons
+                          name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                          size={18}
+                          color={isSaved ? '#00E5FF' : '#666688'}
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text style={styles.topicCardTitle}>{topic.title}</Text>
+                    <Text style={styles.topicExamRelevance}>{topic.examRelevance}</Text>
+
+                    {topic.aiBlindspots && topic.aiBlindspots[0] && (
+                      <View style={styles.blindspotBox}>
+                        <Text style={styles.blindspotTitle}>
+                          ⚠️ AI Blindspot: {topic.aiBlindspots[0].point}
+                        </Text>
+                        <Text style={styles.blindspotSnippet} numberOfLines={2}>
+                          {topic.aiBlindspots[0].whatAiMisses}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Action Buttons */}
+                    <View style={styles.topicActionsRow}>
+                      <TouchableOpacity
+                        style={styles.guideActionBtn}
+                        onPress={() => handleOpenGuide(topic)}
+                        activeOpacity={0.8}
+                      >
+                        <MaterialCommunityIcons name="book-open-outline" size={13} color="#FFFFFF" />
+                        <Text style={styles.guideActionText}>Guide</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.rubricActionBtn}
+                        onPress={() =>
+                          setSimulatorItem({
+                            topic: topic.title,
+                            subject: topic.subject,
+                            marks: 5,
+                            keyPoints: topic.coreConcepts || [],
+                          })
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <MaterialCommunityIcons name="calculator-variant-outline" size={13} color="#00E5FF" />
+                        <Text style={styles.rubricActionText}>Rubric</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.auditActionBtn}
+                        onPress={() => handleOpenAuditor('TOPIC', topic.title, topic.subject)}
+                        activeOpacity={0.8}
+                      >
+                        <MaterialCommunityIcons name="shield-search" size={13} color="#00E676" />
+                        <Text style={styles.auditActionText}>Audit</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* CARD TAB 3: STUDY TOOLKIT                                     */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'tools' && (
+          <View style={styles.tabContent}>
+            {/* Flow Study Video Player Card */}
+            <TouchableOpacity
+              style={styles.toolCard}
+              onPress={() => navigation.navigate('Flow')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.toolCardIconBoxFlow}>
+                <MaterialCommunityIcons name="play-circle" size={24} color="#00E5FF" />
+              </View>
+              <View style={styles.toolCardBody}>
+                <View style={styles.toolCardTitleRow}>
+                  <Text style={styles.toolCardTitle}>Flow Study Player</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#00E5FF" />
+                </View>
+                <Text style={styles.toolCardDesc}>
+                  Distraction-free lectures, PYQ one-shots & revision streams without ads or shorts.
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
+
+            {/* Regain Focus Shield Card */}
             <TouchableOpacity
-              style={styles.planToggleBtn}
-              onPress={() => setShowFullPlan((prev) => !prev)}
+              style={styles.toolCard}
+              onPress={() => navigation.navigate('Regain')}
+              activeOpacity={0.85}
             >
-              <Text style={styles.planToggleText}>{showFullPlan ? 'Collapse' : 'View Plan'}</Text>
-              <MaterialCommunityIcons
-                name={showFullPlan ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color="#00D2FF"
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Plan Progress Bar */}
-          <View style={styles.planProgressBg}>
-            <View style={[styles.planProgressFill, { width: `${planProgressPercent}%` }]} />
-          </View>
-
-          {/* Active / Current Milestones */}
-          <View style={styles.planMilestonesList}>
-            {(showFullPlan ? planItems : planItems.slice(0, 2)).map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.planItemRow, item.isCompleted && styles.planItemRowCompleted]}
-                onPress={() => togglePlanItemCompleted(item.id)}
-                activeOpacity={0.7}
-              >
-                <TouchableOpacity
-                  style={[styles.checkbox, item.isCompleted && styles.checkboxChecked]}
-                  onPress={() => togglePlanItemCompleted(item.id)}
-                >
-                  {item.isCompleted && (
-                    <MaterialCommunityIcons name="check" size={13} color="#07070F" />
-                  )}
-                </TouchableOpacity>
-
-                <View style={styles.planItemInfo}>
-                  <View style={styles.planItemBadges}>
-                    <Text style={styles.planDayBadge}>{item.day || item.week}</Text>
-                    <Text style={styles.planSubjectBadge}>{item.subject}</Text>
-                    {item.priority === 'CRITICAL' && (
-                      <Text style={styles.planPriorityBadge}>Critical</Text>
-                    )}
-                  </View>
-                  <Text
-                    style={[styles.planItemTopic, item.isCompleted && styles.planItemTopicDone]}
-                    numberOfLines={1}
-                  >
-                    {item.topic}
-                  </Text>
-                  <Text style={styles.planItemFocus} numberOfLines={2}>
-                    🎯 {item.focus}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Flow & Regain Focus Power Duo */}
-        <View style={styles.powerDuoRow}>
-          <TouchableOpacity
-            style={styles.powerDuoCardFlow}
-            onPress={() => navigation.navigate('Flow')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.powerDuoHeader}>
-              <MaterialCommunityIcons name="play-circle" size={18} color="#00E5FF" />
-              <View style={styles.flowMiniBadge}>
-                <Text style={styles.flowMiniBadgeText}>0 ADS • 0 SHORTS</Text>
+              <View style={styles.toolCardIconBoxRegain}>
+                <MaterialCommunityIcons name="shield-lock" size={24} color="#FF4757" />
               </View>
-            </View>
-            <Text style={styles.powerDuoTitle}>Flow Study Player</Text>
-            <Text style={styles.powerDuoSub} numberOfLines={1}>
-              Distraction-free lectures for {activeExamLabel.split(' ')[0]}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.powerDuoCardRegain}
-            onPress={() => navigation.navigate('Regain')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.powerDuoHeader}>
-              <MaterialCommunityIcons name="shield-lock" size={18} color="#FF4757" />
-              <View style={styles.regainMiniBadge}>
-                <Text style={styles.regainMiniBadgeText}>STRICT FOCUS</Text>
-              </View>
-            </View>
-            <Text style={styles.powerDuoTitle}>Regain Shield</Text>
-            <Text style={styles.powerDuoSub} numberOfLines={1}>
-              Deep work timer & Reels blocker
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 3-Feature Quick Tools Bar */}
-        <View style={styles.quickToolsRow}>
-          <TouchableOpacity
-            style={styles.quickToolBtn}
-            onPress={() => navigation.navigate('Flashcards')}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="cards-outline" size={17} color="#A29BFE" />
-            <Text style={styles.quickToolText}>60s Deck</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickToolBtn}
-            onPress={() => navigation.navigate('Predictor')}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="radar" size={17} color="#00D2FF" />
-            <Text style={styles.quickToolText}>Exam Radar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickToolBtn}
-            onPress={handleExportPdf}
-            disabled={pdfLoading}
-            activeOpacity={0.8}
-          >
-            {pdfLoading ? (
-              <ActivityIndicator size="small" color="#FFD32A" />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="file-pdf-box" size={17} color="#FFD32A" />
-                <Text style={styles.quickToolText}>Cheat Sheet</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Fast Action Buttons */}
-        <View style={styles.heroActionsRow}>
-          <TouchableOpacity
-            style={styles.heroBtnPrimary}
-            onPress={() => handleOpenAuditor('TOPIC')}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons name="lightning-bolt" size={16} color="#FFFFFF" />
-            <Text style={styles.heroBtnPrimaryText}>Audit a Topic</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.heroBtnSecondary}
-            onPress={() => handleOpenAuditor('ANSWER')}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons name="file-document-edit-outline" size={16} color="#00D2FF" />
-            <Text style={styles.heroBtnSecondaryText}>Check Notes</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#777799" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={`Search ${activeExamLabel} topics, formulas...`}
-            placeholderTextColor="#666688"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <MaterialCommunityIcons name="close-circle" size={18} color="#8E8EA8" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Dynamically Curated Subject Filter Chips */}
-        <View style={styles.subjectTabsContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.subjectTabsScroll}
-          >
-            {examSubjects.map((subj) => {
-              const isSelected = selectedSubject === subj;
-              return (
-                <TouchableOpacity
-                  key={subj}
-                  style={[styles.subjectChip, isSelected && styles.subjectChipActive]}
-                  onPress={() => setSelectedSubject(subj)}
-                >
-                  <Text style={[styles.subjectChipText, isSelected && styles.subjectChipTextActive]}>
-                    {subj}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Curated Study Guides List */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {selectedSubject === 'All'
-              ? `${activeExamLabel} Curated Guides`
-              : `${selectedSubject} Guides`}
-          </Text>
-          <Text style={styles.sectionCount}>({displayedTopics.length})</Text>
-        </View>
-
-        <View style={styles.topicList}>
-          {displayedTopics.map((topic) => {
-            const isSaved = savedGuides.some(
-              (g) => (g.id && g.id === topic.id) || g.title === topic.title
-            );
-
-            return (
-              <View key={topic.id} style={styles.topicCard}>
-                <View style={styles.topicCardTop}>
-                  <View style={styles.topicSubjectPill}>
-                    <Text style={styles.topicSubjectText}>{topic.subject}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => toggleSaveGuide(topic)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialCommunityIcons
-                      name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                      size={20}
-                      color={isSaved ? '#00D2FF' : '#777799'}
-                    />
-                  </TouchableOpacity>
+              <View style={styles.toolCardBody}>
+                <View style={styles.toolCardTitleRow}>
+                  <Text style={styles.toolCardTitle}>Regain Focus Shield</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#FF4757" />
                 </View>
+                <Text style={styles.toolCardDesc}>
+                  Deep work Pomodoro timer, Reels & Shorts blocker, and mindful friction pauses.
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-                <Text style={styles.topicTitle}>{topic.title}</Text>
-                <Text style={styles.topicRelevance}>{topic.examRelevance}</Text>
+            {/* AI Gap Auditor Card */}
+            <TouchableOpacity
+              style={styles.toolCard}
+              onPress={() => handleOpenAuditor('TOPIC')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.toolCardIconBoxAuditor}>
+                <MaterialCommunityIcons name="shield-search" size={24} color="#00E676" />
+              </View>
+              <View style={styles.toolCardBody}>
+                <View style={styles.toolCardTitleRow}>
+                  <Text style={styles.toolCardTitle}>AI Gap Auditor</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#00E676" />
+                </View>
+                <Text style={styles.toolCardDesc}>
+                  Scan notes and syllabi against official examiner marking rubrics to expose lost marks.
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-                {topic.aiBlindspots && topic.aiBlindspots[0] && (
-                  <View style={styles.blindspotPreviewBox}>
-                    <Text style={styles.blindspotPreviewHeading}>
-                      ⚠️ AI Blindspot: {topic.aiBlindspots[0].point}
-                    </Text>
-                    <Text style={styles.blindspotPreviewBody} numberOfLines={2}>
-                      {topic.aiBlindspots[0].whatAiMisses}
-                    </Text>
-                  </View>
+            {/* 60s Flashcard Deck Card */}
+            <TouchableOpacity
+              style={styles.toolCard}
+              onPress={() => navigation.navigate('Flashcards')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.toolCardIconBoxDeck}>
+                <MaterialCommunityIcons name="cards-outline" size={24} color="#A29BFE" />
+              </View>
+              <View style={styles.toolCardBody}>
+                <View style={styles.toolCardTitleRow}>
+                  <Text style={styles.toolCardTitle}>60s Formula Deck</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#A29BFE" />
+                </View>
+                <Text style={styles.toolCardDesc}>
+                  Rapid spaced-repetition flashcards of high-yield definitions, laws, and units.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Exam Radar & Predictor Card */}
+            <TouchableOpacity
+              style={styles.toolCard}
+              onPress={() => navigation.navigate('Predictor')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.toolCardIconBoxRadar}>
+                <MaterialCommunityIcons name="radar" size={24} color="#FFD32A" />
+              </View>
+              <View style={styles.toolCardBody}>
+                <View style={styles.toolCardTitleRow}>
+                  <Text style={styles.toolCardTitle}>Exam Radar Predictor</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#FFD32A" />
+                </View>
+                <Text style={styles.toolCardDesc}>
+                  Predict mark probabilities and high-risk questions for {activeExamLabel}.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* One-Tap Cheat Sheet PDF Export */}
+            <TouchableOpacity
+              style={styles.toolCard}
+              onPress={handleExportPdf}
+              disabled={pdfLoading}
+              activeOpacity={0.85}
+            >
+              <View style={styles.toolCardIconBoxPdf}>
+                {pdfLoading ? (
+                  <ActivityIndicator size="small" color="#FF9F43" />
+                ) : (
+                  <MaterialCommunityIcons name="file-pdf-box" size={24} color="#FF9F43" />
                 )}
-
-                <View style={styles.topicCardActions}>
-                  <TouchableOpacity
-                    style={styles.openGuideBtn}
-                    onPress={() => handleOpenGuide(topic)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.openGuideBtnText}>Guide</Text>
-                    <MaterialCommunityIcons name="arrow-right" size={14} color="#FFFFFF" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.simulateTopicBtn}
-                    onPress={() =>
-                      setSimulatorItem({
-                        topic: topic.title,
-                        subject: topic.subject,
-                        marks: 5,
-                        keyPoints: topic.coreConcepts || [],
-                      })
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <MaterialCommunityIcons
-                      name="calculator-variant-outline"
-                      size={14}
-                      color="#00D2FF"
-                    />
-                    <Text style={styles.simulateTopicBtnText}>Rubric</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.auditTopicBtn}
-                    onPress={() =>
-                      handleOpenAuditor('TOPIC', topic.title, topic.subject)
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <MaterialCommunityIcons name="shield-search" size={14} color="#A29BFE" />
-                    <Text style={styles.auditTopicBtnText}>Audit</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
-            );
-          })}
-        </View>
+              <View style={styles.toolCardBody}>
+                <View style={styles.toolCardTitleRow}>
+                  <Text style={styles.toolCardTitle}>
+                    {pdfLoading ? 'Generating Sheet...' : 'Export Cheat Sheet PDF'}
+                  </Text>
+                  <MaterialCommunityIcons name="download" size={16} color="#FF9F43" />
+                </View>
+                <Text style={styles.toolCardDesc}>
+                  Printable high-yield summary of formulas, blindspots, and examiner criteria.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={{ height: 110 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Clean Target Exam Selector Modal */}
+      {/* Target Exam Selector Modal */}
       <Modal
         visible={targetModalVisible}
         transparent
@@ -532,9 +623,6 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>
-              Curates your plan, topics, rubrics & predictor instantly.
-            </Text>
 
             {/* Custom Exam Input */}
             <View style={styles.customExamRow}>
@@ -561,6 +649,7 @@ export default function DashboardScreen() {
                     key={target.id}
                     style={[styles.modalOption, isSelected && styles.modalOptionActive]}
                     onPress={() => handleSelectExam(target.label)}
+                    activeOpacity={0.8}
                   >
                     <View style={styles.modalOptionContent}>
                       <View style={styles.modalOptionHeader}>
@@ -574,12 +663,12 @@ export default function DashboardScreen() {
                         </Text>
                         <Text style={styles.modalCategoryBadge}>{target.category}</Text>
                       </View>
-                      <Text style={styles.modalOptionDesc} numberOfLines={2}>
-                        {target.desc}
+                      <Text style={styles.modalOptionDesc} numberOfLines={1}>
+                        {target.subjects ? target.subjects.join(' • ') : target.desc}
                       </Text>
                     </View>
                     {isSelected && (
-                      <MaterialCommunityIcons name="check-circle" size={20} color="#00D2FF" />
+                      <MaterialCommunityIcons name="check-circle" size={18} color="#00E5FF" />
                     )}
                   </TouchableOpacity>
                 );
@@ -589,7 +678,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* 2026-27 Syllabus & Exam Trends Modal */}
+      {/* 2026-27 Syllabus Trends Modal */}
       <Modal
         visible={trendsModalVisible}
         transparent
@@ -603,78 +692,21 @@ export default function DashboardScreen() {
         >
           <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MaterialCommunityIcons name="trending-up" size={20} color="#00D2FF" />
-                <Text style={styles.modalTitle}>Latest Pattern & Trends</Text>
-              </View>
+              <Text style={styles.modalTitle}>2026-27 Pattern & Trends</Text>
               <TouchableOpacity onPress={() => setTrendsModalVisible(false)}>
                 <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>
-              {activeExamLabel} • 2026-27 Official Syllabus & Trend Analysis
-            </Text>
 
             <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-              {/* Official Marking Scheme & Weightage */}
-              <View style={styles.trendSectionBox}>
-                <View style={styles.trendSectionHeader}>
-                  <MaterialCommunityIcons name="certificate" size={16} color="#FFD32A" />
-                  <Text style={styles.trendSectionTitle}>Official Evaluation Scheme</Text>
-                </View>
-                <Text style={styles.trendSectionText}>
-                  {EXAM_TARGETS.find((e) => e.label === activeExamLabel || e.id === targetExam)?.markingScheme ||
-                    'Strict step-marking, formula statement, and diagram labeling criteria.'}
+              <View style={styles.trendsInfoBox}>
+                <MaterialCommunityIcons name="shield-check" size={18} color="#2ED573" />
+                <Text style={styles.trendsInfoText}>
+                  Curated for {activeExamLabel}. Updated with latest board and exam patterns.
                 </Text>
-                <View style={styles.trendWeightageRow}>
-                  <Text style={styles.trendWeightageLabel}>Weightage / Split:</Text>
-                  <Text style={styles.trendWeightageValue}>
-                    {EXAM_TARGETS.find((e) => e.label === activeExamLabel || e.id === targetExam)?.weightage || 'Theory + Practicals'}
-                  </Text>
-                </View>
               </View>
 
-              {/* Dynamic Live AI Trends or High-Yield Core Areas */}
-              <View style={styles.trendSectionBox}>
-                <View style={styles.trendSectionHeader}>
-                  <MaterialCommunityIcons name="lightning-bolt" size={16} color="#00D2FF" />
-                  <Text style={styles.trendSectionTitle}>High-Yield Trend Alerts</Text>
-                </View>
-                {syllabusTrendData?.trendingTopics && syllabusTrendData.trendingTopics.length > 0 ? (
-                  syllabusTrendData.trendingTopics.map((item, idx) => (
-                    <View key={idx} style={styles.trendItemRow}>
-                      <MaterialCommunityIcons name="chevron-right" size={14} color="#00D2FF" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.trendItemTitle}>{item.topic}</Text>
-                        <Text style={styles.trendItemReason}>{item.reason}</Text>
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <View>
-                    <View style={styles.trendItemRow}>
-                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#2ED573" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.trendItemTitle}>Step-Marking & Derivation Priority</Text>
-                        <Text style={styles.trendItemReason}>
-                          Evaluators penalize missing SI units, formula declarations, and intermediate steps.
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.trendItemRow}>
-                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#2ED573" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.trendItemTitle}>Internal Choice Optimization</Text>
-                        <Text style={styles.trendItemReason}>
-                          Sectional choices allow strategic focus on high-confidence questions.
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              {/* Live Sync Action */}
+              {/* Sync Button */}
               <TouchableOpacity
                 style={styles.syncTrendsBtn}
                 onPress={() => refreshSyllabusData(targetExam)}
@@ -682,12 +714,12 @@ export default function DashboardScreen() {
                 activeOpacity={0.8}
               >
                 {isRefreshingSyllabus ? (
-                  <ActivityIndicator size="small" color="#07070F" />
+                  <ActivityIndicator size="small" color="#0B0C12" />
                 ) : (
-                  <MaterialCommunityIcons name="cloud-sync" size={16} color="#07070F" />
+                  <MaterialCommunityIcons name="cloud-sync" size={16} color="#0B0C12" />
                 )}
                 <Text style={styles.syncTrendsBtnText}>
-                  {isRefreshingSyllabus ? 'Syncing Latest 2026-27 Trends...' : 'Check For Fresh 2026-27 Trends'}
+                  {isRefreshingSyllabus ? 'Syncing Pattern...' : 'Sync Fresh 2026-27 Pattern'}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -713,739 +745,636 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A1A',
+    backgroundColor: '#0B0C12',
   },
   header: {
     paddingTop: 48,
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    backgroundColor: '#0D0D20',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: '#0E1018',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#222436',
   },
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  brandTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  brandSubtitle: {
-    color: '#00D2FF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  userBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 211, 42, 0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 211, 42, 0.25)',
-  },
-  userBadgeText: {
-    color: '#FFD32A',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  targetExamBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
-  },
-  targetExamLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  targetExamText: {
-    color: '#AAAAAA',
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  targetExamHighlight: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  changeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  changeBadgeText: {
-    color: '#00D2FF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  scrollContent: {
-    paddingTop: 16,
-    paddingHorizontal: 20,
-  },
-  planCard: {
-    backgroundColor: 'rgba(16, 16, 36, 0.95)',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
-    marginBottom: 16,
-  },
-  planCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  planHeaderLeft: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     flex: 1,
   },
-  planIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  planTitle: {
+  brandTitle: {
+    fontSize: 18,
+    fontWeight: '900',
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  planSubtitle: {
-    color: '#00D2FF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  planToggleBtn: {
+  targetExamChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 5,
+    backgroundColor: '#161824',
+    borderWidth: 1.5,
+    borderColor: '#2A2D40',
     borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    maxWidth: 160,
   },
-  planToggleText: {
-    color: '#00D2FF',
+  targetExamChipText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#00E5FF',
+    maxWidth: 115,
   },
-  planProgressBg: {
+  rightHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trendsIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#161824',
+    borderWidth: 1.5,
+    borderColor: '#2A2D40',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  xpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#161824',
+    borderWidth: 1.5,
+    borderColor: '#2A2D40',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  xpPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFD32A',
+  },
+
+  // 3-Card Segmented Tabs Switcher
+  cardTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  cardTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    backgroundColor: '#141622',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 10,
+  },
+  cardTabActive: {
+    backgroundColor: '#1A1E2E',
+    borderColor: '#00E5FF',
+  },
+  cardTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8E8EA8',
+  },
+  cardTabTextActive: {
+    color: '#00E5FF',
+    fontWeight: '800',
+  },
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  tabContent: {
+    gap: 12,
+  },
+
+  // Plan Tab Styles
+  planOverviewCard: {
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  planOverviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  planSectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  planSectionSub: {
+    fontSize: 11,
+    color: '#8E8EA8',
+    marginTop: 2,
+  },
+  planQuickActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#00E5FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  planQuickActionText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0B0C12',
+  },
+  planProgressTrack: {
     height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#1A1C2C',
     borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: 12,
   },
   planProgressFill: {
     height: '100%',
-    backgroundColor: '#00D2FF',
+    backgroundColor: '#00E5FF',
     borderRadius: 3,
   },
-  planMilestonesList: {
-    gap: 8,
-  },
-  planItemRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+  milestonesList: {
     gap: 10,
   },
-  planItemRowCompleted: {
-    opacity: 0.6,
-    backgroundColor: 'rgba(0, 210, 255, 0.03)',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
+  milestoneCard: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: '#12141F',
     borderWidth: 1.5,
-    borderColor: '#00D2FF',
-    justifyContent: 'center',
+    borderColor: '#222436',
+    borderRadius: 12,
+    padding: 14,
+  },
+  milestoneCardDone: {
+    opacity: 0.65,
+    borderColor: '#1D2A2A',
+  },
+  milestoneCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#3B3E56',
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
-  checkboxChecked: {
-    backgroundColor: '#00D2FF',
+  milestoneCheckboxChecked: {
+    backgroundColor: '#00E5FF',
+    borderColor: '#00E5FF',
   },
-  planItemInfo: {
+  milestoneBody: {
     flex: 1,
+    gap: 6,
   },
-  planItemBadges: {
+  milestoneTagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
   },
-  planDayBadge: {
-    color: '#A29BFE',
+  milestoneDayTag: {
     fontSize: 10,
     fontWeight: '800',
-    backgroundColor: 'rgba(162, 155, 254, 0.12)',
+    color: '#00E5FF',
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  planSubjectBadge: {
-    color: '#00D2FF',
+  milestoneSubjectTag: {
     fontSize: 10,
     fontWeight: '700',
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    color: '#A29BFE',
+    backgroundColor: 'rgba(162, 155, 254, 0.1)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  planPriorityBadge: {
-    color: '#FF6B6B',
+  milestonePriorityTag: {
     fontSize: 9,
     fontWeight: '800',
-    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    color: '#FF4757',
+    backgroundColor: 'rgba(255, 71, 87, 0.12)',
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  planItemTopic: {
+  milestoneTopicTitle: {
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 2,
+    lineHeight: 18,
   },
-  planItemTopicDone: {
+  milestoneTopicDone: {
     textDecorationLine: 'line-through',
-    color: '#8E8EA8',
+    color: '#777799',
   },
-  planItemFocus: {
-    color: '#AAAAAA',
+  milestoneFocusText: {
     fontSize: 11,
-    lineHeight: 15,
+    color: '#8E8EA8',
+    lineHeight: 16,
   },
-  quickToolsRow: {
+  milestoneActionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 14,
+    gap: 8,
+    marginTop: 4,
   },
-  quickToolBtn: {
-    flex: 1,
+  milestoneAuditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingVertical: 11,
-    borderRadius: 14,
+    gap: 4,
+    backgroundColor: '#181B28',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    gap: 6,
+    borderColor: '#2A2E44',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
-  quickToolText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  milestoneAuditBtnText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: '#00E5FF',
   },
-  heroActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  heroBtnPrimary: {
-    flex: 1,
+  milestoneFlowBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6C5CE7',
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 6,
-  },
-  heroBtnPrimaryText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  heroBtnSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    gap: 4,
+    backgroundColor: '#181B28',
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.3)',
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 6,
+    borderColor: '#2A2E44',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
-  heroBtnSecondaryText: {
-    color: '#00D2FF',
-    fontSize: 13,
-    fontWeight: '800',
+  milestoneFlowBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFB800',
   },
-  searchContainer: {
+
+  // Guides Tab Styles
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-    marginBottom: 16,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 42,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '500',
   },
-  subjectTabsContainer: {
-    marginBottom: 16,
-  },
-  subjectTabsScroll: {
-    gap: 8,
+  subjectChipsScroll: {
+    gap: 6,
+    paddingVertical: 4,
   },
   subjectChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
   },
   subjectChipActive: {
-    backgroundColor: 'rgba(0, 210, 255, 0.15)',
-    borderColor: '#00D2FF',
+    backgroundColor: '#1A1E2E',
+    borderColor: '#00E5FF',
   },
   subjectChipText: {
-    color: '#8E8EA8',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
+    color: '#8E8EA8',
   },
   subjectChipTextActive: {
-    color: '#00D2FF',
+    color: '#00E5FF',
     fontWeight: '800',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  sectionCount: {
-    color: '#777799',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  topicList: {
+  topicsGrid: {
     gap: 12,
   },
   topicCard: {
-    backgroundColor: 'rgba(16, 16, 36, 0.9)',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
   },
-  topicCardTop: {
+  topicHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  topicSubjectPill: {
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+  topicSubjectBadge: {
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 4,
   },
-  topicSubjectText: {
-    color: '#00D2FF',
+  topicSubjectBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    color: '#00E5FF',
   },
-  topicTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
+  topicCardTitle: {
+    fontSize: 14,
     fontWeight: '800',
-    marginBottom: 4,
+    color: '#FFFFFF',
+    lineHeight: 19,
   },
-  topicRelevance: {
-    color: '#777799',
+  topicExamRelevance: {
     fontSize: 11,
+    color: '#FFB800',
     fontWeight: '600',
-    marginBottom: 10,
   },
-  blindspotPreviewBox: {
-    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+  blindspotBox: {
+    backgroundColor: '#181A26',
     borderLeftWidth: 3,
-    borderLeftColor: '#FF6B6B',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
+    borderLeftColor: '#FF4757',
+    padding: 8,
+    borderRadius: 6,
+    gap: 3,
   },
-  blindspotPreviewHeading: {
-    color: '#FF6B6B',
+  blindspotTitle: {
     fontSize: 11,
     fontWeight: '700',
-    marginBottom: 3,
+    color: '#FF6B81',
   },
-  blindspotPreviewBody: {
-    color: 'rgba(255, 255, 255, 0.8)',
+  blindspotSnippet: {
     fontSize: 11,
-    lineHeight: 16,
+    color: '#8E8EA8',
+    lineHeight: 15,
   },
-  topicCardActions: {
+  topicActionsRow: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 4,
   },
-  openGuideBtn: {
-    flex: 1.2,
+  guideActionBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6C5CE7',
-    paddingVertical: 9,
-    borderRadius: 10,
     gap: 4,
+    backgroundColor: '#1D2133',
+    borderWidth: 1,
+    borderColor: '#2D334C',
+    paddingVertical: 7,
+    borderRadius: 6,
   },
-  openGuideBtnText: {
+  guideActionText: {
+    fontSize: 11,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontSize: 12,
+  },
+  rubricActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#132128',
+    borderWidth: 1,
+    borderColor: '#1D3B47',
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  rubricActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00E5FF',
+  },
+  auditActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#12251D',
+    borderWidth: 1,
+    borderColor: '#1D4532',
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  auditActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00E676',
+  },
+
+  // Toolkit Tab Styles
+  toolCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 14,
+    padding: 14,
+  },
+  toolCardIconBoxFlow: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCardIconBoxRegain: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 71, 87, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCardIconBoxAuditor: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCardIconBoxDeck: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(162, 155, 254, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCardIconBoxRadar: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 211, 42, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCardIconBoxPdf: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 159, 67, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCardBody: {
+    flex: 1,
+    gap: 3,
+  },
+  toolCardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toolCardTitle: {
+    fontSize: 14,
     fontWeight: '800',
+    color: '#FFFFFF',
   },
-  simulateTopicBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.3)',
-    paddingVertical: 9,
-    borderRadius: 10,
-    gap: 4,
+  toolCardDesc: {
+    fontSize: 11,
+    color: '#8E8EA8',
+    lineHeight: 16,
   },
-  simulateTopicBtnText: {
-    color: '#00D2FF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  auditTopicBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(162, 155, 254, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(162, 155, 254, 0.3)',
-    paddingVertical: 9,
-    borderRadius: 10,
-    gap: 4,
-  },
-  auditTopicBtnText: {
-    color: '#A29BFE',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
   },
   modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#0E0E22',
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#24263A',
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 12,
   },
   modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-  },
-  modalSubtitle: {
-    color: '#777799',
-    fontSize: 12,
-    marginBottom: 14,
+    color: '#FFFFFF',
   },
   customExamRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   customExamInput: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 42,
+    backgroundColor: '#0B0C12',
+    borderWidth: 1,
+    borderColor: '#2A2D40',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 38,
     color: '#FFFFFF',
     fontSize: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   customExamApplyBtn: {
-    backgroundColor: '#00D2FF',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
+    backgroundColor: '#00E5FF',
+    paddingHorizontal: 12,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   customExamApplyText: {
-    color: '#07070F',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
+    color: '#0B0C12',
   },
   modalOption: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#161824',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: '#24263A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
   },
   modalOptionActive: {
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    borderColor: '#00D2FF',
+    borderColor: '#00E5FF',
+    backgroundColor: '#1A1E2E',
   },
   modalOptionContent: {
     flex: 1,
-    marginRight: 10,
   },
   modalOptionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 3,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   modalOptionLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   modalOptionLabelActive: {
-    color: '#00D2FF',
-    fontWeight: '800',
+    color: '#00E5FF',
   },
   modalCategoryBadge: {
-    color: '#8E8EA8',
     fontSize: 9,
-    fontWeight: '700',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  modalOptionDesc: {
     color: '#777799',
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  syllabusFreshnessBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121422',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#22253A',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginTop: 8,
-  },
-  syllabusFreshnessLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  syllabusFreshnessText: {
-    color: '#E0E0EC',
-    fontSize: 11,
-    fontWeight: '700',
-    flex: 1,
-  },
-  trendsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#1B1E32',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#2A2E4C',
-  },
-  trendsBtnText: {
-    color: '#00E5FF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  powerDuoRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
-  powerDuoCardFlow: {
-    flex: 1,
-    backgroundColor: '#141524',
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#22263C',
-    padding: 12,
-  },
-  powerDuoCardRegain: {
-    flex: 1,
-    backgroundColor: '#141524',
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#22263C',
-    padding: 12,
-  },
-  powerDuoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  flowMiniBadge: {
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  flowMiniBadgeText: {
-    color: '#00E5FF',
-    fontSize: 8,
-    fontWeight: '900',
-  },
-  regainMiniBadge: {
-    backgroundColor: 'rgba(255, 71, 87, 0.12)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  regainMiniBadgeText: {
-    color: '#FF4757',
-    fontSize: 8,
-    fontWeight: '900',
-  },
-  powerDuoTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  powerDuoSub: {
-    color: '#8E8EA0',
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  trendSectionBox: {
-    backgroundColor: '#17192C',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#252944',
-    padding: 12,
-    marginBottom: 10,
-  },
-  trendSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  trendSectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  trendSectionText: {
-    color: '#C8C8DC',
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  trendWeightageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#252944',
-  },
-  trendWeightageLabel: {
-    color: '#8E8EA0',
-    fontSize: 11,
     fontWeight: '600',
   },
-  trendWeightageValue: {
-    color: '#FFD32A',
+  modalOptionDesc: {
     fontSize: 11,
-    fontWeight: '800',
+    color: '#8E8EA8',
   },
-  trendItemRow: {
+  trendsInfoBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginTop: 6,
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: 'rgba(46, 213, 115, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(46, 213, 115, 0.3)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 14,
   },
-  trendItemTitle: {
-    color: '#FFFFFF',
+  trendsInfoText: {
+    flex: 1,
     fontSize: 11,
-    fontWeight: '700',
-  },
-  trendItemReason: {
-    color: '#8E8EA0',
-    fontSize: 10,
-    lineHeight: 14,
-    marginTop: 1,
+    color: '#E0E0E0',
+    lineHeight: 16,
   },
   syncTrendsBtn: {
     flexDirection: 'row',
@@ -1453,14 +1382,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     backgroundColor: '#00E5FF',
-    borderRadius: 8,
     paddingVertical: 10,
-    marginTop: 4,
-    marginBottom: 10,
+    borderRadius: 8,
   },
   syncTrendsBtnText: {
-    color: '#0B0C12',
     fontSize: 12,
     fontWeight: '800',
+    color: '#0B0C12',
   },
 });
