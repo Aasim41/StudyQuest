@@ -1,3 +1,5 @@
+import { ADDITIONAL_EXAMS_KB } from './expandedExamsData.js';
+
 /**
  * StudyQuest Universal Exam & Subject Knowledgebase (High-Precision Curation Engine)
  * Automatically curates study plans, syllabus topics, flashcards, and predictor radar
@@ -2615,6 +2617,24 @@ export const EXAM_KNOWLEDGEBASE = {
     ]
   },
 };
+
+// Merge verified additional topics and subjects into EXAM_KNOWLEDGEBASE
+if (typeof ADDITIONAL_EXAMS_KB !== 'undefined') {
+  for (const [examKey, extraData] of Object.entries(ADDITIONAL_EXAMS_KB)) {
+    if (EXAM_KNOWLEDGEBASE[examKey]) {
+      const existingSubs = EXAM_KNOWLEDGEBASE[examKey].subjects || [];
+      const newSubs = extraData.subjects || [];
+      EXAM_KNOWLEDGEBASE[examKey].subjects = Array.from(new Set([...existingSubs, ...newSubs]));
+      const existingTopics = EXAM_KNOWLEDGEBASE[examKey].topics || [];
+      const extraTopics = (extraData.topics || []).filter(
+        (et) => !existingTopics.some((t) => t.id === et.id)
+      );
+      EXAM_KNOWLEDGEBASE[examKey].topics = [...existingTopics, ...extraTopics];
+    } else {
+      EXAM_KNOWLEDGEBASE[examKey] = extraData;
+    }
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CURATION ENGINE HELPER FUNCTIONS
