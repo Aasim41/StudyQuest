@@ -5,6 +5,7 @@ import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import API_BASE from '../config/apiConfig';
+import { getCuratedPlanForExam } from '../config/studyGuideData';
 import {
   filterTimetableForBatch,
   getDistinctSubjectsForBatch,
@@ -351,9 +352,17 @@ export const UserProvider = ({ children }) => {
 
   const loadLocalStudyPlan = async () => {
     try {
+      const savedExam = await getScopedItem('@targetExam');
+      const activeExam = savedExam || 'CBSE Class 12 Boards';
+      if (savedExam) setTargetExamState(savedExam);
+
       const planStr = await getScopedItem('@studyPlan');
       if (planStr) {
         setStudyPlan(JSON.parse(planStr));
+      } else {
+        const initialPlan = getCuratedPlanForExam(activeExam);
+        setStudyPlan(initialPlan);
+        setScopedItem('@studyPlan', JSON.stringify(initialPlan)).catch(() => {});
       }
 
       const batchStr = await getScopedItem('@userBatch');
@@ -856,9 +865,34 @@ export const UserProvider = ({ children }) => {
     return { leveledUp, newLevel, unlockedBadges: unlocked, xpGained };
   };
 
-  const setTargetExam = (exam) => {
+  const setTargetExam = async (exam) => {
     setTargetExamState(exam);
-    setScopedItem('@targetExam', exam).catch(() => {});
+    await setScopedItem('@targetExam', exam).catch(() => {});
+
+    // Automatically curate high-precision study plan for the new target exam
+    const curatedPlan = getCuratedPlanForExam(exam);
+    setStudyPlan(curatedPlan);
+    await setScopedItem('@studyPlan', JSON.stringify(curatedPlan)).catch(() => {});
+
+    if (auth.currentUser) {
+      setDoc(doc(db, 'users', auth.currentUser.uid), {
+        targetExam: exam,
+        studyPlan: curatedPlan,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(() => {});
+    }
+  };
+
+  const togglePlanItemCompleted = async (itemId) => {
+    const updated = studyPlan.map(item => {
+      if (item.id === itemId) {
+        return { ...item, isCompleted: !item.isCompleted };
+      }
+      return item;
+    });
+    setStudyPlan(updated);
+    await setScopedItem('@studyPlan', JSON.stringify(updated)).catch(() => {});
+    awardCustomXp(30, 'Completed Study Plan Milestone');
   };
 
   const awardCustomXp = (amount, reason = '') => {
@@ -923,6 +957,7 @@ export const UserProvider = ({ children }) => {
       studyPlan,
       loadLocalStudyPlan,
       updateStudyPlan,
+      togglePlanItemCompleted,
       timetable,
       attendanceRecords,
       saveTimetable,

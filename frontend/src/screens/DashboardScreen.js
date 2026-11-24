@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,12 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
-import { EXAM_TARGETS, SUBJECT_TOPICS, COMMON_SUBJECTS } from '../config/studyGuideData';
+import {
+  EXAM_TARGETS,
+  getCuratedSubjectsForExam,
+  getCuratedTopicsForExam,
+  getCuratedPlanForExam,
+} from '../config/studyGuideData';
 import { generateAndShareCheatSheetPdf } from '../services/pdfService';
 import MarkingSimulatorModal from '../components/MarkingSimulatorModal';
 
@@ -27,6 +32,8 @@ export default function DashboardScreen() {
     userStats,
     targetExam,
     setTargetExam,
+    studyPlan,
+    togglePlanItemCompleted,
     savedGuides,
     toggleSaveGuide,
   } = useUser();
@@ -37,12 +44,59 @@ export default function DashboardScreen() {
   const [customExamInput, setCustomExamInput] = useState('');
   const [simulatorItem, setSimulatorItem] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [showFullPlan, setShowFullPlan] = useState(false);
+
+  // Active exam label
+  const activeExamLabel = useMemo(() => {
+    const match = EXAM_TARGETS.find((e) => e.id === targetExam || e.label === targetExam);
+    return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
+  }, [targetExam]);
+
+  // Dynamically curated subjects for the active exam
+  const examSubjects = useMemo(() => {
+    return ['All', ...getCuratedSubjectsForExam(targetExam)];
+  }, [targetExam]);
+
+  // Reset selected subject if not valid for new exam
+  useEffect(() => {
+    if (selectedSubject !== 'All' && !examSubjects.includes(selectedSubject)) {
+      setSelectedSubject('All');
+    }
+  }, [targetExam, examSubjects]);
+
+  // Curated topics for the active exam and subject filter
+  const displayedTopics = useMemo(() => {
+    const list = getCuratedTopicsForExam(targetExam, selectedSubject);
+    if (!searchQuery.trim()) return list;
+
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.subject.toLowerCase().includes(q) ||
+        t.summary?.toLowerCase().includes(q) ||
+        (t.aiBlindspots && t.aiBlindspots.some((b) => b.point.toLowerCase().includes(q)))
+    );
+  }, [targetExam, selectedSubject, searchQuery]);
+
+  // Study plan stats
+  const planItems = useMemo(() => {
+    return studyPlan && studyPlan.length > 0 ? studyPlan : getCuratedPlanForExam(targetExam);
+  }, [studyPlan, targetExam]);
+
+  const completedPlanCount = useMemo(() => {
+    return planItems.filter((i) => i.isCompleted).length;
+  }, [planItems]);
+
+  const planProgressPercent = useMemo(() => {
+    return planItems.length > 0 ? Math.round((completedPlanCount / planItems.length) * 100) : 0;
+  }, [planItems, completedPlanCount]);
 
   const handleExportPdf = async () => {
     try {
       setPdfLoading(true);
       const res = await generateAndShareCheatSheetPdf(
-        selectedSubject === 'All' ? 'High-Yield Topics' : selectedSubject,
+        selectedSubject === 'All' ? `${activeExamLabel} High-Yield Summary` : selectedSubject,
         activeExamLabel,
         displayedTopics.slice(0, 8)
       );
@@ -56,42 +110,6 @@ export default function DashboardScreen() {
     }
   };
 
-  // Flatten all topics
-  const allTopics = useMemo(() => {
-    const list = [];
-    Object.entries(SUBJECT_TOPICS).forEach(([subj, topics]) => {
-      topics.forEach((t) => {
-        list.push({ ...t, subject: subj });
-      });
-    });
-    return list;
-  }, []);
-
-  // Filtered topics based on search and subject
-  const displayedTopics = useMemo(() => {
-    let list = allTopics;
-    if (selectedSubject !== 'All') {
-      list = list.filter((t) => t.subject === selectedSubject);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.subject.toLowerCase().includes(q) ||
-          t.summary.toLowerCase().includes(q) ||
-          (t.aiBlindspots && t.aiBlindspots.some((b) => b.point.toLowerCase().includes(q)))
-      );
-    }
-    return list;
-  }, [allTopics, selectedSubject, searchQuery]);
-
-  // Current active exam label
-  const activeExamLabel = useMemo(() => {
-    const match = EXAM_TARGETS.find((e) => e.id === targetExam || e.label === targetExam);
-    return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
-  }, [targetExam]);
-
   const handleOpenGuide = (guide) => {
     navigation.navigate('StudyGuideDetail', { guide });
   };
@@ -100,17 +118,19 @@ export default function DashboardScreen() {
     navigation.navigate('AIGapAuditor', {
       mode,
       initialTopic,
-      initialSubject,
+      initialSubject: selectedSubject !== 'All' ? selectedSubject : initialSubject,
     });
   };
 
   const handleSelectExam = (examLabel) => {
+    setSelectedSubject('All');
     setTargetExam(examLabel);
     setTargetModalVisible(false);
   };
 
   const handleApplyCustomExam = () => {
     if (customExamInput.trim()) {
+      setSelectedSubject('All');
       setTargetExam(customExamInput.trim());
       setCustomExamInput('');
       setTargetModalVisible(false);
@@ -135,7 +155,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Target Exam Button */}
+        {/* Dynamic Target Exam Switcher */}
         <TouchableOpacity
           style={styles.targetExamBar}
           onPress={() => setTargetModalVisible(true)}
@@ -147,7 +167,10 @@ export default function DashboardScreen() {
               Target: <Text style={styles.targetExamHighlight}>{activeExamLabel}</Text>
             </Text>
           </View>
-          <MaterialCommunityIcons name="chevron-down" size={18} color="#8E8EA8" />
+          <View style={styles.changeBadge}>
+            <Text style={styles.changeBadgeText}>Change</Text>
+            <MaterialCommunityIcons name="chevron-down" size={15} color="#00D2FF" />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -155,36 +178,80 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Clean Hero Card */}
-        <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Catch What AI Misses</Text>
-          <Text style={styles.heroDesc}>
-            Generic AI leaves out critical edge cases, proof steps & marking rubrics.
-            Audit your topic or notes before your exam.
-          </Text>
-
-          <View style={styles.heroActionsRow}>
+        {/* Curated Study Plan Card */}
+        <View style={styles.planCard}>
+          <View style={styles.planCardHeader}>
+            <View style={styles.planHeaderLeft}>
+              <View style={styles.planIconBox}>
+                <MaterialCommunityIcons name="calendar-check-outline" size={18} color="#00D2FF" />
+              </View>
+              <View>
+                <Text style={styles.planTitle}>Curated Study Plan</Text>
+                <Text style={styles.planSubtitle}>
+                  {activeExamLabel} • {completedPlanCount}/{planItems.length} Milestones Done
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity
-              style={styles.heroBtnPrimary}
-              onPress={() => handleOpenAuditor('TOPIC')}
-              activeOpacity={0.85}
+              style={styles.planToggleBtn}
+              onPress={() => setShowFullPlan((prev) => !prev)}
             >
-              <MaterialCommunityIcons name="lightning-bolt" size={16} color="#FFFFFF" />
-              <Text style={styles.heroBtnPrimaryText}>Audit a Topic</Text>
+              <Text style={styles.planToggleText}>{showFullPlan ? 'Collapse' : 'View Plan'}</Text>
+              <MaterialCommunityIcons
+                name={showFullPlan ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color="#00D2FF"
+              />
             </TouchableOpacity>
+          </View>
 
-            <TouchableOpacity
-              style={styles.heroBtnSecondary}
-              onPress={() => handleOpenAuditor('ANSWER')}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="file-document-edit-outline" size={16} color="#00D2FF" />
-              <Text style={styles.heroBtnSecondaryText}>Check Notes</Text>
-            </TouchableOpacity>
+          {/* Plan Progress Bar */}
+          <View style={styles.planProgressBg}>
+            <View style={[styles.planProgressFill, { width: `${planProgressPercent}%` }]} />
+          </View>
+
+          {/* Active / Current Milestones */}
+          <View style={styles.planMilestonesList}>
+            {(showFullPlan ? planItems : planItems.slice(0, 2)).map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.planItemRow, item.isCompleted && styles.planItemRowCompleted]}
+                onPress={() => togglePlanItemCompleted(item.id)}
+                activeOpacity={0.7}
+              >
+                <TouchableOpacity
+                  style={[styles.checkbox, item.isCompleted && styles.checkboxChecked]}
+                  onPress={() => togglePlanItemCompleted(item.id)}
+                >
+                  {item.isCompleted && (
+                    <MaterialCommunityIcons name="check" size={13} color="#07070F" />
+                  )}
+                </TouchableOpacity>
+
+                <View style={styles.planItemInfo}>
+                  <View style={styles.planItemBadges}>
+                    <Text style={styles.planDayBadge}>{item.day || item.week}</Text>
+                    <Text style={styles.planSubjectBadge}>{item.subject}</Text>
+                    {item.priority === 'CRITICAL' && (
+                      <Text style={styles.planPriorityBadge}>Critical</Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[styles.planItemTopic, item.isCompleted && styles.planItemTopicDone]}
+                    numberOfLines={1}
+                  >
+                    {item.topic}
+                  </Text>
+                  <Text style={styles.planItemFocus} numberOfLines={2}>
+                    🎯 {item.focus}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Clean 3-Feature Quick Tools Bar */}
+        {/* 3-Feature Quick Tools Bar */}
         <View style={styles.quickToolsRow}>
           <TouchableOpacity
             style={styles.quickToolBtn}
@@ -221,12 +288,33 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Fast Action Buttons */}
+        <View style={styles.heroActionsRow}>
+          <TouchableOpacity
+            style={styles.heroBtnPrimary}
+            onPress={() => handleOpenAuditor('TOPIC')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="lightning-bolt" size={16} color="#FFFFFF" />
+            <Text style={styles.heroBtnPrimaryText}>Audit a Topic</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.heroBtnSecondary}
+            onPress={() => handleOpenAuditor('ANSWER')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="file-document-edit-outline" size={16} color="#00D2FF" />
+            <Text style={styles.heroBtnSecondaryText}>Check Notes</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <MaterialCommunityIcons name="magnify" size={20} color="#777799" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search any topic, formula, or concept..."
+            placeholder={`Search ${activeExamLabel} topics, formulas...`}
             placeholderTextColor="#666688"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -238,10 +326,14 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Clean Subject Filter Chips */}
+        {/* Dynamically Curated Subject Filter Chips */}
         <View style={styles.subjectTabsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectTabsScroll}>
-            {['All', ...COMMON_SUBJECTS.filter((s) => s !== 'Other / Custom Subject')].map((subj) => {
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.subjectTabsScroll}
+          >
+            {examSubjects.map((subj) => {
               const isSelected = selectedSubject === subj;
               return (
                 <TouchableOpacity
@@ -258,10 +350,12 @@ export default function DashboardScreen() {
           </ScrollView>
         </View>
 
-        {/* Study Guides List */}
+        {/* Curated Study Guides List */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {selectedSubject === 'All' ? 'Curated Exam Guides' : `${selectedSubject} Guides`}
+            {selectedSubject === 'All'
+              ? `${activeExamLabel} Curated Guides`
+              : `${selectedSubject} Guides`}
           </Text>
           <Text style={styles.sectionCount}>({displayedTopics.length})</Text>
         </View>
@@ -275,7 +369,9 @@ export default function DashboardScreen() {
             return (
               <View key={topic.id} style={styles.topicCard}>
                 <View style={styles.topicCardTop}>
-                  <Text style={styles.topicSubjectText}>{topic.subject}</Text>
+                  <View style={styles.topicSubjectPill}>
+                    <Text style={styles.topicSubjectText}>{topic.subject}</Text>
+                  </View>
                   <TouchableOpacity
                     onPress={() => toggleSaveGuide(topic)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -314,16 +410,22 @@ export default function DashboardScreen() {
 
                   <TouchableOpacity
                     style={styles.simulateTopicBtn}
-                    onPress={() => setSimulatorItem({
-                      topic: topic.title,
-                      subject: topic.subject,
-                      marks: 5,
-                      keyPoints: topic.coreConcepts || [],
-                    })}
+                    onPress={() =>
+                      setSimulatorItem({
+                        topic: topic.title,
+                        subject: topic.subject,
+                        marks: 5,
+                        keyPoints: topic.coreConcepts || [],
+                      })
+                    }
                     activeOpacity={0.8}
                   >
-                    <MaterialCommunityIcons name="calculator-variant-outline" size={14} color="#00D2FF" />
-                    <Text style={styles.simulateTopicBtnText}>Simulate</Text>
+                    <MaterialCommunityIcons
+                      name="calculator-variant-outline"
+                      size={14}
+                      color="#00D2FF"
+                    />
+                    <Text style={styles.simulateTopicBtnText}>Rubric</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -345,7 +447,7 @@ export default function DashboardScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      {/* Clean Exam Selection Modal */}
+      {/* Clean Target Exam Selector Modal */}
       <Modal
         visible={targetModalVisible}
         transparent
@@ -359,20 +461,20 @@ export default function DashboardScreen() {
         >
           <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Target Exam</Text>
+              <Text style={styles.modalTitle}>Choose Target Exam</Text>
               <TouchableOpacity onPress={() => setTargetModalVisible(false)}>
                 <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
-              Works for all Competitive, Board, and College exams.
+              Curates your plan, topics, rubrics & predictor instantly.
             </Text>
 
             {/* Custom Exam Input */}
             <View style={styles.customExamRow}>
               <TextInput
                 style={styles.customExamInput}
-                placeholder="Or type custom exam (e.g. CUET, GRE)..."
+                placeholder="Or type custom exam (e.g. CUET, SAT, State Boards)..."
                 placeholderTextColor="#777799"
                 value={customExamInput}
                 onChangeText={setCustomExamInput}
@@ -381,7 +483,7 @@ export default function DashboardScreen() {
                 style={styles.customExamApplyBtn}
                 onPress={handleApplyCustomExam}
               >
-                <Text style={styles.customExamApplyText}>Set</Text>
+                <Text style={styles.customExamApplyText}>Apply</Text>
               </TouchableOpacity>
             </View>
 
@@ -395,15 +497,23 @@ export default function DashboardScreen() {
                     onPress={() => handleSelectExam(target.label)}
                   >
                     <View style={styles.modalOptionContent}>
-                      <Text style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelActive]}>
-                        {target.label}
-                      </Text>
-                      <Text style={styles.modalOptionDesc} numberOfLines={1}>
+                      <View style={styles.modalOptionHeader}>
+                        <Text
+                          style={[
+                            styles.modalOptionLabel,
+                            isSelected && styles.modalOptionLabelActive,
+                          ]}
+                        >
+                          {target.label}
+                        </Text>
+                        <Text style={styles.modalCategoryBadge}>{target.category}</Text>
+                      </View>
+                      <Text style={styles.modalOptionDesc} numberOfLines={2}>
                         {target.desc}
                       </Text>
                     </View>
                     {isSelected && (
-                      <MaterialCommunityIcons name="check" size={18} color="#00D2FF" />
+                      <MaterialCommunityIcons name="check-circle" size={20} color="#00D2FF" />
                     )}
                   </TouchableOpacity>
                 );
@@ -448,118 +558,226 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   brandTitle: {
-    fontSize: 22,
-    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.5,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   brandSubtitle: {
-    fontSize: 12,
-    color: '#8E8EA8',
-    marginTop: 1,
+    color: '#00D2FF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   userBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    backgroundColor: 'rgba(255, 211, 42, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 14,
-    gap: 5,
+    borderRadius: 20,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 211, 42, 0.25)',
   },
   userBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
     color: '#FFD32A',
+    fontSize: 12,
+    fontWeight: '800',
   },
   targetExamBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 20, 42, 0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(0, 210, 255, 0.25)',
   },
   targetExamLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     flex: 1,
   },
   targetExamText: {
-    fontSize: 13,
-    color: '#8E8EA8',
-    marginLeft: 8,
+    color: '#AAAAAA',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
   },
   targetExamHighlight: {
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  changeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  changeBadgeText: {
+    color: '#00D2FF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   scrollContent: {
-    paddingHorizontal: 18,
     paddingTop: 16,
+    paddingHorizontal: 20,
   },
-  heroCard: {
-    backgroundColor: '#13132B',
+  planCard: {
+    backgroundColor: 'rgba(16, 16, 36, 0.95)',
     borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(108, 92, 231, 0.3)',
+    borderColor: 'rgba(0, 210, 255, 0.25)',
+    marginBottom: 16,
   },
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-  },
-  heroDesc: {
-    fontSize: 13,
-    color: '#A0A0C0',
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  heroActionsRow: {
+  planCardHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  planHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  planIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 210, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  planTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  planSubtitle: {
+    color: '#00D2FF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  planToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+  },
+  planToggleText: {
+    color: '#00D2FF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  planProgressBg: {
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  planProgressFill: {
+    height: '100%',
+    backgroundColor: '#00D2FF',
+    borderRadius: 3,
+  },
+  planMilestonesList: {
+    gap: 8,
+  },
+  planItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     gap: 10,
   },
-  heroBtnPrimary: {
+  planItemRowCompleted: {
+    opacity: 0.6,
+    backgroundColor: 'rgba(0, 210, 255, 0.03)',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#00D2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: '#00D2FF',
+  },
+  planItemInfo: {
     flex: 1,
+  },
+  planItemBadges: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6C5CE7',
-    paddingVertical: 10,
-    borderRadius: 12,
     gap: 6,
+    marginBottom: 4,
   },
-  heroBtnPrimaryText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  planDayBadge: {
+    color: '#A29BFE',
+    fontSize: 10,
+    fontWeight: '800',
+    backgroundColor: 'rgba(162, 155, 254, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  heroBtnSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.3)',
-    gap: 6,
-  },
-  heroBtnSecondaryText: {
-    fontSize: 13,
-    fontWeight: '700',
+  planSubjectBadge: {
     color: '#00D2FF',
+    fontSize: 10,
+    fontWeight: '700',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  planPriorityBadge: {
+    color: '#FF6B6B',
+    fontSize: 9,
+    fontWeight: '800',
+    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  planItemTopic: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  planItemTopicDone: {
+    textDecorationLine: 'line-through',
+    color: '#8E8EA8',
+  },
+  planItemFocus: {
+    color: '#AAAAAA',
+    fontSize: 11,
+    lineHeight: 15,
   },
   quickToolsRow: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 10,
     marginBottom: 14,
   },
   quickToolBtn: {
@@ -568,33 +786,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingVertical: 11,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     gap: 6,
   },
   quickToolText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
-    color: '#DDDDEE',
+  },
+  heroActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  heroBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6C5CE7',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+  },
+  heroBtnPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  heroBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+  },
+  heroBtnSecondaryText: {
+    color: '#00D2FF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#13132B',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 14,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 48,
+    marginBottom: 16,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 13,
     color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
   },
   subjectTabsContainer: {
     marginBottom: 16,
@@ -603,91 +859,99 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   subjectChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   subjectChipActive: {
-    backgroundColor: '#6C5CE7',
-    borderColor: '#6C5CE7',
+    backgroundColor: 'rgba(0, 210, 255, 0.15)',
+    borderColor: '#00D2FF',
   },
   subjectChipText: {
-    fontSize: 12,
-    fontWeight: '600',
     color: '#8E8EA8',
+    fontSize: 12,
+    fontWeight: '700',
   },
   subjectChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#00D2FF',
+    fontWeight: '800',
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
   sectionCount: {
+    color: '#777799',
     fontSize: 13,
-    color: '#8E8EA8',
-    marginLeft: 6,
+    fontWeight: '600',
   },
   topicList: {
     gap: 12,
   },
   topicCard: {
-    backgroundColor: '#121228',
-    borderRadius: 16,
+    backgroundColor: 'rgba(16, 16, 36, 0.9)',
+    borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   topicCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  topicSubjectPill: {
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   topicSubjectText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#A29BFE',
-    textTransform: 'uppercase',
+    color: '#00D2FF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   topicTitle: {
-    fontSize: 16,
-    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 3,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   topicRelevance: {
-    fontSize: 12,
-    color: '#FFA502',
+    color: '#777799',
+    fontSize: 11,
+    fontWeight: '600',
     marginBottom: 10,
   },
   blindspotPreviewBox: {
-    backgroundColor: 'rgba(255, 71, 87, 0.08)',
-    borderRadius: 10,
-    padding: 10,
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
     borderLeftWidth: 3,
-    borderLeftColor: '#FF4757',
+    borderLeftColor: '#FF6B6B',
+    padding: 10,
+    borderRadius: 8,
     marginBottom: 12,
   },
   blindspotPreviewHeading: {
-    fontSize: 12,
+    color: '#FF6B6B',
+    fontSize: 11,
     fontWeight: '700',
-    color: '#FF6B81',
     marginBottom: 3,
   },
   blindspotPreviewBody: {
-    fontSize: 12,
-    color: '#CCD0E0',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 11,
     lineHeight: 16,
   },
   topicCardActions: {
@@ -695,53 +959,53 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   openGuideBtn: {
-    flex: 1,
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#6C5CE7',
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
-    gap: 5,
+    gap: 4,
   },
   openGuideBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
   simulateTopicBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+    paddingVertical: 9,
+    borderRadius: 10,
     gap: 4,
   },
   simulateTopicBtnText: {
+    color: '#00D2FF',
     fontSize: 12,
     fontWeight: '700',
-    color: '#00D2FF',
   },
   auditTopicBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: 'rgba(162, 155, 254, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
+    borderColor: 'rgba(162, 155, 254, 0.3)',
+    paddingVertical: 9,
+    borderRadius: 10,
     gap: 4,
   },
   auditTopicBtnText: {
+    color: '#A29BFE',
     fontSize: 12,
     fontWeight: '700',
-    color: '#00D2FF',
   },
   modalOverlay: {
     flex: 1,
@@ -752,9 +1016,9 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#121228',
-    borderRadius: 20,
+    maxWidth: 420,
+    backgroundColor: '#0E0E22',
+    borderRadius: 22,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -766,13 +1030,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
     color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
   },
   modalSubtitle: {
+    color: '#777799',
     fontSize: 12,
-    color: '#8E8EA8',
     marginBottom: 14,
   },
   customExamRow: {
@@ -785,50 +1049,70 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    height: 42,
     color: '#FFFFFF',
+    fontSize: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   customExamApplyBtn: {
     backgroundColor: '#00D2FF',
+    borderRadius: 10,
     paddingHorizontal: 14,
     justifyContent: 'center',
-    borderRadius: 10,
+    alignItems: 'center',
   },
   customExamApplyText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0A0A1A',
+    color: '#07070F',
+    fontSize: 12,
+    fontWeight: '800',
   },
   modalOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   modalOptionActive: {
     backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    borderColor: '#00D2FF',
   },
   modalOptionContent: {
     flex: 1,
+    marginRight: 10,
+  },
+  modalOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 3,
   },
   modalOptionLabel: {
-    fontSize: 13,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
-    color: '#DDDDEE',
   },
   modalOptionLabelActive: {
     color: '#00D2FF',
+    fontWeight: '800',
+  },
+  modalCategoryBadge: {
+    color: '#8E8EA8',
+    fontSize: 9,
+    fontWeight: '700',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   modalOptionDesc: {
+    color: '#777799',
     fontSize: 11,
-    color: '#8888AA',
-    marginTop: 2,
+    lineHeight: 15,
   },
 });

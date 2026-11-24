@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,10 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
-import { SUBJECT_TOPICS, EXAM_TARGETS } from '../config/studyGuideData';
+import {
+  EXAM_TARGETS,
+  getCuratedFlashcardsForExam,
+} from '../config/studyGuideData';
 
 const { width } = Dimensions.get('window');
 
@@ -24,31 +27,22 @@ export default function FlashcardsScreen() {
     return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
   }, [targetExam]);
 
-  // Build card deck from curated topics
+  // Build card deck curated specifically for the active target exam
   const cards = useMemo(() => {
-    const deck = [];
-    Object.entries(SUBJECT_TOPICS).forEach(([subj, topics]) => {
-      topics.forEach((t) => {
-        t.aiBlindspots?.forEach((b, bIdx) => {
-          deck.push({
-            id: `${t.id}-${bIdx}`,
-            subject: subj,
-            topicTitle: t.title,
-            question: `In "${t.title}", what critical point do standard AI notes skip?`,
-            point: b.point,
-            whatAiSays: b.whatAiSays,
-            whatAiMisses: b.whatAiMisses,
-            examinerRubric: b.examinerRubric,
-          });
-        });
-      });
-    });
-    return deck;
-  }, []);
+    const curated = getCuratedFlashcardsForExam(targetExam);
+    return curated && curated.length > 0 ? curated : [];
+  }, [targetExam]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
+
+  // Reset progress when active target exam is switched
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setCompletedCount(0);
+  }, [targetExam]);
 
   const currentCard = cards[currentIndex];
   const isComplete = currentIndex >= cards.length;

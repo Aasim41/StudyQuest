@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,103 +11,14 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
-import { EXAM_TARGETS } from '../config/studyGuideData';
+import {
+  EXAM_TARGETS,
+  getCuratedPredictorQuestionsForExam,
+  getCuratedSubjectsForExam,
+} from '../config/studyGuideData';
 import MarkingSimulatorModal from '../components/MarkingSimulatorModal';
 
 const { width } = Dimensions.get('window');
-
-const PREDICTOR_DATABASE = [
-  {
-    id: 'pred-1',
-    subject: 'Physics',
-    topic: 'Photoelectric Effect: Stopping Potential vs Frequency',
-    probability: 92,
-    probabilityTier: 'Guaranteed (90%+)',
-    marks: 5,
-    pastFrequency: 'Appeared in 4 of last 5 board/entrance cycles',
-    trapSummary: 'Generic AI confuses intensity with frequency; fails to show threshold frequency intercept on frequency axis.',
-    keyPoints: [
-      'Einstein photoelectric equation stated: e*V_0 = h*nu - Phi_0 (1.5 marks)',
-      'Graph plotted showing straight line with threshold frequency intercept nu_0 (2.0 marks)',
-      'Slope of line equated to h/e to find Planck constant h (1.5 marks)',
-    ],
-  },
-  {
-    id: 'pred-2',
-    subject: 'Chemistry',
-    topic: 'Aldol Condensation vs Cannizzaro Reaction Distinction',
-    probability: 88,
-    probabilityTier: 'Guaranteed (90%+)',
-    marks: 4,
-    pastFrequency: 'Tested in almost every organic carbonyl section',
-    trapSummary: 'Generic AI fails to state that absence of alpha-hydrogens is the mandatory trigger for Cannizzaro disproportionation.',
-    keyPoints: [
-      'Alpha-hydrogen presence creates enolate ion for Aldol (1.5 marks)',
-      'Absence of alpha-hydrogen triggers self-redox Cannizzaro (1.5 marks)',
-      'Balanced equation showing alcohol and carboxylate salt (1.0 mark)',
-    ],
-  },
-  {
-    id: 'pred-3',
-    subject: 'Mathematics',
-    topic: "Definite Integrals: King's Property 2I Step",
-    probability: 85,
-    probabilityTier: 'Frequent Trap (75%+)',
-    marks: 6,
-    pastFrequency: 'Appears in section C/D in CBSE 12th & JEE Main',
-    trapSummary: 'Generic AI states property formula but skips the vital "2I" addition and forgets division by 2 at the end.',
-    keyPoints: [
-      'Define integral as I and apply f(a + b - x) (2.0 marks)',
-      'Add original and transformed integral to form 2I (2.5 marks)',
-      'Integrate constant integrand and divide by 2 for final result (1.5 marks)',
-    ],
-  },
-  {
-    id: 'pred-4',
-    subject: 'Biology',
-    topic: 'DNA Replication: Okazaki Fragments & RNA Primase',
-    probability: 82,
-    probabilityTier: 'Frequent Trap (75%+)',
-    marks: 5,
-    pastFrequency: 'High frequency in NEET & Board genetics units',
-    trapSummary: 'Generic AI skips that DNA Polymerase requires RNA primer 3-OH terminus to initiate synthesis.',
-    keyPoints: [
-      'DNA polymerase cannot initiate de novo; requires RNA primer (2.0 marks)',
-      'Unidirectional 5-prime to 3-prime synthesis creates lagging strand fragments (2.0 marks)',
-      'DNA ligase joins Okazaki fragments via phosphodiester bonds (1.0 mark)',
-    ],
-  },
-  {
-    id: 'pred-5',
-    subject: 'Computer Science',
-    topic: 'Red-Black Tree: Maximum Rotations Bound Proof',
-    probability: 78,
-    probabilityTier: 'Frequent Trap (75%+)',
-    marks: 5,
-    pastFrequency: 'Core question in GATE & University algorithms',
-    trapSummary: 'Generic AI claims rotations take O(log N) time, confusing recoloring propagation with bounded O(1) rotations.',
-    keyPoints: [
-      'Insertion requires at most 2 structural rotations (2.0 marks)',
-      'Deletion requires at most 3 structural rotations (1.5 marks)',
-      'Recoloring propagates up to O(log N) times without rotations (1.5 marks)',
-    ],
-  },
-  {
-    id: 'pred-6',
-    subject: 'Economics',
-    topic: 'Fiscal Deficit vs Primary Deficit & Legacy Debt',
-    probability: 80,
-    probabilityTier: 'Frequent Trap (75%+)',
-    marks: 4,
-    pastFrequency: 'Featured in CBSE 12th macroeconomics & UPSC GS3',
-    trapSummary: 'Generic AI defines formulas but misses that zero primary deficit means borrowing is solely consumed by past interest.',
-    keyPoints: [
-      'Primary Deficit = Fiscal Deficit - Interest Payments (1.5 marks)',
-      'Explain that zero primary deficit indicates all loans service past debt (1.5 marks)',
-      'Detail impact on crowding out and capital formation (1.0 mark)',
-    ],
-  },
-];
 
 export default function PredictorScreen() {
   const navigation = useNavigation();
@@ -122,13 +33,29 @@ export default function PredictorScreen() {
     return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
   }, [targetExam]);
 
+  // Dynamically curated subjects for the active exam
+  const examSubjects = useMemo(() => {
+    return ['All', ...getCuratedSubjectsForExam(targetExam)];
+  }, [targetExam]);
+
+  useEffect(() => {
+    if (selectedSubject !== 'All' && !examSubjects.includes(selectedSubject)) {
+      setSelectedSubject('All');
+    }
+  }, [targetExam, examSubjects]);
+
+  // Curated questions for this specific exam
+  const allQuestions = useMemo(() => {
+    return getCuratedPredictorQuestionsForExam(targetExam);
+  }, [targetExam]);
+
   const filteredQuestions = useMemo(() => {
-    return PREDICTOR_DATABASE.filter((q) => {
+    return allQuestions.filter((q) => {
       const matchTier = selectedTier === 'All' || q.probabilityTier.includes(selectedTier);
       const matchSub = selectedSubject === 'All' || q.subject === selectedSubject;
       return matchTier && matchSub;
     });
-  }, [selectedTier, selectedSubject]);
+  }, [allQuestions, selectedTier, selectedSubject]);
 
   const handleAudit = (item) => {
     navigation.navigate('AIGapAuditor', {
@@ -155,7 +82,7 @@ export default function PredictorScreen() {
 
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Question Predictor Radar</Text>
-          <Text style={styles.headerSub}>High-probability exam traps for {activeExamLabel}</Text>
+          <Text style={styles.headerSub}>5-Year high-yield recurrence for {activeExamLabel}</Text>
         </View>
       </View>
 
@@ -166,7 +93,7 @@ export default function PredictorScreen() {
         {/* Probability Tier Filter Chips */}
         <View style={styles.filterSection}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {['All', 'Guaranteed', 'Frequent Trap'].map((tier) => {
+            {['All', 'Guaranteed', 'High Recurrence', 'Frequent Trap'].map((tier) => {
               const active = selectedTier === tier;
               return (
                 <TouchableOpacity
@@ -176,6 +103,26 @@ export default function PredictorScreen() {
                 >
                   <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
                     {tier}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Dynamic Subject Filters */}
+        <View style={styles.subjectFilterSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {examSubjects.map((sub) => {
+              const active = selectedSubject === sub;
+              return (
+                <TouchableOpacity
+                  key={sub}
+                  style={[styles.subChip, active && styles.subChipActive]}
+                  onPress={() => setSelectedSubject(sub)}
+                >
+                  <Text style={[styles.subChipText, active && styles.subChipTextActive]}>
+                    {sub}
                   </Text>
                 </TouchableOpacity>
               );
@@ -193,7 +140,15 @@ export default function PredictorScreen() {
                   <View style={styles.subjectPill}>
                     <Text style={styles.subjectPillText}>{item.subject}</Text>
                   </View>
-                  <View style={[styles.probBadge, { backgroundColor: isHigh ? 'rgba(46, 213, 115, 0.12)' : 'rgba(255, 165, 2, 0.12)', borderColor: isHigh ? '#2ED573' : '#FFA502' }]}>
+                  <View
+                    style={[
+                      styles.probBadge,
+                      {
+                        backgroundColor: isHigh ? 'rgba(46, 213, 115, 0.12)' : 'rgba(255, 165, 2, 0.12)',
+                        borderColor: isHigh ? '#2ED573' : '#FFA502',
+                      },
+                    ]}
+                  >
                     <Text style={[styles.probBadgeText, { color: isHigh ? '#2ED573' : '#FFA502' }]}>
                       {item.probability}% Probability
                     </Text>
@@ -205,7 +160,7 @@ export default function PredictorScreen() {
 
                 {/* Trap Summary */}
                 <View style={styles.trapBox}>
-                  <Text style={styles.trapHeading}>⚠️ AI Blindspot Trap:</Text>
+                  <Text style={styles.trapHeading}>⚠️ Exam Blindspot Trap:</Text>
                   <Text style={styles.trapBody}>{item.trapSummary}</Text>
                 </View>
 
@@ -217,7 +172,7 @@ export default function PredictorScreen() {
                     activeOpacity={0.8}
                   >
                     <MaterialCommunityIcons name="calculator-variant-outline" size={15} color="#00D2FF" />
-                    <Text style={styles.simulateBtnText}>Simulate Score</Text>
+                    <Text style={styles.simulateBtnText}>Rubric Simulator</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -258,68 +213,98 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A1A',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingTop: 48,
     paddingHorizontal: 20,
     paddingBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#0D0D20',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 12,
   },
   backBtn: {
-    marginRight: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
     color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
   },
   headerSub: {
-    fontSize: 11,
     color: '#00D2FF',
-    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '600',
   },
   scrollContent: {
-    paddingHorizontal: 18,
     paddingTop: 14,
+    paddingHorizontal: 20,
   },
   filterSection: {
-    marginBottom: 14,
+    marginBottom: 8,
+  },
+  subjectFilterSection: {
+    marginBottom: 16,
   },
   filterScroll: {
     gap: 8,
   },
   filterChip: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   filterChipActive: {
-    backgroundColor: '#6C5CE7',
-    borderColor: '#6C5CE7',
+    backgroundColor: 'rgba(0, 210, 255, 0.15)',
+    borderColor: '#00D2FF',
   },
   filterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#8E8EA8',
+    color: '#777799',
+    fontSize: 11,
+    fontWeight: '700',
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#00D2FF',
+    fontWeight: '800',
+  },
+  subChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  subChipActive: {
+    backgroundColor: 'rgba(162, 155, 254, 0.15)',
+    borderColor: '#A29BFE',
+  },
+  subChipText: {
+    color: '#8E8EA8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  subChipTextActive: {
+    color: '#A29BFE',
+    fontWeight: '800',
   },
   questionsList: {
     gap: 12,
   },
   card: {
-    backgroundColor: '#121228',
+    backgroundColor: 'rgba(16, 16, 36, 0.9)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -328,21 +313,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subjectPill: {
-    backgroundColor: 'rgba(108, 92, 231, 0.2)',
+    backgroundColor: 'rgba(0, 210, 255, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   subjectPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#A29BFE',
-    textTransform: 'uppercase',
+    color: '#00D2FF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   probBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
   },
   probBadgeText: {
@@ -350,34 +335,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   cardTopic: {
-    fontSize: 15,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
     marginBottom: 4,
-    lineHeight: 20,
   },
   cardMarks: {
-    fontSize: 12,
-    color: '#8E8EA8',
+    color: '#777799',
+    fontSize: 11,
+    fontWeight: '600',
     marginBottom: 10,
   },
   trapBox: {
-    backgroundColor: 'rgba(255, 71, 87, 0.08)',
-    borderRadius: 10,
-    padding: 10,
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
     borderLeftWidth: 3,
-    borderLeftColor: '#FF4757',
+    borderLeftColor: '#FF6B6B',
+    padding: 10,
+    borderRadius: 8,
     marginBottom: 12,
   },
   trapHeading: {
+    color: '#FF6B6B',
     fontSize: 11,
     fontWeight: '700',
-    color: '#FF6B81',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   trapBody: {
-    fontSize: 12,
-    color: '#CCD0E0',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 11,
     lineHeight: 16,
   },
   actionsRow: {
@@ -389,17 +374,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: 'rgba(0, 210, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
+    borderColor: 'rgba(0, 210, 255, 0.3)',
+    paddingVertical: 9,
+    borderRadius: 10,
     gap: 4,
   },
   simulateBtnText: {
+    color: '#00D2FF',
     fontSize: 12,
     fontWeight: '700',
-    color: '#00D2FF',
   },
   auditBtn: {
     flex: 1,
@@ -407,13 +392,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#6C5CE7',
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
     gap: 4,
   },
   auditBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

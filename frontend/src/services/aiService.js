@@ -8,7 +8,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUBJECT_TOPICS } from '../config/studyGuideData';
+import { SUBJECT_TOPICS, getCuratedTopicsForExam } from '../config/studyGuideData';
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY || '';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -22,16 +22,22 @@ function buildCacheKey(type, subject, title, examTarget) {
 }
 
 /**
- * Determine the exam standard context for AI prompt
+ * Determine the exact exam standard context for AI prompt
  */
 function getExamContext(examTarget = '') {
   const t = examTarget.toLowerCase();
-  if (t.includes('board') || t.includes('cbse') || t.includes('icse') || t.includes('school')) {
-    return 'Board & School Examination standard (strict step-marking, syllabus keywords, formula substitution, labeled diagrams, unit consistency).';
-  } else if (t.includes('jee') || t.includes('neet') || t.includes('gate') || t.includes('cat') || t.includes('upsc') || t.includes('competitive')) {
-    return 'Competitive Entrance Examination standard (negative-marking traps, speed shortcuts, boundary invariants, non-trivial exceptions, counterexamples).';
+  if (t.includes('jee')) {
+    return 'JEE Main & Advanced standard (deep multi-concept integration, boundary condition edge-cases, calculus subtleties, -1 negative-marking elimination traps, dimensional invariance checks).';
+  } else if (t.includes('neet')) {
+    return 'NEET UG Medical Entrance standard (strict verbatim NCERT lines, biological exceptions, exact anatomical diagram labeling, formula speed drills, elimination of misleading distractor options).';
+  } else if (t.includes('gate')) {
+    return 'GATE standard (strict mathematical rigor, asymptotic analysis edge cases, Numerical Answer Type (NAT) precision, hardware/cache alignment invariants, zero tolerance for missing boundary limits).';
+  } else if (t.includes('upsc')) {
+    return 'UPSC Civil Services standard (multi-dimensional analytical framework, constitutional articles & landmark SC judgments, balanced arguments, contemporary governance linkages).';
+  } else if (t.includes('board') || t.includes('cbse') || t.includes('icse') || t.includes('school') || t.includes('10') || t.includes('12')) {
+    return 'Board Examination standard (strict NCERT step-marking schemes, explicit formula declaration before numerical substitution, SI unit consistency, underlined keywords, neatly drawn labeled diagrams).';
   } else {
-    return 'College & University Degree Examination standard (formal proofs, step derivations, architectural diagrams, boundary invariants, full scoring keys).';
+    return 'College & University Degree Semester standard (10-mark structured answers, system architecture block diagrams, formal proofs, step-by-step algorithms with time/space complexity analysis, practical code snippets).';
   }
 }
 
@@ -46,28 +52,27 @@ export async function auditTopic(subject = 'General', topicTitle = '', examTarge
     return { ...MEMORY_CACHE.get(cacheKey), source: 'memory_cache' };
   }
 
-  // 2. Check curated instant benchmark
-  if (SUBJECT_TOPICS[subject]) {
-    const match = SUBJECT_TOPICS[subject].find(
-      t => t.title.toLowerCase().includes(topicTitle.toLowerCase()) ||
-           topicTitle.toLowerCase().includes(t.title.toLowerCase())
-    );
-    if (match) {
-      const benchmarkResult = {
-        success: true,
-        source: 'curated_benchmark',
-        topic: match.title,
-        subject,
-        examTarget,
-        blindspotCount: match.blindspotCount || match.aiBlindspots?.length || 3,
-        aiBlindspots: match.aiBlindspots || [],
-        coreConcepts: match.coreConcepts || [],
-        examQuestions: match.examQuestions || [],
-        quiz: match.quiz || [],
-      };
-      MEMORY_CACHE.set(cacheKey, benchmarkResult);
-      return benchmarkResult;
-    }
+  // 2. Check curated instant benchmark for this active exam first
+  const curatedTopics = getCuratedTopicsForExam(examTarget, subject);
+  const match = curatedTopics.find(
+    t => t.title.toLowerCase().includes(topicTitle.toLowerCase()) ||
+         topicTitle.toLowerCase().includes(t.title.toLowerCase())
+  );
+  if (match) {
+    const benchmarkResult = {
+      success: true,
+      source: 'curated_benchmark',
+      topic: match.title,
+      subject,
+      examTarget,
+      blindspotCount: match.blindspotCount || match.aiBlindspots?.length || 3,
+      aiBlindspots: match.aiBlindspots || [],
+      coreConcepts: match.coreConcepts || [],
+      examQuestions: match.examQuestions || [],
+      quiz: match.quiz || [],
+    };
+    MEMORY_CACHE.set(cacheKey, benchmarkResult);
+    return benchmarkResult;
   }
 
   // 3. Check persistent AsyncStorage cache

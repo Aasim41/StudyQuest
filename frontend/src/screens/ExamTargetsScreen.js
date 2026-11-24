@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,15 +15,17 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, BORDER_RADIUS } from '../theme';
 import { useUser } from '../context/UserContext';
-import { EXAM_TARGETS, HIGH_RISK_EXAM_VAULT } from '../config/studyGuideData';
+import {
+  EXAM_TARGETS,
+  getCuratedSubjectsForExam,
+  getCuratedVaultQuestionsForExam,
+} from '../config/studyGuideData';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 const { width } = Dimensions.get('window');
-
-const SUBJECT_FILTERS = ['All', 'Data Structures', 'Database Systems (DBMS)', 'Operating Systems'];
 
 export default function ExamTargetsScreen() {
   const navigation = useNavigation();
@@ -33,13 +35,19 @@ export default function ExamTargetsScreen() {
   const [expandedCards, setExpandedCards] = useState({});
   const [masteredItems, setMasteredItems] = useState({});
 
-  // Filter vault questions
+  // Dynamic curated subjects for the active exam
+  const examSubjects = useMemo(() => {
+    return ['All', ...getCuratedSubjectsForExam(targetExam)];
+  }, [targetExam]);
+
+  // Reset selected subject when targetExam changes
+  useEffect(() => {
+    setSelectedSubject('All');
+  }, [targetExam]);
+
+  // Curated high-risk vault questions for active exam & selected subject
   const filteredQuestions = useMemo(() => {
-    return HIGH_RISK_EXAM_VAULT.filter((q) => {
-      const matchExam = q.examTarget === targetExam || targetExam === 'GATE';
-      const matchSub = selectedSubject === 'All' || q.subject === selectedSubject;
-      return matchExam && matchSub;
-    });
+    return getCuratedVaultQuestionsForExam(targetExam, selectedSubject);
   }, [targetExam, selectedSubject]);
 
   const toggleExpand = (id) => {
@@ -149,7 +157,7 @@ export default function ExamTargetsScreen() {
         {/* Subject Filter Pills */}
         <View style={styles.subjectFilterContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {SUBJECT_FILTERS.map((sub) => {
+            {examSubjects.map((sub) => {
               const active = selectedSubject === sub;
               return (
                 <TouchableOpacity
