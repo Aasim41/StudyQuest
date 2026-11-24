@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const targetPath = 'C:\\Users\\aasim\\.gemini\\antigravity\\scratch\\StudyQuest\\frontend\\src\\config\\studyGuideData.js';
-let content = fs.readFileSync(targetPath, 'utf8');
+let content = fs.readFileSync(targetPath, 'utf8').replace(/\r\n/g, '\n');
 
 // The new board entries for EXAM_KNOWLEDGEBASE
 const newBoards = `
