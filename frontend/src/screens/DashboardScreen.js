@@ -552,6 +552,112 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* 2026-27 Syllabus & Exam Trends Modal */}
+      <Modal
+        visible={trendsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTrendsModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setTrendsModalVisible(false)}
+        >
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="trending-up" size={20} color="#00D2FF" />
+                <Text style={styles.modalTitle}>Latest Pattern & Trends</Text>
+              </View>
+              <TouchableOpacity onPress={() => setTrendsModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              {activeExamLabel} • 2026-27 Official Syllabus & Trend Analysis
+            </Text>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {/* Official Marking Scheme & Weightage */}
+              <View style={styles.trendSectionBox}>
+                <View style={styles.trendSectionHeader}>
+                  <MaterialCommunityIcons name="certificate" size={16} color="#FFD32A" />
+                  <Text style={styles.trendSectionTitle}>Official Evaluation Scheme</Text>
+                </View>
+                <Text style={styles.trendSectionText}>
+                  {EXAM_TARGETS.find((e) => e.label === activeExamLabel || e.id === targetExam)?.markingScheme ||
+                    'Strict step-marking, formula statement, and diagram labeling criteria.'}
+                </Text>
+                <View style={styles.trendWeightageRow}>
+                  <Text style={styles.trendWeightageLabel}>Weightage / Split:</Text>
+                  <Text style={styles.trendWeightageValue}>
+                    {EXAM_TARGETS.find((e) => e.label === activeExamLabel || e.id === targetExam)?.weightage || 'Theory + Practicals'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Dynamic Live AI Trends or High-Yield Core Areas */}
+              <View style={styles.trendSectionBox}>
+                <View style={styles.trendSectionHeader}>
+                  <MaterialCommunityIcons name="lightning-bolt" size={16} color="#00D2FF" />
+                  <Text style={styles.trendSectionTitle}>High-Yield Trend Alerts</Text>
+                </View>
+                {syllabusTrendData?.trendingTopics && syllabusTrendData.trendingTopics.length > 0 ? (
+                  syllabusTrendData.trendingTopics.map((item, idx) => (
+                    <View key={idx} style={styles.trendItemRow}>
+                      <MaterialCommunityIcons name="chevron-right" size={14} color="#00D2FF" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.trendItemTitle}>{item.topic}</Text>
+                        <Text style={styles.trendItemReason}>{item.reason}</Text>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View>
+                    <View style={styles.trendItemRow}>
+                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#2ED573" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.trendItemTitle}>Step-Marking & Derivation Priority</Text>
+                        <Text style={styles.trendItemReason}>
+                          Evaluators penalize missing SI units, formula declarations, and intermediate steps.
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.trendItemRow}>
+                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#2ED573" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.trendItemTitle}>Internal Choice Optimization</Text>
+                        <Text style={styles.trendItemReason}>
+                          Sectional choices allow strategic focus on high-confidence questions.
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Live Sync Action */}
+              <TouchableOpacity
+                style={styles.syncTrendsBtn}
+                onPress={() => refreshSyllabusData(targetExam)}
+                disabled={isRefreshingSyllabus}
+                activeOpacity={0.8}
+              >
+                {isRefreshingSyllabus ? (
+                  <ActivityIndicator size="small" color="#07070F" />
+                ) : (
+                  <MaterialCommunityIcons name="cloud-sync" size={16} color="#07070F" />
+                )}
+                <Text style={styles.syncTrendsBtnText}>
+                  {isRefreshingSyllabus ? 'Syncing Latest 2026-27 Trends...' : 'Check For Fresh 2026-27 Trends'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Interactive Marking Simulator Modal */}
       {simulatorItem && (
         <MarkingSimulatorModal
