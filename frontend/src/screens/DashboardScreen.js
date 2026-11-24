@@ -36,11 +36,16 @@ export default function DashboardScreen() {
     togglePlanItemCompleted,
     savedGuides,
     toggleSaveGuide,
+    syllabusLastUpdated,
+    syllabusTrendData,
+    isRefreshingSyllabus,
+    refreshSyllabusData,
   } = useUser();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [targetModalVisible, setTargetModalVisible] = useState(false);
+  const [trendsModalVisible, setTrendsModalVisible] = useState(false);
   const [customExamInput, setCustomExamInput] = useState('');
   const [simulatorItem, setSimulatorItem] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -172,6 +177,30 @@ export default function DashboardScreen() {
             <MaterialCommunityIcons name="chevron-down" size={15} color="#00D2FF" />
           </View>
         </TouchableOpacity>
+
+        {/* Dynamic 2026-27 Pattern & Syllabus Freshness Indicator */}
+        <View style={styles.syllabusFreshnessBar}>
+          <View style={styles.syllabusFreshnessLeft}>
+            <MaterialCommunityIcons name="shield-check" size={14} color="#2ED573" />
+            <Text style={styles.syllabusFreshnessText} numberOfLines={1}>
+              2026-27 Pattern Verified • <Text style={{ color: '#00D2FF' }}>Live Curation</Text>
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.trendsBtn}
+            onPress={() => setTrendsModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            {isRefreshingSyllabus ? (
+              <ActivityIndicator size="small" color="#00D2FF" style={{ transform: [{ scale: 0.7 }] }} />
+            ) : (
+              <MaterialCommunityIcons name="trending-up" size={13} color="#00D2FF" />
+            )}
+            <Text style={styles.trendsBtnText}>
+              {isRefreshingSyllabus ? 'Syncing...' : 'Trends'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
