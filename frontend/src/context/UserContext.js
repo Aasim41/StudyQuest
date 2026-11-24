@@ -7,6 +7,11 @@ import * as Notifications from 'expo-notifications';
 import API_BASE from '../config/apiConfig';
 import { getCuratedPlanForExam } from '../config/studyGuideData';
 import {
+  checkAndRefreshSyllabus,
+  getLastSyllabusUpdate,
+  forceSyllabusRefresh,
+} from '../services/syllabusRefreshService';
+import {
   filterTimetableForBatch,
   getDistinctSubjectsForBatch,
   ALL_BATCHES,
@@ -200,6 +205,10 @@ export const UserProvider = ({ children }) => {
   const [auditedHistory, setAuditedHistory] = useState([]);
   const [masteredGapsCount, setMasteredGapsCount] = useState(7);
 
+  // Dynamic Syllabus & Exam Trends Auto-Refresh State
+  const [syllabusLastUpdated, setSyllabusLastUpdated] = useState('2026-11-24');
+  const [syllabusTrendData, setSyllabusTrendData] = useState(null);
+  const [isRefreshingSyllabus, setIsRefreshingSyllabus] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -215,9 +224,16 @@ export const UserProvider = ({ children }) => {
         if (guestVal === 'true') {
           setIsGuest(true);
         }
+        const activeExam = storedExam || 'CBSE Class 12 Boards';
         if (storedExam) {
           setTargetExamState(storedExam);
         }
+
+        // Check and refresh syllabus freshness in background on init
+        checkAndRefreshSyllabus(activeExam).then(res => {
+          if (res?.lastUpdated) setSyllabusLastUpdated(res.lastUpdated);
+          if (res?.data) setSyllabusTrendData(res.data);
+        }).catch(err => console.warn('Init syllabus check error:', err));
       } catch (e) {
         console.warn('Error reading onboarding status', e);
       } finally {
@@ -881,6 +897,24 @@ export const UserProvider = ({ children }) => {
         updatedAt: new Date().toISOString()
       }, { merge: true }).catch(() => {});
     }
+
+    // Background auto-refresh for syllabus trends and pattern modifications
+    checkAndRefreshSyllabus(exam).then(res => {
+      if (res?.lastUpdated) setSyllabusLastUpdated(res.lastUpdated);
+      if (res?.data) setSyllabusTrendData(res.data);
+    }).catch(e => console.warn('Background syllabus refresh error:', e));
+  };
+
+  const refreshSyllabusData = async (exam = targetExam) => {
+    setIsRefreshingSyllabus(true);
+    try {
+      const res = await forceSyllabusRefresh(exam);
+      if (res?.lastUpdated) setSyllabusLastUpdated(res.lastUpdated);
+      if (res?.data) setSyllabusTrendData(res.data);
+      return res;
+    } finally {
+      setIsRefreshingSyllabus(false);
+    }
   };
 
   const togglePlanItemCompleted = async (itemId) => {
@@ -975,7 +1009,11 @@ export const UserProvider = ({ children }) => {
       saveAuditResult,
       masteredGapsCount,
       markGapMastered,
-      awardCustomXp
+      awardCustomXp,
+      syllabusLastUpdated,
+      syllabusTrendData,
+      isRefreshingSyllabus,
+      refreshSyllabusData
     }}>
       {children}
     </UserContext.Provider>
