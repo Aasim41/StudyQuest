@@ -280,6 +280,43 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {/* Flow & Regain Focus Power Duo */}
+        <View style={styles.powerDuoRow}>
+          <TouchableOpacity
+            style={styles.powerDuoCardFlow}
+            onPress={() => navigation.navigate('Flow')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.powerDuoHeader}>
+              <MaterialCommunityIcons name="play-circle" size={18} color="#00E5FF" />
+              <View style={styles.flowMiniBadge}>
+                <Text style={styles.flowMiniBadgeText}>0 ADS • 0 SHORTS</Text>
+              </View>
+            </View>
+            <Text style={styles.powerDuoTitle}>Flow Study Player</Text>
+            <Text style={styles.powerDuoSub} numberOfLines={1}>
+              Distraction-free lectures for {activeExamLabel.split(' ')[0]}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.powerDuoCardRegain}
+            onPress={() => navigation.navigate('Regain')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.powerDuoHeader}>
+              <MaterialCommunityIcons name="shield-lock" size={18} color="#FF4757" />
+              <View style={styles.regainMiniBadge}>
+                <Text style={styles.regainMiniBadgeText}>STRICT FOCUS</Text>
+              </View>
+            </View>
+            <Text style={styles.powerDuoTitle}>Regain Shield</Text>
+            <Text style={styles.powerDuoSub} numberOfLines={1}>
+              Deep work timer & Reels blocker
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 3-Feature Quick Tools Bar */}
         <View style={styles.quickToolsRow}>
           <TouchableOpacity
