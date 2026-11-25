@@ -23,11 +23,11 @@ import { gsapTabTransition } from '../utils/gsapAnim';
 
 export default function PredictorScreen() {
   const navigation = useNavigation();
-  const { targetExam, targetStream } = useUser();
+  const { targetExam, targetStream, targetSubject, setTargetSubject } = useUser();
 
   const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'filters'
   const [selectedTier, setSelectedTier] = useState('All');
-  const [selectedSubject, setSelectedSubject] = useState('All');
+  const selectedSubject = targetSubject || 'All';
   const [simulatorItem, setSimulatorItem] = useState(null);
   const tabAnim = useRef(new Animated.Value(1)).current;
 
@@ -43,13 +43,12 @@ export default function PredictorScreen() {
   }, [targetExam, targetStream]);
 
   const allQuestions = useMemo(() => {
-    return getCuratedPredictorQuestionsForExam(targetExam, targetStream) || [];
-  }, [targetExam, targetStream]);
+    return getCuratedPredictorQuestionsForExam(targetExam, targetStream, selectedSubject) || [];
+  }, [targetExam, targetStream, selectedSubject]);
 
   useEffect(() => {
-    setSelectedSubject('All');
     setSelectedTier('All');
-  }, [targetExam, targetStream]);
+  }, [targetExam, targetStream, selectedSubject]);
 
   const switchTab = (tab) => {
     if (tab === activeTab) return;
@@ -114,7 +113,11 @@ export default function PredictorScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>PYQ Radar</Text>
             <Text style={styles.headerSub} numberOfLines={1}>
-              {streamObj ? `${activeExamLabel} • ${streamObj.shortLabel}` : activeExamLabel}
+              {selectedSubject && selectedSubject !== 'All'
+                ? `${activeExamLabel} • ${selectedSubject}`
+                : streamObj
+                  ? `${activeExamLabel} • ${streamObj.label}`
+                  : activeExamLabel}
             </Text>
           </View>
 
@@ -176,10 +179,10 @@ export default function PredictorScreen() {
                   <TouchableOpacity
                     key={sub}
                     style={[styles.subChip, active && styles.subChipActive]}
-                    onPress={() => setSelectedSubject(sub)}
+                    onPress={() => setTargetSubject(sub)}
                   >
                     <Text style={[styles.subChipText, active && styles.subChipTextActive]}>
-                      {sub}
+                      {sub === 'All' ? 'All Subjects' : sub}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -300,7 +303,7 @@ export default function PredictorScreen() {
                   key={row.subject}
                   style={styles.densityRow}
                   onPress={() => {
-                    setSelectedSubject(row.subject);
+                    setTargetSubject(row.subject);
                     switchTab('radar');
                   }}
                 >

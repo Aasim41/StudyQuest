@@ -18,6 +18,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
 import {
   EXAM_TARGETS,
+  getStreamsForExam,
   getCuratedSubjectsForExam,
   getCuratedTopicsForExam,
   resolveStreamForExam,
@@ -32,30 +33,37 @@ const { width } = Dimensions.get('window');
 export default function AIGapAuditorScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { targetExam, targetStream, setTargetExam, saveAuditResult, markGapMastered, awardCustomXp } = useUser();
+  const { targetExam, targetStream, targetSubject, setTargetExam, setTargetSubject, saveAuditResult, markGapMastered, awardCustomXp } = useUser();
 
+  const streams = useMemo(() => getStreamsForExam(targetExam), [targetExam]);
   const streamObj = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
   const curatedSubjects = useMemo(
     () => [...getCuratedSubjectsForExam(targetExam, targetStream), 'Other / Custom Subject'],
     [targetExam, targetStream]
   );
-  const curatedPresets = useMemo(() => {
-    return getCuratedTopicsForExam(targetExam, 'All', targetStream)
-      .slice(0, 6)
-      .map((t) => ({ subject: t.subject, title: t.title }));
-  }, [targetExam, targetStream]);
 
   const [activeTab, setActiveTab] = useState(route.params?.mode || 'TOPIC'); // 'TOPIC' | 'ANSWER'
   const [selectedSubject, setSelectedSubject] = useState(
-    route.params?.initialSubject || curatedSubjects[0] || 'Physics'
+    route.params?.initialSubject ||
+      (targetSubject && targetSubject !== 'All' ? targetSubject : curatedSubjects[0]) ||
+      'Physics'
   );
   const tabAnim = useRef(new Animated.Value(1)).current;
 
+  const curatedPresets = useMemo(() => {
+    const scopeSubj = selectedSubject !== 'Other / Custom Subject' ? selectedSubject : 'All';
+    return getCuratedTopicsForExam(targetExam, scopeSubj, targetStream)
+      .slice(0, 6)
+      .map((t) => ({ subject: t.subject, title: t.title }));
+  }, [targetExam, targetStream, selectedSubject]);
+
   useEffect(() => {
-    if (!curatedSubjects.includes(selectedSubject) && selectedSubject !== 'Other / Custom Subject') {
+    if (targetSubject && targetSubject !== 'All' && curatedSubjects.includes(targetSubject)) {
+      setSelectedSubject(targetSubject);
+    } else if (!curatedSubjects.includes(selectedSubject) && selectedSubject !== 'Other / Custom Subject') {
       setSelectedSubject(curatedSubjects[0] || 'Physics');
     }
-  }, [curatedSubjects, selectedSubject]);
+  }, [targetExam, targetStream, targetSubject, curatedSubjects]);
 
   const switchTab = (tab) => {
     if (tab === activeTab) return;
@@ -220,7 +228,8 @@ export default function AIGapAuditorScreen() {
   };
 
   const handleSelectExam = (label) => {
-    setTargetExam(label);
+    const firstStream = getStreamsForExam(label)[0]?.id || 'pcm';
+    setTargetExam(label, firstStream);
     setExamModalVisible(false);
   };
 
@@ -247,7 +256,7 @@ export default function AIGapAuditorScreen() {
           >
             <MaterialCommunityIcons name="target" size={14} color="#00E5FF" />
             <Text style={styles.examBadgeText} numberOfLines={1}>
-              {streamObj ? `${activeExamLabel.split(' ')[0]} • ${streamObj.shortLabel}` : activeExamLabel}
+              {streams.length > 1 && streamObj ? `${activeExamLabel.split(' ')[0]} • ${streamObj.label}` : activeExamLabel}
             </Text>
           </TouchableOpacity>
         </View>
@@ -291,7 +300,12 @@ export default function AIGapAuditorScreen() {
                 <TouchableOpacity
                   key={subj}
                   style={[styles.subjectChip, isSel && styles.subjectChipActive]}
-                  onPress={() => setSelectedSubject(subj)}
+                  onPress={() => {
+                    setSelectedSubject(subj);
+                    if (subj !== 'Other / Custom Subject') {
+                      setTargetSubject(subj);
+                    }
+                  }}
                 >
                   <Text style={[styles.subjectChipText, isSel && styles.subjectChipTextActive]}>
                     {subj}

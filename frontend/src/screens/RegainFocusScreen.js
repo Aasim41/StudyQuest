@@ -268,7 +268,7 @@ export default function RegainFocusScreen() {
 
           <View style={styles.activeExamChip}>
             <Text style={styles.activeExamChipText} numberOfLines={1}>
-              {streamObj ? `${(targetExam || 'Study').split(' ')[0]} • ${streamObj.shortLabel}` : (targetExam ? targetExam.split(' ')[0] : 'Study')}
+              {streamObj ? `${(targetExam || 'Study').split(' ')[0]} • ${streamObj.label.split(' ')[0]}` : (targetExam ? targetExam.split(' ')[0] : 'Study')}
             </Text>
           </View>
         </View>
@@ -350,7 +350,7 @@ export default function RegainFocusScreen() {
                 <Text style={styles.timerTargetSub}>
                   {isBreak
                     ? 'Breathe & hydrate'
-                    : `Target: ${targetExam}${streamObj ? ` (${streamObj.shortLabel})` : ''}`}
+                    : `Target: ${targetExam}${streamObj ? ` • ${streamObj.label}` : ''}`}
                 </Text>
               </View>
 

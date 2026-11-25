@@ -549,27 +549,28 @@ export const EXAM_STREAM_CATALOG = {
     }),
   },
 
-  // 7. CBSE CLASS 10
+  // 7. CBSE CLASS 10 (All Board Subjects Compulsory — No Stream Split)
   CBSE_10: {
     boardBody: 'Central Board of Secondary Education (CBSE)',
-    duration: '3 Hours Theory',
-    passingRule: '80 Theory + 20 Internal • Minimum 33% Combined Marks Required to Pass',
+    duration: '3 Hours Theory per Subject',
+    passingRule: 'All Core Board Subjects Compulsory • 80 Theory + 20 Internal • Min 33% Combined Required',
+    isUnifiedClass10: true,
     streams: [
       {
-        id: 'cbse10_std',
-        label: 'Standard (Core + Maths Standard 041)',
-        desc: 'For Class 11 Science (PCM) / JEE Aspirants & Commerce with Maths',
+        id: 'class10_all',
+        label: 'All Class 10 Board Subjects',
+        desc: 'All Compulsory CBSE Subjects: Mathematics (041/241), Science (086), Social Science (087), English (184), Hindi & IT',
         subjects: [
           {
             id: 'c10-math',
             name: 'Mathematics',
-            code: '041',
+            code: '041/241',
             marksSplit: '80 Theory + 20 Internal',
             chapters: [
-              { id: 'm10-1', unit: 'Unit II', title: 'Polynomials, Linear Equations & Quadratic Equations', weightage: '20 Marks', subtopics: ['Discriminant D = b² - 4ac Real Roots & a ≠ 0 Condition', 'Pair of Lines Consistency a₁/a₂ = b₁/b₂ vs c₁/c₂'] },
-              { id: 'm10-2', unit: 'Unit IV', title: 'Triangles (BPT) & Circles Theorems', weightage: '15 Marks', subtopics: ['Thales Basic Proportionality Theorem Statement & Proof', 'Equal Tangents from External Point Proof'] },
-              { id: 'm10-3', unit: 'Unit V', title: 'Trigonometry Identities & Heights/Distances', weightage: '12 Marks', subtopics: ['sin²θ + cos²θ = 1 Proof Templates', 'Angle of Elevation & Depression Diagram Labels'] },
-              { id: 'm10-4', unit: 'Unit VI-VII', title: 'Surface Areas, Volumes & Statistics/Probability', weightage: '21 Marks', subtopics: ['Combination Solids Hollow Cylinder & Hemispherical Dome', 'Grouped Mean/Median Missing Frequency f₁, f₂ Questions'] },
+              { id: 'm10-1', unit: 'Unit I-II', title: 'Real Numbers, Polynomials, Linear Pairs & Quadratic Equations', weightage: '26 Marks', subtopics: ['Irrationality Proof of √2, √3 & √5 via Coprime Contradiction', 'Discriminant D = b² - 4ac Real Roots & a ≠ 0 Edge Check', 'Consistency a₁/a₂ = b₁/b₂ vs c₁/c₂ Coincident vs Parallel'] },
+              { id: 'm10-2', unit: 'Unit III-IV', title: 'Coordinate Geometry, Triangles (BPT) & Circles Tangents', weightage: '21 Marks', subtopics: ['Thales Basic Proportionality Theorem Statement & Proof', 'Equal Tangents From External Point OP² = OT² + PT²', 'Section Formula Midpoint & Collinearity Distance Verification'] },
+              { id: 'm10-3', unit: 'Unit V', title: 'Trigonometry Identities & Heights and Distances', weightage: '12 Marks', subtopics: ['sin²θ + cos²θ = 1 Proof Templates & Restrictions', 'Angle of Elevation vs Depression Line-of-Sight Labeling'] },
+              { id: 'm10-4', unit: 'Unit VI-VII', title: 'Surface Areas, Volumes & Statistics / Probability', weightage: '21 Marks', subtopics: ['Combination Solids Surface Area Subtracting Hidden Face Circles', 'Grouped Median Formula Missing Frequency f₁, f₂ Algebra'] },
             ],
           },
           {
@@ -578,9 +579,9 @@ export const EXAM_STREAM_CATALOG = {
             code: '086',
             marksSplit: '80 Theory + 20 Practical/Internal',
             chapters: [
-              { id: 's10-1', unit: 'Chem', title: 'Chemical Reactions, Acids-Bases & Carbon Compounds', weightage: '25 Marks', subtopics: ['Balanced Redox, Double Displacement & Precipitate Colors', 'pH Scale Tooth Decay/Soil & Esterification/Saponification'] },
-              { id: 's10-2', unit: 'Bio', title: 'Life Processes, Control, Heredity & Environment', weightage: '25 Marks', subtopics: ['Nephron Ultrafiltration vs 99% Tubular Reabsorption', 'Dihybrid 9:3:3:1 Ratio & Reflex Arc Diagram'] },
-              { id: 's10-3', unit: 'Phy', title: 'Light Reflection/Refraction & Electricity/Magnetism', weightage: '25 Marks', subtopics: ['Cartesian Sign Convention (Mirror 1/f=1/v+1/u vs Lens -)', 'Series/Parallel R_eq, P = V²/R & Fleming Left-Hand Rule'] },
+              { id: 's10-1', unit: 'Chemistry', title: 'Chemical Reactions, Acids-Bases, Metals & Carbon Compounds', weightage: '25 Marks', subtopics: ['Balanced Redox, Double Displacement & BaSO₄/PbI₂ Precipitate Colors', 'pH Tooth Decay (<5.5), Baking Soda vs Washing Soda & Chlor-Alkali', 'Homologous Series, Esterification vs Saponification Equations'] },
+              { id: 's10-2', unit: 'Biology', title: 'Life Processes, Control, Reproduction & Heredity', weightage: '25 Marks', subtopics: ['Nephron Ultrafiltration vs 99% Selective Tubular Reabsorption', 'Reflex Arc Neural Pathway & Plant Phototropism Auxin Action', 'Mendel Monohybrid 3:1 & Dihybrid 9:3:3:1 Independent Assortment'] },
+              { id: 's10-3', unit: 'Physics', title: 'Light Reflection/Refraction, Human Eye & Electricity/Magnetism', weightage: '30 Marks', subtopics: ['New Cartesian Sign Convention (Mirror 1/f = 1/v + 1/u vs Lens −)', 'Hypermetropia/Myopia Ray Correction Diagrams with Focal Point', 'Series/Parallel Equivalent R_eq, P = V²/R & Fleming Left-Hand Rule'] },
             ],
           },
           {
@@ -589,64 +590,64 @@ export const EXAM_STREAM_CATALOG = {
             code: '087',
             marksSplit: '80 Theory + 20 Internal',
             chapters: [
-              { id: 'sst10-1', unit: 'Hist', title: 'Nationalism in Europe & Nationalism in India', weightage: '20 Marks', subtopics: ['Non-Cooperation Boycott vs Civil Disobedience Law Breaking', 'Poona Pact 1932 Reserved Seats in Joint Electorate'] },
-              { id: 'sst10-2', unit: 'Geog', title: 'Resources, Agriculture, Minerals & Manufacturing', weightage: '20 Marks', subtopics: ['Kharif vs Rabi Crops & Soil Conservation Terrace Farming', 'National Highways, Ports & Dam Map Identification'] },
-              { id: 'sst10-3', unit: 'Pol-Econ', title: 'Power Sharing, Federalism, Money-Credit & Globalisation', weightage: '40 Marks', subtopics: ['Belgium vs Sri Lanka Majoritarian Model', 'SHG Collateral Solutions & RBI Formal Credit Monitoring'] },
+              { id: 'sst10-1', unit: 'History', title: 'Nationalism in Europe, Nationalism in India & Print Culture', weightage: '20 Marks', subtopics: ['Non-Cooperation Boycott vs Civil Disobedience Active Law Defiance', 'Poona Pact Sept 1932 Reserved Seats in Joint Electorate', 'Print Revolution Censorship & Vernacular Press Act Impact'] },
+              { id: 'sst10-2', unit: 'Geography', title: 'Resources, Agriculture, Minerals & Manufacturing Industries', weightage: '20 Marks', subtopics: ['Alluvial vs Black Regur Soil & Terrace Step Conservation', 'Kharif/Rabi Cropping Pattern, Iron-Steel & Textile Belts Map Work'] },
+              { id: 'sst10-3', unit: 'Civics & Econ', title: 'Power Sharing, Federalism, Political Parties, Money-Credit & Globalisation', weightage: '40 Marks', subtopics: ['Belgium Accommodation vs Sri Lanka Majoritarian Crisis', 'SHG Micro-Credit Collateral Model & Formal vs Informal RBI Credit'] },
             ],
           },
           {
             id: 'c10-eng',
-            name: 'English Language',
+            name: 'English Language & Lit',
             code: '184',
+            marksSplit: '80 Theory + 20 ASL/Internal',
+            chapters: [
+              { id: 'e10-1', unit: 'Writing & Gram', title: 'Formal Letters, Analytical Paragraph & Integrated Grammar', weightage: '20 Marks', subtopics: ['Official Letter to Editor / Placing Order Strict Block Format', 'Data-Driven Analytical Paragraph with Trend Comparison', 'Subject-Verb Concord, Reported Speech & Modals Gap-Filling'] },
+              { id: 'e10-2', unit: 'Literature', title: 'First Flight & Footprints Without Feet', weightage: '40 Marks', subtopics: ['Nelson Mandela Dual Obligations & Courage Redefined', 'Bholi Agency Transformation & Necklace Materialism Moral'] },
+            ],
+          },
+          {
+            id: 'c10-hin',
+            name: 'Hindi / Second Language',
+            code: '002/085',
             marksSplit: '80 Theory + 20 Internal',
             chapters: [
-              { id: 'e10-1', unit: 'Writing', title: 'Formal Letter to Editor & Analytical Paragraph', weightage: '10 Marks', subtopics: ['7-Part Formal Letter Block Format & Subject Underlining', 'Data Comparison Analytical Paragraph without Bias'] },
-              { id: 'e10-2', unit: 'Lit', title: 'First Flight & Footprints Without Feet', weightage: '40 Marks', subtopics: ['Letter to God Irony, Nelson Mandela Dual Obligations', 'Bholi Empowerment & Matilda Necklace Lesson'] },
+              { id: 'h10-1', unit: 'Vyakaran', title: 'Rachna ke Aadhar par Vakya, Vachya, Pad Parichay & Alankar', weightage: '16 Marks', subtopics: ['Saral, Sanyukt vs Mishr Vakya Conversion Rules', 'Kartri, Karm vs Bhava Vachya Identification & Conversion'] },
+              { id: 'h10-2', unit: 'Lekhan & Path', title: 'Anuchhed, Aupcharik Patra, Vigyapan & Kshitij / Sparsh', weightage: '64 Marks', subtopics: ['Surdas ke Pad, Ram-Lakshman-Parshuram Samvad & Netaji ka Chashma', 'Formal Letter Format & 100-Word Anuchhed Point Structure'] },
             ],
           },
-        ],
-      },
-      {
-        id: 'cbse10_basic',
-        label: 'Basic (Maths Basic 241)',
-        desc: 'For Humanities / Non-Math Commerce Pathways (Standard Core Science & SST)',
-        subjects: [
           {
-            id: 'c10-math-b',
-            name: 'Mathematics',
-            code: '241',
-            marksSplit: '80 Theory + 20 Internal (Direct NCERT Questions)',
+            id: 'c10-it',
+            name: 'IT / Computer Applications',
+            code: '402/165',
+            marksSplit: '50 Theory + 50 Practical',
             chapters: [
-              { id: 'm10b-1', unit: 'Alg', title: 'Real Numbers (LCM×HCF=ab), Quadratics & AP', weightage: '25 Marks', subtopics: ['Irrationality Proof of √2, √3', 'nth Term a + (n-1)d & Sum of n Terms'] },
-              { id: 'm10b-2', unit: 'Geom', title: 'Coordinate Geometry, Circles & Trig Basics', weightage: '30 Marks', subtopics: ['Distance Formula & Section Ratio', 'Standard Trig Angles 0°, 30°, 45°, 60°, 90°'] },
+              { id: 'it10-1', unit: 'DBMS & Web', title: 'Relational Database SQL Queries, Spreadsheets & HTML/CSS', weightage: '50 Marks', subtopics: ['SQL SELECT, WHERE, ORDER BY, Primary vs Foreign Keys', 'Digital Documentation Styles, Macros & Mail Merge Templates'] },
             ],
           },
-          { id: 'c10-sci-b', name: 'Science (Physics/Chem/Bio)', code: '086', marksSplit: '80 Theory + 20 Internal', chapters: [] },
-          { id: 'c10-sst-b', name: 'Social Science', code: '087', marksSplit: '80 Theory + 20 Internal', chapters: [] },
-          { id: 'c10-eng-b', name: 'English Language', code: '184', marksSplit: '80 Theory + 20 Internal', chapters: [] },
         ],
       },
     ],
   },
 
-  // 8. ICSE CLASS 10
+  // 8. ICSE CLASS 10 (All CISCE Group I, II & III Compulsory Board Subjects)
   ICSE_10: {
     boardBody: 'Council for the Indian School Certificate Examinations (CISCE)',
-    duration: '2 Hrs Science / 2.5–3 Hrs Maths & English',
-    passingRule: 'Group I & II: 80 External + 20 Internal • Group III (Comp/Comm Apps): 50 External + 50 Internal • Best of 5 (incl. English)',
+    duration: '2 Hrs (Sci/HCG) • 2.5–3 Hrs (Maths/English)',
+    passingRule: 'All Board Subjects Compulsory • Group I & II: 80 Ext + 20 Int • Group III (Computer Apps): 50 Ext + 50 Int • Best of 5 Incl. English',
+    isUnifiedClass10: true,
     streams: [
       {
-        id: 'icse_sci',
-        label: 'ICSE Science + Group III Computer Apps',
-        desc: 'Group I Compulsory • Physics (P1), Chemistry (P2), Biology (P3), Maths, Java/Comp Apps',
+        id: 'icse10_all',
+        label: 'All ICSE Class 10 Subjects',
+        desc: 'Complete CISCE Class 10: English P1/P2, Maths, Physics (P1), Chemistry (P2), Biology (P3), History & Civics, Geography, Second Lang / Computer Apps',
         subjects: [
           {
             id: 'icse-eng',
-            name: 'English',
+            name: 'English (P1 & P2)',
             marksSplit: 'P1 Lang (80+20) + P2 Lit (80+20)',
             chapters: [
-              { id: 'ie-1', unit: 'Paper 1', title: 'Composition, Formal/Informal Letter, Notice & Precis Summary', weightage: '80 Marks', subtopics: ['CISCE Strict Email + Notice Formatting Marks', '60-Word Precis Grid Rough + Fair Copy Rule'] },
-              { id: 'ie-2', unit: 'Paper 2', title: 'Julius Caesar (Acts 3–5) & Treasure Chest', weightage: '80 Marks', subtopics: ['Antony Funeral Oration Rhetoric Devices', 'Character Quote Citations from Act Text'] },
+              { id: 'ie-1', unit: 'Paper 1', title: 'Composition, Formal/Informal Letter, Notice, Email & Precis', weightage: '80 Marks', subtopics: ['CISCE Strict Email Address, Subject & Notice Box Formatting Marks', '60-Word Precis Grid (Rough Cut + Fair Grid Count Exact Rule)'] },
+              { id: 'ie-2', unit: 'Paper 2', title: 'Julius Caesar (Acts 3–5) & Treasure Chest Prose/Poetry', weightage: '80 Marks', subtopics: ['Antony Oration Rhetoric Devices & Scene Quotation Citations', 'Treasure Chest RTC Extract Justification & Character Arcs'] },
             ],
           },
           {
@@ -654,18 +655,36 @@ export const EXAM_STREAM_CATALOG = {
             name: 'Mathematics',
             marksSplit: '80 Theory (3 Hrs) + 20 Project',
             chapters: [
-              { id: 'im-1', unit: 'Comm-Math', title: 'GST Invoices, Banking Recurring Deposit & Shares/Dividends', weightage: '22 Marks', subtopics: ['CGST+SGST Intra-State vs IGST Inter-State Formula Trap', 'Interest I = P × n(n+1)/(2×12) × r/100'] },
-              { id: 'im-2', unit: 'Alg-Geom', title: 'Matrices, Similarity, Circles Tangents & Mensuration', weightage: '40 Marks', subtopics: ['Alternate Segment Theorem & Secant Tangent PT²=PA·PB', 'Cylinder/Cone Recasting Volume Equality'] },
+              { id: 'im-1', unit: 'Comm-Math', title: 'GST Invoices, Recurring Deposits & Shares / Dividends', weightage: '22 Marks', subtopics: ['Intra-State (CGST + SGST) vs Inter-State (IGST) Billing Trap', 'Recurring Deposit Interest I = P × n(n+1)/(2×12) × r/100'] },
+              { id: 'im-2', unit: 'Alg-Geom', title: 'Quadratic Equations, AP/GP, Matrices, Similarity & Circle Theorems', weightage: '38 Marks', subtopics: ['Alternate Segment Theorem & Secant-Tangent PT² = PA·PB', 'BPT Ratio Triangles & Loci Intersection Construction'] },
+              { id: 'im-3', unit: 'Mens-Trig', title: 'Mensuration Recasting, Heights/Distances & Ogive Statistics', weightage: '20 Marks', subtopics: ['Step-Deviation Grouped Mean & Cumulative Frequency Ogive Median', 'Trigonometric Proof Steps LHS -> RHS Separately'] },
             ],
           },
           {
-            id: 'icse-sci',
-            name: 'Science (Physics/Chem/Bio)',
-            marksSplit: '3 Separate Papers (80+20 Each)',
+            id: 'icse-phy',
+            name: 'Physics (Science P1)',
+            marksSplit: '80 External (2 Hrs) + 20 Practical',
             chapters: [
-              { id: 'is-1', unit: 'Phy P1', title: 'Force/Machines, Refraction Through Prism, Sound & Calorimetry', weightage: '80 Marks', subtopics: ['Snell Law Angle of Minimum Deviation δ_min = 2i - A', 'm·c·ΔT Heat Loss = Heat Gain Phase Latent Heat Traps'] },
-              { id: 'is-2', unit: 'Chem P2', title: 'Periodic Table, Chemical Bonding, Mole Concept & Metallurgy', weightage: '80 Marks', subtopics: ['Hall-Heroult Cryolite Alumina Cryolite + Carbon Anode Burning', 'Ostwald Ammonia & Contact Sulfuric Acid Equations'] },
-              { id: 'is-3', unit: 'Bio P3', title: 'Genetics, Transpiration, Circulatory & Nervous System', weightage: '80 Marks', subtopics: ['Mendel Dihybrid Phenotype 9:3:3:1 Punnett Grid', 'Ultrafiltration vs Selective Reabsorption in Nephron'] },
+              { id: 'iph-1', unit: 'Mech-Opt', title: 'Moments, Machines (VR/MA/η), Prism TIR & Thin Lenses', weightage: '45 Marks', subtopics: ['Snell Law Minimum Deviation δ_min = 2i − A & Critical Angle sin i_c = 1/μ', 'VR Never Changes with Friction while MA & Efficiency η Decrease'] },
+              { id: 'iph-2', unit: 'Elec-Heat-Nuc', title: 'Sound Resonance, Household Circuits, Calorimetry & Radioactivity', weightage: '35 Marks', subtopics: ['m·c·ΔT + m·L Phase Transition Heat Balance Equation Traps', 'α/β/γ Decay Atomic & Mass Number Shift Equations'] },
+            ],
+          },
+          {
+            id: 'icse-chem',
+            name: 'Chemistry (Science P2)',
+            marksSplit: '80 External (2 Hrs) + 20 Practical',
+            chapters: [
+              { id: 'ich-1', unit: 'Periodic-Stoich', title: 'Periodic Trends, Bonding, Acids-Bases & Mole Concept', weightage: '35 Marks', subtopics: ['Gay-Lussac Volume Ratio & Empirical vs Molecular Formula Calculation', 'Electrovalent vs Coordinate Bonding Electron Dot Diagrams'] },
+              { id: 'ich-2', unit: 'Ind-Org', title: 'Electrolysis, Hall-Heroult Metallurgy, Acid Study & Organic IUPAC', weightage: '45 Marks', subtopics: ['Hall-Heroult Cryolite + Fluorspar Solvent Role & Anode Consumption', 'Ostwald Ammonia Catalyst (Pt, 800°C), Contact H₂SO₄ & Alkane/Alkene/Alkyne'] },
+            ],
+          },
+          {
+            id: 'icse-bio',
+            name: 'Biology (Science P3)',
+            marksSplit: '80 External (2 Hrs) + 20 Practical',
+            chapters: [
+              { id: 'ib-1', unit: 'Cell-Plant', title: 'Cell Division, Genetics, Absorption, Transpiration & Photosynthesis', weightage: '40 Marks', subtopics: ['Mitosis Metaphase/Anaphase Spindle Chromatid Diagrams', 'Turgor Pressure, Plasmolysis & Light-Dependent Hill Reaction Equations'] },
+              { id: 'ib-2', unit: 'Human-Phys', title: 'Circulatory, Excretory, Nervous, Endocrine & Reproductive Systems', weightage: '40 Marks', subtopics: ['Systolic/Diastolic LUBB-DUP Heart Sound Valves & Double Circulation', 'Myopia/Hypermetropia Eyeball Diagrams & Adrenal/Thyroid Hormones'] },
             ],
           },
           {
@@ -673,8 +692,8 @@ export const EXAM_STREAM_CATALOG = {
             name: 'History & Civics',
             marksSplit: '80 External + 20 Project',
             chapters: [
-              { id: 'ihc-1', unit: 'Civics', title: 'Union Parliament, Prime Minister & Supreme Court Writs', weightage: '30 Marks', subtopics: ['Lok Sabha Exclusive Powers (Money Bill, No-Confidence)', 'Original vs Appellate vs Advisory Jurisdiction Art 143'] },
-              { id: 'ihc-2', unit: 'History', title: '1857 Revolt, Gandhian Era, Partition & UN Agencies', weightage: '50 Marks', subtopics: ['1916 Lucknow Pact & Mountbatten Plan Clauses', 'WHO, UNESCO & UNICEF Functions'] },
+              { id: 'ihc-1', unit: 'Civics', title: 'Union Parliament, Prime Minister, President & Supreme Court', weightage: '30 Marks', subtopics: ['Lok Sabha Exclusive Powers (Money Bill Art 110, No-Confidence)', 'Original, Appellate, Advisory & Revisory Writs Jurisdiction'] },
+              { id: 'ihc-2', unit: 'History', title: '1857 Revolt, Gandhian Era, Partition & UNO / NAM Agencies', weightage: '50 Marks', subtopics: ['1916 Lucknow Pact, Cripps/Cabinet Mission & Mountbatten Plan Clauses', 'WHO, UNICEF, UNESCO & UN Security Council Veto Structure'] },
             ],
           },
           {
@@ -682,26 +701,78 @@ export const EXAM_STREAM_CATALOG = {
             name: 'Geography',
             marksSplit: '80 External + 20 Project',
             chapters: [
-              { id: 'igeo-1', unit: 'Part I', title: 'Toposheet Maps (6-Figure Grid) & India Outline Map', weightage: '30 Marks (Compulsory)', subtopics: ['Four-Figure vs Six-Figure Grid Easting/Northing Precision', 'Monsoon Winds, Soil Regions & Mountain Passes Marking'] },
-              { id: 'igeo-2', unit: 'Part II', title: 'Climate of India, Soils, Water Resources & Industries (Any 5)', weightage: '50 Marks', subtopics: ['Retreating Monsoon Coromandel Rainfall', 'Alluvial vs Black Cotton Regur Moisture Retention'] },
+              { id: 'igeo-1', unit: 'Part I', title: 'Survey Topo-Sheet Maps (6-Figure Grid) & India Outline Map', weightage: '30 Marks Compulsory', subtopics: ['Six-Figure Grid Eastings-Before-Northings Precision & Scale Area', 'Winds, Soil Zones, Coalfields, Rivers & Latitude/Passes Marking'] },
+              { id: 'igeo-2', unit: 'Part II', title: 'Climate of India, Soils, Natural Vegetation, Water & Minerals', weightage: '50 Marks (Attempt 5)', subtopics: ['Western Disturbances vs Retreating Monsoon Coromandel Rainfall', 'Alluvial vs Black Cotton Regur Leaching & Conservation Measures'] },
+            ],
+          },
+          {
+            id: 'icse-comp',
+            name: 'Computer Apps / 2nd Language',
+            marksSplit: '50 Ext + 50 Int (Comp) / 80+20 (Lang)',
+            chapters: [
+              { id: 'ica-1', unit: 'Java OOP', title: 'Java Classes, Constructors, Encapsulation, Arrays & String Methods', weightage: '100 Marks', subtopics: ['Constructor Overloading vs Methods, Bubble/Selection Sort & Binary Search', 'Wrapper Autoboxing, Library String substring/compareTo Edge Traps'] },
             ],
           },
         ],
       },
+    ],
+  },
+
+  // 8B. STATE BOARD CLASS 10 (SSC / SSLC / MATRIC / MADHYAMIK)
+  STATE_10: {
+    boardBody: 'State Secondary Boards (MH SSC, KA/TN/KL SSLC, WB Madhyamik, BSEB Matric, UP/AP/TS SSC)',
+    duration: '3 Hours Theory per Compulsory Subject',
+    passingRule: 'All State Class 10 Subjects Compulsory • Core Math, Science & Tech, Social Studies, English & Regional Language • No Stream Split',
+    isUnifiedClass10: true,
+    streams: [
       {
-        id: 'icse_comm',
-        label: 'ICSE Commerce + Economic Applications',
-        desc: 'Group I Compulsory • Maths, Commercial Studies, Economics & Comm. Applications',
+        id: 'state10_all',
+        label: 'All State Class 10 Board Subjects',
+        desc: 'All Compulsory State 10th Papers: Mathematics (Alg+Geom), Science & Technology, Social Studies, English & Regional/Second Language',
         subjects: [
-          { id: 'icsec-eng', name: 'English', marksSplit: 'P1 + P2 (80+20)', chapters: [] },
-          { id: 'icsec-math', name: 'Mathematics', marksSplit: '80 External + 20 Internal', chapters: [] },
           {
-            id: 'icsec-comm',
-            name: 'History & Civics',
-            marksSplit: '80 External + 20 Project',
-            chapters: [],
+            id: 'st10-math',
+            name: 'Mathematics',
+            marksSplit: '80/100 Theory + 20 Internal (or 50% OMR Matric)',
+            chapters: [
+              { id: 'sm10-1', unit: 'Algebra', title: 'Linear Simultaneous Equations, Quadratics, AP & Financial Tax/GST', weightage: '40–50 Marks', subtopics: ['Cramer Rule Determinant D, Dx, Dy Step Format (MH SSC/KA SSLC)', 'Nature of Roots Discriminant & Sequence Sum Formula Proofs'] },
+              { id: 'sm10-2', unit: 'Geometry', title: 'Similarity Theorems, Circle Inscribed Angles & Geometric Constructions', weightage: '40–50 Marks', subtopics: ['Pythagoras, Apollonius & Angle Bisector Theorem Full Board Proofs', 'Tangent from External Point & Inscribed Angle Arc Theorems'] },
+            ],
           },
-          { id: 'icsec-geo', name: 'Geography', marksSplit: '80 External + 20 Project', chapters: [] },
+          {
+            id: 'st10-sci',
+            name: 'Science & Technology',
+            marksSplit: '70/80 Theory (Part 1 Phy/Chem + Part 2 Bio) + 20/30 Practical',
+            chapters: [
+              { id: 'ss10-1', unit: 'Part 1', title: 'Periodic Properties, Chemical Reactions, Carbon, Refraction & Electricity', weightage: '40 Marks', subtopics: ['Kepler Laws, Convex/Concave Ray Diagrams & Ohm Law Numerical Units', 'Balanced Ionic Equations, Functional Groups IUPAC & Corrosion'] },
+              { id: 'ss10-2', unit: 'Part 2', title: 'Heredity Evolution, Cellular Energy (ATP), Reproduction & Ecology', weightage: '40 Marks', subtopics: ['Transcription/Translation Flow, Mitosis vs Meiosis & Green Energy Diagrams', 'Environmental Management Biodiversity Hotspots & Tissue Culture'] },
+            ],
+          },
+          {
+            id: 'st10-sst',
+            name: 'Social Studies',
+            marksSplit: '80 Theory + 20 Internal (Hist, Pol Sci, Geog & Econ)',
+            chapters: [
+              { id: 'sst10s-1', unit: 'Hist-Civ', title: 'Indian Freedom Movement, State Heritage & Constitutional Democracy', weightage: '40 Marks', subtopics: ['Constitutional Rights, Election Commission Duties & Local Panchayat Raj', 'Regional Reform Movements & Post-Independence Integration Dates'] },
+              { id: 'sst10s-2', unit: 'Geog-Econ', title: 'Physiography, Monsoon Rivers, Agriculture & State/India Economy', weightage: '40 Marks', subtopics: ['India & State Map Reading Symbols, Soil Profiles & Transport Corridors', 'GDP, Banking Inclusion & Consumer Protection Case Steps'] },
+            ],
+          },
+          {
+            id: 'st10-eng',
+            name: 'English Language',
+            marksSplit: '80 Theory + 20 Oral/Internal',
+            chapters: [
+              { id: 'se10-1', unit: 'Lang-Writ', title: 'Grammar Transformation, Appreciation Poem & Report/Speech Writing', weightage: '80 Marks', subtopics: ['Appreciation of Poem Structured Points (Title, Poet, Rhyme Scheme, Figures)', 'Active/Passive, Direct/Indirect Speech & Summary Title Precision'] },
+            ],
+          },
+          {
+            id: 'st10-lang',
+            name: 'Second / Regional Language',
+            marksSplit: '80/100 Marks (Hindi, Marathi, Tamil, Kannada, Bengali, Telugu, Malayalam, Gujarati)',
+            chapters: [
+              { id: 'sl10-1', unit: 'Grammar-Lit', title: 'Samas/Sandhi Grammar, Sthoolwachan / Comprehension & Letter Formats', weightage: '80–100 Marks', subtopics: ['Formal Petition Letter Formats & Unseen Passage Inference Keywords', 'Prose-Poetry Central Idea Summary with Idiom Accuracy'] },
+            ],
+          },
         ],
       },
     ],
@@ -940,6 +1011,7 @@ export function resolveCatalogKey(examTarget = '') {
   if (str.includes('CAT')) return 'CAT';
   if (str.includes('ICSE') || (str.includes('CISCE') && str.includes('10'))) return 'ICSE_10';
   if (str.includes('ISC') && !str.includes('MISC')) return 'ISC_12';
+  if (str.includes('STATE_10') || str.includes('STATE BOARD CLASS 10') || str.includes('SSLC') || str.includes('MATRIC') || (str.includes('SSC') && !str.includes('CGL') && !str.includes('CHSL')) || (str.includes('MADHYAMIK') && !str.includes('UTTAR PRADESH'))) return 'STATE_10';
   if (str.includes('MAHARASHTRA') || str.includes('MSBSHSE') || str.includes('MH_BOARD') || str.includes('MH BOARD') || (str.includes('HSC') && !str.includes('MP') && !str.includes('TAMIL') && !str.includes('GUJARAT'))) return 'MH_BOARD';
   if (str.includes('KARNATAKA') || str.includes('KSEEB') || str.includes('KSEAB') || str.includes('KA_BOARD') || str.includes('PUC')) return 'KA_BOARD';
   if (str.includes('TAMIL') || str.includes('TN_BOARD') || str.includes('SAMACHEER') || str.includes('DGE')) return 'TN_BOARD';

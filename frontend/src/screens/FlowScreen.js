@@ -330,13 +330,13 @@ function extractYouTubeId(input) {
 export default function FlowScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { targetExam, targetStream } = useUser();
+  const { targetExam, targetStream, targetSubject, setTargetSubject } = useUser();
 
   const [activeTab, setActiveTab] = useState('discover'); // 'discover' | 'library'
   const [activeVideo, setActiveVideo] = useState(null);
   const [playbackSpeed, setPlaybackSpeed] = useState('1.0');
   const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery || '');
-  const [selectedSubject, setSelectedSubject] = useState(route.params?.initialSubject || 'All');
+  const selectedSubject = route.params?.initialSubject || targetSubject || 'All';
   const [customUrl, setCustomUrl] = useState('');
   const [urlError, setUrlError] = useState('');
 
@@ -403,16 +403,9 @@ export default function FlowScreen() {
       setActiveTab('discover');
     }
     if (route.params?.initialSubject) {
-      setSelectedSubject(route.params.initialSubject);
+      setTargetSubject(route.params.initialSubject);
     }
   }, [route.params?.searchQuery, route.params?.initialSubject]);
-
-  // Reset subject selection when exam/stream changes if subject isn't in new curriculum
-  useEffect(() => {
-    if (selectedSubject !== 'All' && !examSubjects.includes(selectedSubject)) {
-      setSelectedSubject('All');
-    }
-  }, [examSubjects, selectedSubject]);
 
   const switchTab = (tab) => {
     if (tab === activeTab) return;
@@ -631,7 +624,11 @@ export default function FlowScreen() {
             <View>
               <Text style={styles.headerTitle}>Flow Player</Text>
               <Text style={styles.headerSub} numberOfLines={1}>
-                {streamObj ? `${activeExamLabel} • ${streamObj.shortLabel}` : activeExamLabel}
+                {selectedSubject && selectedSubject !== 'All'
+                  ? `${activeExamLabel} • ${selectedSubject}`
+                  : streamObj
+                    ? `${activeExamLabel} • ${streamObj.label}`
+                    : activeExamLabel}
               </Text>
             </View>
           </View>
@@ -848,13 +845,13 @@ export default function FlowScreen() {
                     key={sub}
                     style={[styles.subjectChip, active && styles.subjectChipActive]}
                     onPress={() => {
-                      setSelectedSubject(sub);
+                      setTargetSubject(sub);
                       setLiveResults([]);
                     }}
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.subjectChipText, active && styles.subjectChipTextActive]}>
-                      {sub}
+                      {sub === 'All' ? 'All Subjects' : sub}
                     </Text>
                   </TouchableOpacity>
                 );

@@ -35,8 +35,10 @@ export default function DashboardScreen() {
     userStats,
     targetExam,
     targetStream,
+    targetSubject,
     setTargetExam,
     setTargetStream,
+    setTargetSubject,
     studyPlan,
     togglePlanItemCompleted,
     savedGuides,
@@ -50,7 +52,7 @@ export default function DashboardScreen() {
 
   const tabAnim = useRef(new Animated.Value(1)).current;
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('All');
+  const selectedSubject = targetSubject || 'All';
   const [expandedChapterId, setExpandedChapterId] = useState(null);
 
   const [quickSwitchVisible, setQuickSwitchVisible] = useState(false);
@@ -78,10 +80,8 @@ export default function DashboardScreen() {
   }, [targetExam, targetStream]);
 
   useEffect(() => {
-    if (selectedSubject !== 'All' && !examSubjectNames.includes(selectedSubject)) {
-      setSelectedSubject('All');
-    }
-  }, [targetExam, targetStream, examSubjectNames]);
+    setExpandedChapterId(null);
+  }, [targetExam, targetStream, selectedSubject]);
 
   const displayedChapters = useMemo(() => {
     const list = getChaptersForSubject(targetExam, targetStream, selectedSubject);
@@ -109,8 +109,8 @@ export default function DashboardScreen() {
   }, [targetExam, targetStream, selectedSubject, searchQuery]);
 
   const planItems = useMemo(() => {
-    return studyPlan && studyPlan.length > 0 ? studyPlan : getCuratedPlanForExam(targetExam, targetStream);
-  }, [studyPlan, targetExam, targetStream]);
+    return studyPlan && studyPlan.length > 0 ? studyPlan : getCuratedPlanForExam(targetExam, targetStream, selectedSubject);
+  }, [studyPlan, targetExam, targetStream, selectedSubject]);
 
   const completedPlanCount = useMemo(() => planItems.filter((i) => i.isCompleted).length, [planItems]);
   const planProgressPercent = useMemo(
@@ -151,14 +151,12 @@ export default function DashboardScreen() {
 
   const handleQuickSelectExam = async (examLabel) => {
     const firstStream = getStreamsForExam(examLabel)[0]?.id || 'pcm';
-    setSelectedSubject('All');
     await setTargetExam(examLabel, firstStream);
   };
 
   const handleApplyCustomExam = async () => {
     const clean = customExamInput.trim();
     if (!clean) return;
-    setSelectedSubject('All');
     await setTargetExam(clean);
     setCustomExamInput('');
     setQuickSwitchVisible(false);
@@ -181,11 +179,10 @@ export default function DashboardScreen() {
               <Text style={styles.targetChipExam} numberOfLines={1}>
                 {activeExamLabel}
               </Text>
-              {activeStream && (
-                <Text style={styles.targetChipStream} numberOfLines={1}>
-                  {activeStream.label}
-                </Text>
-              )}
+              <Text style={styles.targetChipStream} numberOfLines={1}>
+                {streams.length > 1 && activeStream ? `${activeStream.label} • ` : ''}
+                {selectedSubject === 'All' ? 'All Board Subjects' : selectedSubject}
+              </Text>
             </View>
             <MaterialCommunityIcons name="chevron-down" size={15} color="#8E8EA8" />
           </TouchableOpacity>
@@ -307,11 +304,11 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     key={subj}
                     style={[styles.subjectCard, isSelected && styles.subjectCardActive]}
-                    onPress={() => setSelectedSubject(subj)}
+                    onPress={() => setTargetSubject(subj)}
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.subjectCardTitle, isSelected && { color: '#00E5FF' }]}>
-                      {subj}
+                      {subj === 'All' ? 'All Subjects' : subj}
                     </Text>
                     {subMeta && (
                       <Text style={styles.subjectCardSub} numberOfLines={1}>
@@ -473,10 +470,30 @@ export default function DashboardScreen() {
         {/* ───────────────────────────────────────────────────────────── */}
         {activeTab === 'plan' && (
           <View style={styles.tabBody}>
+            {/* Subject Filter Pills Directly in Plan */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {examSubjectNames.map((subj) => {
+                const isSel = selectedSubject === subj;
+                return (
+                  <TouchableOpacity
+                    key={subj}
+                    style={[styles.streamChip, isSel && styles.streamChipActive]}
+                    onPress={() => setTargetSubject(subj)}
+                  >
+                    <Text style={[styles.streamChipText, isSel && styles.streamChipTextActive]}>
+                      {subj === 'All' ? 'All Subjects' : subj}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
             <View style={styles.planSummaryCard}>
               <View style={styles.planSummaryHead}>
-                <View>
-                  <Text style={styles.planSummaryTitle}>Curated Study Roadmap</Text>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.planSummaryTitle} numberOfLines={1}>
+                    {selectedSubject === 'All' ? 'Full Board Roadmap' : `${selectedSubject} Roadmap`}
+                  </Text>
                   <Text style={styles.planSummarySub}>
                     {completedPlanCount} / {planItems.length} Done ({planProgressPercent}%)
                   </Text>
@@ -705,8 +722,8 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Stream Selector inside Modal */}
-            {streams.length > 0 && (
+            {/* Stream Selector inside Modal (only when exam has branches) */}
+            {streams.length > 1 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40, marginBottom: 10 }}>
                 {streams.map((st) => {
                   const sel = activeStream?.id === st.id;
@@ -724,6 +741,24 @@ export default function DashboardScreen() {
                 })}
               </ScrollView>
             )}
+
+            {/* Quick Subject Scope Pills inside Modal */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 38, marginBottom: 10 }}>
+              {examSubjectNames.map((subj) => {
+                const sel = selectedSubject === subj;
+                return (
+                  <TouchableOpacity
+                    key={subj}
+                    style={[styles.modalStreamPill, sel && styles.modalStreamPillActive]}
+                    onPress={() => setTargetSubject(subj)}
+                  >
+                    <Text style={[styles.modalStreamText, sel && styles.modalStreamTextActive]}>
+                      {subj === 'All' ? 'All Subjects' : subj}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             <View style={styles.customExamRow}>
               <TextInput

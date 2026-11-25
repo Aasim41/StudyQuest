@@ -5,7 +5,12 @@ import { auth, db } from '../../firebaseConfig';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import API_BASE from '../config/apiConfig';
-import { getCuratedPlanForExam } from '../config/studyGuideData';
+import {
+  getCuratedPlanForExam,
+  getStreamsForExam,
+  resolveStreamForExam,
+  getCuratedSubjectsForExam,
+} from '../config/studyGuideData';
 import {
   checkAndRefreshSyllabus,
   getLastSyllabusUpdate,
@@ -202,6 +207,7 @@ export const UserProvider = ({ children }) => {
   // Study Guide & AI Blindspot Auditor States (Generic for all competitive & school exams)
   const [targetExam, setTargetExamState] = useState('CBSE Class 12 Boards');
   const [targetStream, setTargetStreamState] = useState('pcm');
+  const [targetSubject, setTargetSubjectState] = useState('All');
   const [savedGuides, setSavedGuides] = useState([]);
   const [auditedHistory, setAuditedHistory] = useState([]);
   const [masteredGapsCount, setMasteredGapsCount] = useState(7);
@@ -214,11 +220,12 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const init = async () => {
       try {
-        const [complete, guestVal, storedExam, storedStream] = await Promise.all([
+        const [complete, guestVal, storedExam, storedStream, storedSubject] = await Promise.all([
           AsyncStorage.getItem('@onboardingComplete'),
           AsyncStorage.getItem('@isGuest'),
           AsyncStorage.getItem('@targetExam'),
-          AsyncStorage.getItem('@targetStream')
+          AsyncStorage.getItem('@targetStream'),
+          AsyncStorage.getItem('@targetSubject'),
         ]);
         if (complete === 'true') {
           setOnboardingComplete(true);
@@ -227,12 +234,14 @@ export const UserProvider = ({ children }) => {
           setIsGuest(true);
         }
         const activeExam = storedExam || 'CBSE Class 12 Boards';
-        if (storedExam) {
-          setTargetExamState(storedExam);
-        }
-        if (storedStream) {
-          setTargetStreamState(storedStream);
-        }
+        const resolvedStream = resolveStreamForExam(activeExam, storedStream)?.id || 'pcm';
+        const allowedSubjs = getCuratedSubjectsForExam(activeExam, resolvedStream);
+        const validSubject =
+          storedSubject && allowedSubjs.includes(storedSubject) ? storedSubject : 'All';
+
+        if (storedExam) setTargetExamState(storedExam);
+        setTargetStreamState(resolvedStream);
+        setTargetSubjectState(validSubject);
 
         // Check and refresh syllabus freshness in background on init
         checkAndRefreshSyllabus(activeExam).then(res => {
@@ -373,15 +382,26 @@ export const UserProvider = ({ children }) => {
 
   const loadLocalStudyPlan = async () => {
     try {
-      const savedExam = await getScopedItem('@targetExam');
-      const activeExam = savedExam || 'CBSE Class 12 Boards';
-      if (savedExam) setTargetExamState(savedExam);
+      const [savedExam, savedStream, savedSubject, planStr] = await Promise.all([
+        getScopedItem('@targetExam'),
+        getScopedItem('@targetStream'),
+        getScopedItem('@targetSubject'),
+        getScopedItem('@studyPlan'),
+      ]);
 
-      const planStr = await getScopedItem('@studyPlan');
+      const activeExam = savedExam || 'CBSE Class 12 Boards';
+      const resolvedStream = resolveStreamForExam(activeExam, savedStream)?.id || 'pcm';
+      const allowedSubjs = getCuratedSubjectsForExam(activeExam, resolvedStream);
+      const activeSubject = savedSubject && allowedSubjs.includes(savedSubject) ? savedSubject : 'All';
+
+      if (savedExam) setTargetExamState(savedExam);
+      setTargetStreamState(resolvedStream);
+      setTargetSubjectState(activeSubject);
+
       if (planStr) {
         setStudyPlan(JSON.parse(planStr));
       } else {
-        const initialPlan = getCuratedPlanForExam(activeExam);
+        const initialPlan = getCuratedPlanForExam(activeExam, resolvedStream, activeSubject);
         setStudyPlan(initialPlan);
         setScopedItem('@studyPlan', JSON.stringify(initialPlan)).catch(() => {});
       }
@@ -389,9 +409,6 @@ export const UserProvider = ({ children }) => {
       const batchStr = await getScopedItem('@userBatch');
       const activeBatch = batchStr || 'B31';
       setUserBatchState(activeBatch);
-
-      const savedStream = await getScopedItem('@targetStream');
-      if (savedStream) setTargetStreamState(savedStream);
 
       const savedGuidesStr = await getScopedItem('@savedGuides');
       if (savedGuidesStr) setSavedGuides(JSON.parse(savedGuidesStr));
@@ -483,13 +500,28 @@ export const UserProvider = ({ children }) => {
           setScopedItem('@attendanceRecords', JSON.stringify(data.attendanceRecords)).catch(() => {});
         }
 
+        const resolvedExam = data.targetExam || targetExam || 'CBSE Class 12 Boards';
+        const resolvedStream = resolveStreamForExam(resolvedExam, data.targetStream || targetStream)?.id || 'pcm';
+        const allowedSubjs = getCuratedSubjectsForExam(resolvedExam, resolvedStream);
+        const resolvedSubject =
+          data.targetSubject && allowedSubjs.includes(data.targetSubject) ? data.targetSubject : 'All';
+
         if (data.targetExam) {
           setTargetExamState(data.targetExam);
           setScopedItem('@targetExam', data.targetExam).catch(() => {});
         }
-        if (data.targetStream) {
-          setTargetStreamState(data.targetStream);
-          setScopedItem('@targetStream', data.targetStream).catch(() => {});
+        setTargetStreamState(resolvedStream);
+        setScopedItem('@targetStream', resolvedStream).catch(() => {});
+        setTargetSubjectState(resolvedSubject);
+        setScopedItem('@targetSubject', resolvedSubject).catch(() => {});
+
+        if (Array.isArray(data.studyPlan) && data.studyPlan.length > 0) {
+          setStudyPlan(data.studyPlan);
+          setScopedItem('@studyPlan', JSON.stringify(data.studyPlan)).catch(() => {});
+        } else if (data.targetExam) {
+          const syncedPlan = getCuratedPlanForExam(resolvedExam, resolvedStream, resolvedSubject);
+          setStudyPlan(syncedPlan);
+          setScopedItem('@studyPlan', JSON.stringify(syncedPlan)).catch(() => {});
         }
 
         // Sync onboarding flag from Firestore (survives reinstalls)
@@ -895,24 +927,33 @@ export const UserProvider = ({ children }) => {
     return { leveledUp, newLevel, unlockedBadges: unlocked, xpGained };
   };
 
-  const setTargetExam = async (exam, streamId = null) => {
+  const setTargetExam = async (exam, explicitStreamId = null) => {
+    const validStreams = getStreamsForExam(exam);
+    const resolvedStream =
+      validStreams.find((s) => s.id === explicitStreamId)?.id ||
+      validStreams[0]?.id ||
+      'general';
+    const nextSubject = 'All';
+
     setTargetExamState(exam);
-    await setScopedItem('@targetExam', exam).catch(() => {});
+    setTargetStreamState(resolvedStream);
+    setTargetSubjectState(nextSubject);
 
-    if (streamId) {
-      setTargetStreamState(streamId);
-      await setScopedItem('@targetStream', streamId).catch(() => {});
-    }
-
-    // Automatically curate high-precision study plan for the new target exam & stream
-    const curatedPlan = getCuratedPlanForExam(exam, streamId || targetStream);
+    const curatedPlan = getCuratedPlanForExam(exam, resolvedStream, nextSubject);
     setStudyPlan(curatedPlan);
-    await setScopedItem('@studyPlan', JSON.stringify(curatedPlan)).catch(() => {});
+
+    await Promise.all([
+      setScopedItem('@targetExam', exam),
+      setScopedItem('@targetStream', resolvedStream),
+      setScopedItem('@targetSubject', nextSubject),
+      setScopedItem('@studyPlan', JSON.stringify(curatedPlan)),
+    ]).catch(() => {});
 
     if (auth.currentUser) {
       setDoc(doc(db, 'users', auth.currentUser.uid), {
         targetExam: exam,
-        ...(streamId ? { targetStream: streamId } : {}),
+        targetStream: resolvedStream,
+        targetSubject: nextSubject,
         studyPlan: curatedPlan,
         updatedAt: new Date().toISOString()
       }, { merge: true }).catch(() => {});
@@ -926,16 +967,47 @@ export const UserProvider = ({ children }) => {
   };
 
   const setTargetStream = async (streamId) => {
-    setTargetStreamState(streamId);
-    await setScopedItem('@targetStream', streamId).catch(() => {});
+    const resolvedStream = resolveStreamForExam(targetExam, streamId)?.id || streamId;
+    const allowedSubjs = getCuratedSubjectsForExam(targetExam, resolvedStream);
+    const nextSubject = allowedSubjs.includes(targetSubject) ? targetSubject : 'All';
 
-    const curatedPlan = getCuratedPlanForExam(targetExam, streamId);
+    setTargetStreamState(resolvedStream);
+    setTargetSubjectState(nextSubject);
+
+    const curatedPlan = getCuratedPlanForExam(targetExam, resolvedStream, nextSubject);
     setStudyPlan(curatedPlan);
-    await setScopedItem('@studyPlan', JSON.stringify(curatedPlan)).catch(() => {});
+
+    await Promise.all([
+      setScopedItem('@targetStream', resolvedStream),
+      setScopedItem('@targetSubject', nextSubject),
+      setScopedItem('@studyPlan', JSON.stringify(curatedPlan)),
+    ]).catch(() => {});
 
     if (auth.currentUser) {
       setDoc(doc(db, 'users', auth.currentUser.uid), {
-        targetStream: streamId,
+        targetStream: resolvedStream,
+        targetSubject: nextSubject,
+        studyPlan: curatedPlan,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(() => {});
+    }
+  };
+
+  const setTargetSubject = async (subject = 'All') => {
+    const nextSubject = subject || 'All';
+    setTargetSubjectState(nextSubject);
+
+    const curatedPlan = getCuratedPlanForExam(targetExam, targetStream, nextSubject);
+    setStudyPlan(curatedPlan);
+
+    await Promise.all([
+      setScopedItem('@targetSubject', nextSubject),
+      setScopedItem('@studyPlan', JSON.stringify(curatedPlan)),
+    ]).catch(() => {});
+
+    if (auth.currentUser) {
+      setDoc(doc(db, 'users', auth.currentUser.uid), {
+        targetSubject: nextSubject,
         studyPlan: curatedPlan,
         updatedAt: new Date().toISOString()
       }, { merge: true }).catch(() => {});
@@ -1041,6 +1113,8 @@ export const UserProvider = ({ children }) => {
     setTargetExam,
     targetStream,
     setTargetStream,
+    targetSubject,
+    setTargetSubject,
     savedGuides,
     toggleSaveGuide,
     auditedHistory,
@@ -1054,7 +1128,7 @@ export const UserProvider = ({ children }) => {
     refreshSyllabusData
   }), [
     onboardingComplete, isGuest, loading, userStats, userBatch, studyPlan,
-    timetable, attendanceRecords, targetExam, targetStream, savedGuides,
+    timetable, attendanceRecords, targetExam, targetStream, targetSubject, savedGuides,
     auditedHistory, masteredGapsCount, syllabusLastUpdated, syllabusTrendData,
     isRefreshingSyllabus
   ]);

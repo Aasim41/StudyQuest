@@ -28,6 +28,7 @@ export default function AnalyticsScreen() {
     userStats,
     targetExam,
     targetStream,
+    targetSubject,
     masteredGapsCount,
     savedGuides,
     auditedHistory,
@@ -70,13 +71,16 @@ export default function AnalyticsScreen() {
     try {
       let exportTopics = savedGuides;
       if (!exportTopics || exportTopics.length === 0) {
-        exportTopics = getCuratedTopicsForExam(targetExam, 'All', targetStream).slice(0, 12);
+        exportTopics = getCuratedTopicsForExam(targetExam, targetSubject || 'All', targetStream).slice(0, 12);
       }
 
-      const res = await generateAndShareCheatSheetPdf(
-        streamObj ? `${activeExamLabel} (${streamObj.shortLabel})` : activeExamLabel,
-        exportTopics
-      );
+      const subjectLabel =
+        targetSubject && targetSubject !== 'All'
+          ? targetSubject
+          : streamObj
+            ? streamObj.label
+            : 'All Board Subjects';
+      const res = await generateAndShareCheatSheetPdf(subjectLabel, activeExamLabel, exportTopics);
       if (!res.success) {
         Alert.alert('Export Notice', res.error || 'Could not generate PDF sheet.');
       }
@@ -104,7 +108,8 @@ export default function AnalyticsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Mastery & Reports</Text>
             <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {streamObj ? `${activeExamLabel} • ${streamObj.shortLabel}` : activeExamLabel}
+              {activeExamLabel}
+              {targetSubject && targetSubject !== 'All' ? ` • ${targetSubject}` : streamObj ? ` • ${streamObj.label}` : ''}
             </Text>
           </View>
         </View>

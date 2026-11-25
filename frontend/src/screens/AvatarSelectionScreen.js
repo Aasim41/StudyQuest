@@ -332,26 +332,42 @@ export default function AvatarSelectionScreen() {
               })}
             </View>
 
-            {/* Stream Selector for Selected Exam */}
-            <Text style={[styles.sectionLabel, { marginTop: 16 }]}>SELECT STREAM / TRACK</Text>
+            {/* Stream Selector for Exams with Streams, or Unified All-Subjects Badge */}
+            <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
+              {availableStreams.length > 1 ? 'SELECT STREAM / TRACK' : 'CURRICULUM COVERAGE'}
+            </Text>
             <View style={styles.streamList}>
-              {availableStreams.map((str) => {
-                const isSel = chosenStreamId === str.id;
-                return (
-                  <TouchableOpacity
-                    key={str.id}
-                    style={[styles.streamCard, isSel && styles.streamCardActive]}
-                    onPress={() => setChosenStreamId(str.id)}
-                    activeOpacity={0.85}
-                  >
+              {availableStreams.length > 1 ? (
+                availableStreams.map((str) => {
+                  const isSel = chosenStreamId === str.id;
+                  return (
+                    <TouchableOpacity
+                      key={str.id}
+                      style={[styles.streamCard, isSel && styles.streamCardActive]}
+                      onPress={() => setChosenStreamId(str.id)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.streamCardTop}>
+                        <Text style={[styles.streamTitle, isSel && { color: '#00E5FF' }]}>{str.label}</Text>
+                        {isSel && <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />}
+                      </View>
+                      <Text style={styles.streamDesc}>{str.desc}</Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                availableStreams[0] && (
+                  <View style={[styles.streamCard, styles.streamCardActive]}>
                     <View style={styles.streamCardTop}>
-                      <Text style={[styles.streamTitle, isSel && { color: '#00E5FF' }]}>{str.label}</Text>
-                      {isSel && <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />}
+                      <Text style={[styles.streamTitle, { color: '#00E5FF' }]}>
+                        {availableStreams[0].label}
+                      </Text>
+                      <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />
                     </View>
-                    <Text style={styles.streamDesc}>{str.desc}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+                    <Text style={styles.streamDesc}>{availableStreams[0].desc}</Text>
+                  </View>
+                )
+              )}
             </View>
 
             <TouchableOpacity

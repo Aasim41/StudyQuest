@@ -109,11 +109,19 @@ export const EXAM_TARGETS = [
     id: 'CBSE_10',
     category: 'BOARD',
     label: 'CBSE Class 10 Boards',
-    desc: 'Science, Mathematics, Social Science • Textbook definitions, balanced equations, standard derivations',
-    weightage: '80 Marks Theory',
+    desc: 'All Compulsory Subjects (No Stream Split) • Maths, Science, Social Science, English, Hindi & IT',
+    weightage: '80 Marks Theory + 20 Internal per Subject',
     examType: 'Board',
-    markingScheme: 'Strict adherence to NCERT keywords, labeled ray diagrams, and standard algebraic steps.',
-    subjects: ['Science (Physics/Chem/Bio)', 'Mathematics', 'Social Science', 'English Language'],
+    isUnifiedClass10: true,
+    markingScheme: 'All Class 10 subjects compulsory. Strict adherence to NCERT keywords, labeled diagrams, balanced equations, and standard steps.',
+    subjects: [
+      'Mathematics',
+      'Science (Physics/Chem/Bio)',
+      'Social Science',
+      'English Language & Lit',
+      'Hindi / Second Language',
+      'IT / Computer Applications',
+    ],
   },
 
   // ICSE / ISC (CISCE Board)
@@ -121,11 +129,38 @@ export const EXAM_TARGETS = [
     id: 'ICSE_10',
     category: 'BOARD',
     label: 'ICSE Class 10',
-    desc: 'English, Mathematics, Science, History & Civics, Geography • Application-based questions, internal/external assessment split',
-    weightage: '80 Marks External + 20 Marks Internal per subject',
+    desc: 'All CISCE Group I/II/III Papers (No Stream Split) • English P1/P2, Maths, Physics P1, Chemistry P2, Biology P3, H&C, Geography & Computer Apps',
+    weightage: '80 Marks External + 20 Marks Internal per Paper',
     examType: 'Board',
-    markingScheme: 'External exam 80 marks (2.5 hrs). Internal assessment 20 marks (project + practicals). Section A is compulsory; Section B offers internal choice (attempt 4 out of 7). Neat labeled diagrams carry dedicated marks.',
-    subjects: ['English', 'Mathematics', 'Science (Physics/Chem/Bio)', 'History & Civics', 'Geography'],
+    isUnifiedClass10: true,
+    markingScheme: 'All Class 10 board papers compulsory. External 80M + Internal 20M (Group III Comp Apps 50/50). Section A compulsory; Section B attempt 4 of 6/7.',
+    subjects: [
+      'English (P1 & P2)',
+      'Mathematics',
+      'Physics (Science P1)',
+      'Chemistry (Science P2)',
+      'Biology (Science P3)',
+      'History & Civics',
+      'Geography',
+      'Computer Apps / 2nd Language',
+    ],
+  },
+  {
+    id: 'STATE_10',
+    category: 'BOARD',
+    label: 'State Board Class 10 (SSC / SSLC)',
+    desc: 'All State 10th Compulsory Subjects (No Stream Split) • MH SSC, KA/TN/KL SSLC, WB Madhyamik, BSEB Matric, UP/AP/TS SSC',
+    weightage: '80/100 Marks Theory + 20 Internal',
+    examType: 'Board',
+    isUnifiedClass10: true,
+    markingScheme: 'All Class 10 subjects compulsory (Maths Alg/Geom, Science & Tech Part 1/2, Social Studies, English & Regional Language). State theorem proofs & activity sheets required.',
+    subjects: [
+      'Mathematics',
+      'Science & Technology',
+      'Social Studies',
+      'English Language',
+      'Second / Regional Language',
+    ],
   },
   {
     id: 'ISC_12',
@@ -2672,6 +2707,16 @@ export function normalizeExamKey(examTarget = '') {
   // ICSE & ISC (CISCE)
   if (str.includes('ICSE') || (str.includes('CISCE') && str.includes('10'))) return 'ICSE_10';
   if (str.includes('ISC') && !str.includes('MISC')) return 'ISC_12';
+  if (
+    str.includes('STATE_10') ||
+    str.includes('STATE BOARD CLASS 10') ||
+    str.includes('SSLC') ||
+    str.includes('MATRIC') ||
+    (str.includes('SSC') && !str.includes('CGL') && !str.includes('CHSL')) ||
+    (str.includes('MADHYAMIK') && !str.includes('UTTAR PRADESH'))
+  ) {
+    return 'STATE_10';
+  }
 
   // State Boards (Check specific states BEFORE generic 'HSC' catch-all for Maharashtra)
   if (str.includes('KARNATAKA') || str.includes('KSEEB') || str.includes('KSEAB') || str.includes('KA_BOARD') || str.includes('PUC')) return 'KA_BOARD';
@@ -2698,16 +2743,68 @@ function normalizeSubjectAlias(subj = '') {
   if (s.includes('accountan') || s.includes('book-keeping')) return 'Accountancy';
   if (s.includes('business') || s.includes('ocm')) return 'Business Studies';
   if (s.includes('econom')) return 'Economics';
-  if (s.includes('history') && !s.includes('civics')) return 'History';
+  if (s.includes('history') && s.includes('civics')) return 'History & Civics';
+  if (s.includes('history')) return 'History';
   if (s.includes('political')) return 'Political Science';
+  if (s.includes('social')) return 'Social Science';
   if (s.includes('geograph')) return 'Geography';
-  if (s.includes('computer') || s === 'cs') return 'Computer Science';
-  if (s.includes('english')) return 'English Core';
+  if (s.includes('computer') || s.includes('it /') || s === 'cs') return 'Computer Science';
+  if (s.includes('hindi') || s.includes('regional') || s.includes('second lang') || s.includes('2nd lang')) return 'Second Language';
+  if (s.includes('english')) return 'English';
   if (s.includes('math')) return 'Mathematics';
   if (s.includes('physics')) return 'Physics';
   if (s.includes('chem')) return 'Chemistry';
   if (s.includes('botany') || s.includes('zoology') || s.includes('bio')) return 'Biology';
+  if (s.includes('science')) return 'Science';
   return subj;
+}
+
+function buildCatalogFallbackTopicsForSubject(examTarget, streamId, subjectName) {
+  const chapters = getChaptersForSubject(examTarget, streamId, subjectName);
+  if (!chapters || chapters.length === 0) return [];
+  const meta = getSubjectsForExamAndStream(examTarget, streamId).find((s) => s.name === subjectName);
+  const splitNote = meta?.marksSplit || 'Board Marking Rubric';
+
+  return chapters.map((chap, idx) => {
+    const subs = chap.subtopics && chap.subtopics.length > 0 ? chap.subtopics : [chap.title];
+    return {
+      id: `cat-topic-${chap.id || idx}`,
+      subject: chap.subject || subjectName,
+      title: chap.title,
+      examRelevance: `${chap.unit || 'Core Unit'} • ${chap.weightage || splitNote}`,
+      blindspotCount: 2,
+      summary: `${chap.title} (${splitNote}): High-yield focus on ${subs.join('; ')}.`,
+      aiBlindspots: [
+        {
+          point: subs[0] || chap.title,
+          whatAiSays: 'Generic AI summarizes chapter headings broadly without step-marking criteria or examiner terminology.',
+          whatAiMisses: `Board evaluation for ${chap.subject || subjectName} checks exact mastery of: ${subs.join(' | ')}. Leaving out definitions, formats, units, or boundary proofs forfeits full step-credit.`,
+          examinerRubric: `Format structured points around ${subs[0] || chap.title} (${chap.weightage || splitNote}) with labeled examples/equations.`,
+        },
+      ],
+      coreConcepts: subs.map((st, sIdx) => `${sIdx + 1}. ${st}`),
+      examQuestions: [
+        {
+          question: `Explain the core principles and board scoring points of "${chap.title}" focusing on ${subs[0] || 'key mechanisms'}.`,
+          marks: 4,
+          keyPoints: subs,
+        },
+      ],
+      quiz: [
+        {
+          question: `Which high-yield concept belongs directly to "${chap.title}" in ${chap.subject || subjectName}?`,
+          options: [
+            subs[0] || chap.title,
+            'Unrelated external syllabus theorem',
+            'Optional non-evaluative foreword note',
+            'Deprecated outdated nomenclature',
+          ],
+          correctIndex: 0,
+          explanation: `${subs[0] || chap.title} is an official core subtopic carrying weightage (${chap.weightage || 'Core'}) in this paper.`,
+        },
+      ],
+    };
+  });
 }
 
 /**
@@ -2749,13 +2846,21 @@ export function getCuratedTopicsForExam(examTarget = '', selectedSubject = 'All'
 
   if (selectedSubject && selectedSubject !== 'All') {
     const targetAlias = normalizeSubjectAlias(selectedSubject);
+    // Exact or alias match inside active exam pool first
     let filtered = pool.filter(
       (t) =>
         t.subject === selectedSubject ||
-        normalizeSubjectAlias(t.subject) === targetAlias ||
-        t.subject.toLowerCase().includes(selectedSubject.toLowerCase())
+        t.subject.toLowerCase().includes(selectedSubject.toLowerCase()) ||
+        selectedSubject.toLowerCase().includes(t.subject.toLowerCase()) ||
+        (targetAlias !== 'Science' && normalizeSubjectAlias(t.subject) === targetAlias)
     );
 
+    // Next pull from catalog chapters for this exact exam + stream + subject (high accuracy!)
+    if (filtered.length === 0) {
+      filtered = buildCatalogFallbackTopicsForSubject(examTarget, streamId, selectedSubject);
+    }
+
+    // Also supplement from global KB if still sparse
     if (filtered.length === 0) {
       Object.values(EXAM_KNOWLEDGEBASE).forEach((data) => {
         data.topics?.forEach((t) => {
@@ -2771,24 +2876,123 @@ export function getCuratedTopicsForExam(examTarget = '', selectedSubject = 'All'
     return filtered;
   }
 
-  // Filter All-view cleanly to match stream subjects when a stream is selected (e.g. Commerce/Arts vs Science)
-  if (streamId) {
-    const streamMatched = pool.filter(
-      (t) => allowedSubjects.includes(t.subject) || allowedAliases.has(normalizeSubjectAlias(t.subject))
-    );
-    if (streamMatched.length > 0) return streamMatched;
-  }
+  // All-view: prioritize stream/board-matching topics, plus synthesize any catalog subjects with no KB card yet
+  const result = [];
+  const baseMatched = streamId
+    ? pool.filter((t) => allowedSubjects.includes(t.subject) || allowedAliases.has(normalizeSubjectAlias(t.subject)))
+    : pool;
 
-  return pool;
+  (baseMatched.length > 0 ? baseMatched : pool).forEach((t) => {
+    if (!result.some((existing) => existing.id === t.id)) result.push(t);
+  });
+
+  // Ensure every compulsory subject in unified Class 10 / active stream has at least 1 topic card
+  allowedSubjects.forEach((subjName) => {
+    const sAlias = normalizeSubjectAlias(subjName);
+    const hasTopic = result.some(
+      (t) =>
+        t.subject === subjName ||
+        t.subject.toLowerCase().includes(subjName.toLowerCase()) ||
+        subjName.toLowerCase().includes(t.subject.toLowerCase()) ||
+        normalizeSubjectAlias(t.subject) === sAlias
+    );
+    if (!hasTopic) {
+      const catCards = buildCatalogFallbackTopicsForSubject(examTarget, streamId, subjName);
+      if (catCards[0]) result.push(catCards[0]);
+    }
+  });
+
+  return result;
 }
 
 /**
- * Generate a high-precision, 4-phase day-by-day curated study plan for the active exam & stream
+ * Generate a high-precision, 4-phase day-by-day curated study plan for the active exam, stream & subject
  */
-export function getCuratedPlanForExam(examTarget = '', streamId = null) {
+export function getCuratedPlanForExam(examTarget = '', streamId = null, selectedSubject = 'All') {
   const key = normalizeExamKey(examTarget);
   const subjects = getCuratedSubjectsForExam(examTarget, streamId);
   const sNorm = (streamId || '').toLowerCase();
+
+  // If a specific subject is selected (not 'All'), curate a 100% subject-dedicated 4-phase plan
+  if (selectedSubject && selectedSubject !== 'All') {
+    const subjTopics = getCuratedTopicsForExam(examTarget, selectedSubject, streamId);
+    const subjChapters = getChaptersForSubject(examTarget, streamId, selectedSubject);
+    const t0 = subjTopics[0];
+    const t1 = subjTopics[1] || t0;
+    const c0 = subjChapters[0];
+    const c1 = subjChapters[1] || c0;
+    const c2 = subjChapters[2] || c1;
+
+    return [
+      {
+        id: `plan-${key}-${selectedSubject}-1`,
+        phase: `Phase 1: ${selectedSubject} Core Foundations & Weightage`,
+        week: 'Week 1',
+        day: 'Day 1 to 3',
+        subject: selectedSubject,
+        topic: c0?.title || t0?.title || `${selectedSubject} Foundational Units`,
+        focus: c0?.subtopics?.join(' • ') || t0?.summary || `Build high-weightage foundation and formula sheets for ${selectedSubject}.`,
+        estimatedMinutes: 55,
+        priority: 'CRITICAL',
+        isCompleted: false,
+      },
+      {
+        id: `plan-${key}-${selectedSubject}-2`,
+        phase: `Phase 2: Examiner Blindspots & Trap Elimination`,
+        week: 'Week 2',
+        day: 'Day 4 to 6',
+        subject: selectedSubject,
+        topic: t0?.title || c1?.title || `${selectedSubject} High-Risk Edge Cases`,
+        focus: t0?.aiBlindspots?.[0]?.whatAiMisses || c1?.subtopics?.join(' • ') || `Audit edge cases, SI units, and common marking deductions in ${selectedSubject}.`,
+        estimatedMinutes: 50,
+        priority: 'CRITICAL',
+        isCompleted: false,
+      },
+      {
+        id: `plan-${key}-${selectedSubject}-3`,
+        phase: `Phase 3: Long-Answer / Numerical / PYQ Mastery`,
+        week: 'Week 3',
+        day: 'Day 7 to 10',
+        subject: selectedSubject,
+        topic: t1?.examQuestions?.[0]?.question || c2?.title || `${selectedSubject} 5-Year PYQ Problem Sets`,
+        focus: t1?.aiBlindspots?.[0]?.examinerRubric || c2?.subtopics?.join(' • ') || `Write full step-marked answers matching ${examTarget || 'board'} examiner rubrics.`,
+        estimatedMinutes: 60,
+        priority: 'HIGH',
+        isCompleted: false,
+      },
+      {
+        id: `plan-${key}-${selectedSubject}-4`,
+        phase: `Phase 4: Timed ${selectedSubject} Mock & 60s Flashcard Recall`,
+        week: 'Week 4',
+        day: 'Day 11 to 14',
+        subject: selectedSubject,
+        topic: `${selectedSubject} Full Timed Specimen Paper & Blindspot Deck`,
+        focus: `Attempt full timed ${selectedSubject} mock, inspect AI Answer Check gaps, and clear flashcards at 100% accuracy.`,
+        estimatedMinutes: 60,
+        priority: 'CRITICAL',
+        isCompleted: false,
+      },
+    ];
+  }
+
+  // Class 10 All-Subject Compulsory Board Plans (CBSE 10 & State 10)
+  if (key === 'CBSE_10') {
+    return [
+      { id: 'plan-cbse10-1', phase: 'Phase 1: Core Maths & Science Numericals + Diagrams', week: 'Week 1', day: 'Day 1 & 2', subject: 'Mathematics', topic: 'Quadratics a ≠ 0 Condition, Triangles BPT Proof & Trigonometry', focus: 'Write statement + given + to prove + diagram on every BPT/Circle proof; validate leading coefficient a ≠ 0.', estimatedMinutes: 55, priority: 'CRITICAL', isCompleted: false },
+      { id: 'plan-cbse10-2', phase: 'Phase 1: Core Maths & Science Numericals + Diagrams', week: 'Week 1', day: 'Day 3 & 4', subject: 'Science (Physics/Chem/Bio)', topic: 'Mirror/Lens Cartesian Signs, Balanced Redox Equations & Nephron', focus: 'Master u negative convention, precipitates (BaSO₄ white / PbI₂ yellow), and labeled Human Eye/Nephron diagrams.', estimatedMinutes: 55, priority: 'CRITICAL', isCompleted: false },
+      { id: 'plan-cbse10-3', phase: 'Phase 2: Social Science 5-Markers & India Map Work', week: 'Week 2', day: 'Day 5 to 8', subject: 'Social Science', topic: 'NCM vs CDM, Poona Pact 1932, Federalism & SHG Credit', focus: 'Write bulleted NCERT keyword answers; complete 100% History & Geography map identifications.', estimatedMinutes: 50, priority: 'HIGH', isCompleted: false },
+      { id: 'plan-cbse10-4', phase: 'Phase 3: Languages (English & Hindi) + IT SQL Formatting', week: 'Week 3', day: 'Day 9 to 12', subject: 'English Language & Lit', topic: 'Letter to Editor Block Format, Analytical Paragraph & Hindi Vachya', focus: 'Practice strict CBSE writing formats ("Sir/Madam", subject underline) and Hindi tense-preserving Vachya conversions.', estimatedMinutes: 45, priority: 'HIGH', isCompleted: false },
+      { id: 'plan-cbse10-5', phase: 'Phase 4: All-Subject 80M Specimen Sample Papers', week: 'Week 4', day: 'Day 13 & 14', subject: 'IT / Computer Applications', topic: 'Full Timed CBSE Sample Papers Across All Compulsory Subjects', focus: 'Simulate 3-hour papers across Maths, Science, SST, English, Hindi & IT with step-marking self-audit.', estimatedMinutes: 65, priority: 'CRITICAL', isCompleted: false },
+    ];
+  }
+  if (key === 'STATE_10') {
+    return [
+      { id: 'plan-state10-1', phase: 'Phase 1: State Board Mathematics Theorems & Algebra', week: 'Week 1', day: 'Day 1 & 2', subject: 'Mathematics', topic: 'Cramer Determinant Rule (ax+by=c Form) & Similarity / Circle Proofs', focus: 'Align constants to RHS before writing D, Dx, Dy; practice Pythagoras & Tangent-Secant 4-mark proofs.', estimatedMinutes: 55, priority: 'CRITICAL', isCompleted: false },
+      { id: 'plan-state10-2', phase: 'Phase 2: Science & Tech Part I (Phy/Chem) & Part II (Bio)', week: 'Week 2', day: 'Day 3 to 6', subject: 'Science & Technology', topic: 'Kepler F ∝ 1/r², kWh Electricity Bills & Heredity / ATP Respiration', focus: 'Show unit conversions (W -> kW, hrs) cleanly and memorize labeled Part II biology flowcharts.', estimatedMinutes: 55, priority: 'CRITICAL', isCompleted: false },
+      { id: 'plan-state10-3', phase: 'Phase 3: Social Studies & Map/Act Accuracy', week: 'Week 3', day: 'Day 7 to 10', subject: 'Social Studies', topic: '73rd/74th Amendments, RTI 2005 & India/State Map Marking', focus: 'Distinguish State Election Commission vs ECI powers; drill regional history & geography map pins.', estimatedMinutes: 45, priority: 'HIGH', isCompleted: false },
+      { id: 'plan-state10-4', phase: 'Phase 4: English + Second Language Writing & Timed Mocks', week: 'Week 4', day: 'Day 11 to 14', subject: 'Second / Regional Language', topic: 'Poem Appreciation, Grammar Transformation & Full State Model Papers', focus: 'Check grammar punctuation, letter formats, and solve 2 full-board question sets under 3-hour timing.', estimatedMinutes: 60, priority: 'CRITICAL', isCompleted: false },
+    ];
+  }
 
   // If Commerce or Humanities stream is active on any Board, build stream-accurate 4-phase plan
   if (sNorm === 'commerce' || subjects.some((s) => s.includes('Account') || s.includes('Business'))) {
@@ -3137,50 +3341,50 @@ export function getCuratedPlanForExam(examTarget = '', streamId = null) {
     return [
       {
         id: 'plan-icse10-1',
-        phase: 'Phase 1: Compulsory Section A & Direct Numerical Drills',
+        phase: 'Phase 1: Separate Science Papers (P1 Phy, P2 Chem, P3 Bio)',
         week: 'Week 1',
         day: 'Day 1 & 2',
-        subject: 'Science (Physics/Chem/Bio)',
-        topic: 'Prisms Total Internal Reflection & Hall-Heroult Metallurgy',
-        focus: 'Memorize critical angle conditions (i1 + i2 = A + delta); write balanced chemical equations for alumina electrolysis.',
-        estimatedMinutes: 50,
+        subject: 'Physics (Science P1)',
+        topic: 'Prisms Total Internal Reflection & Calorimetry Phase Equations',
+        focus: 'Apply δ_min = 2i − A & copper calorimeter heat loss term m·c·ΔT cleanly across all Section B numericals.',
+        estimatedMinutes: 55,
         priority: 'CRITICAL',
         isCompleted: false,
       },
       {
         id: 'plan-icse10-2',
-        phase: 'Phase 2: Section B High-Scoring Option Sets',
+        phase: 'Phase 2: Chemistry Paper 2 & Section B Mathematics',
         week: 'Week 2',
         day: 'Day 3 to 6',
         subject: 'Mathematics',
-        topic: 'Matrices, Arithmetic Progression & Quadratic Equations',
-        focus: 'Solve Section B standard 4-marker algebraic derivations; master quadratic formula steps.',
+        topic: 'GST Input Tax Credit, Recurring Deposits & Circle Theorems',
+        focus: 'Separate intra-state CGST+SGST vs IGST and solve Section B 4-mark Alternate Segment & Similarity proofs.',
         estimatedMinutes: 55,
-        priority: 'HIGH',
-        isCompleted: false,
-      },
-      {
-        id: 'plan-icse10-3',
-        phase: 'Phase 3: English Literature & Language Precise Format Drills',
-        week: 'Week 3',
-        day: 'Day 7 to 10',
-        subject: 'English',
-        topic: 'Formal Letter, Notice, Email & Drama Textual Analysis',
-        focus: 'Follow strict CISCE format for formal letter opening/closing; practice 5-mark drama quote references.',
-        estimatedMinutes: 45,
         priority: 'CRITICAL',
         isCompleted: false,
       },
       {
+        id: 'plan-icse10-3',
+        phase: 'Phase 3: English P1/P2 Formats & Group III Computer Apps',
+        week: 'Week 3',
+        day: 'Day 7 to 10',
+        subject: 'English (P1 & P2)',
+        topic: 'Notice/Email Formatting Rules, Precis Grid & Julius Caesar Citations',
+        focus: 'Follow strict CISCE Paper 1 notice box & 60-word precis grid count; practice Paper 2 act-scene evidence quotes.',
+        estimatedMinutes: 45,
+        priority: 'HIGH',
+        isCompleted: false,
+      },
+      {
         id: 'plan-icse10-4',
-        phase: 'Phase 4: Topo-Sheets & Full 10-Year Specimen Papers',
+        phase: 'Phase 4: H.C.G. Geography Topo-Sheets & Chemistry/Biology Specimen Sets',
         week: 'Week 4',
         day: 'Day 11 to 14',
-        subject: 'Geography & History',
-        topic: 'Survey Map 4-Figure/6-Figure Grid Coordinates & Climate Graphs',
-        focus: 'Master 4-figure grid references, conventional signs, drainage patterns, and map pointing.',
+        subject: 'Geography',
+        topic: '6-Figure Survey Topo-Sheets, Hall-Heroult Chemistry & Nephron Diagrams',
+        focus: 'Master 6-figure Easting/Northing coordinates, balanced anode equations in Metallurgy, and labeled Biology diagrams.',
         estimatedMinutes: 60,
-        priority: 'HIGH',
+        priority: 'CRITICAL',
         isCompleted: false,
       },
     ];
@@ -3407,9 +3611,9 @@ export function getCuratedPlanForExam(examTarget = '', streamId = null) {
 /**
  * Get high-yield question predictor radar questions specifically for the active target exam & stream
  */
-export function getCuratedPredictorQuestionsForExam(examTarget = '', streamId = null) {
+export function getCuratedPredictorQuestionsForExam(examTarget = '', streamId = null, selectedSubject = 'All') {
   const key = normalizeExamKey(examTarget);
-  const topics = getCuratedTopicsForExam(examTarget, 'All', streamId);
+  const topics = getCuratedTopicsForExam(examTarget, selectedSubject, streamId);
 
   return topics.map((t, idx) => {
     const qItem = t.examQuestions?.[0] || {};
@@ -3434,10 +3638,10 @@ export function getCuratedPredictorQuestionsForExam(examTarget = '', streamId = 
 }
 
 /**
- * Get rapid 60-second exam morning flashcards specifically for the active target exam & stream
+ * Get rapid 60-second exam morning flashcards specifically for the active target exam, stream & subject
  */
-export function getCuratedFlashcardsForExam(examTarget = '', streamId = null) {
-  const topics = getCuratedTopicsForExam(examTarget, 'All', streamId);
+export function getCuratedFlashcardsForExam(examTarget = '', streamId = null, selectedSubject = 'All') {
+  const topics = getCuratedTopicsForExam(examTarget, selectedSubject, streamId);
   const deck = [];
 
   topics.forEach((t) => {

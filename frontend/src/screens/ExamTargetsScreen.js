@@ -29,8 +29,10 @@ export default function ExamTargetsScreen() {
   const {
     targetExam,
     targetStream,
+    targetSubject,
     setTargetExam,
     setTargetStream,
+    setTargetSubject,
     markGapMastered,
     awardCustomXp,
   } = useUser();
@@ -38,7 +40,7 @@ export default function ExamTargetsScreen() {
   // 3 Card Tabs: 'exams' | 'pattern' | 'vault'
   const [activeTab, setActiveTab] = useState('exams');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [selectedSubject, setSelectedSubject] = useState('All');
+  const selectedSubject = targetSubject || 'All';
   const [customExamInput, setCustomExamInput] = useState('');
   const [expandedCards, setExpandedCards] = useState({});
   const [masteredItems, setMasteredItems] = useState({});
@@ -75,10 +77,6 @@ export default function ExamTargetsScreen() {
 
   const examSubjectNames = useMemo(() => {
     return ['All', ...getCuratedSubjectsForExam(targetExam, targetStream)];
-  }, [targetExam, targetStream]);
-
-  useEffect(() => {
-    setSelectedSubject('All');
   }, [targetExam, targetStream]);
 
   const filteredQuestions = useMemo(() => {
@@ -219,30 +217,67 @@ export default function ExamTargetsScreen() {
               })}
             </ScrollView>
 
-            {/* Stream Selection Cards for Active Exam */}
+            {/* Stream Selection Cards (Hidden split when Class 10 / Unified Exam) */}
             <View style={styles.sectionBox}>
-              <Text style={styles.sectionLabel}>ACTIVE STREAM / TRACK</Text>
+              <Text style={styles.sectionLabel}>
+                {streams.length > 1 ? 'ACTIVE STREAM / TRACK' : 'CURRICULUM COVERAGE'}
+              </Text>
               <View style={styles.streamList}>
-                {streams.map((st) => {
-                  const active = activeStreamObj?.id === st.id;
+                {streams.length > 1 ? (
+                  streams.map((st) => {
+                    const active = activeStreamObj?.id === st.id;
+                    return (
+                      <TouchableOpacity
+                        key={st.id}
+                        style={[styles.streamCard, active && styles.streamCardActive]}
+                        onPress={() => setTargetStream(st.id)}
+                        activeOpacity={0.85}
+                      >
+                        <View style={styles.streamRowTop}>
+                          <Text style={[styles.streamTitle, active && { color: '#00E5FF' }]}>
+                            {st.label}
+                          </Text>
+                          {active && <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />}
+                        </View>
+                        <Text style={styles.streamDesc}>{st.desc}</Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                ) : (
+                  streams[0] && (
+                    <View style={[styles.streamCard, styles.streamCardActive]}>
+                      <View style={styles.streamRowTop}>
+                        <Text style={[styles.streamTitle, { color: '#00E5FF' }]}>
+                          {streams[0].label}
+                        </Text>
+                        <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />
+                      </View>
+                      <Text style={styles.streamDesc}>{streams[0].desc}</Text>
+                    </View>
+                  )
+                )}
+              </View>
+            </View>
+
+            {/* Active Subject Curate Filter */}
+            <View style={styles.sectionBox}>
+              <Text style={styles.sectionLabel}>CURATE FOR SUBJECT</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                {examSubjectNames.map((sub) => {
+                  const active = selectedSubject === sub;
                   return (
                     <TouchableOpacity
-                      key={st.id}
-                      style={[styles.streamCard, active && styles.streamCardActive]}
-                      onPress={() => setTargetStream(st.id)}
-                      activeOpacity={0.85}
+                      key={sub}
+                      style={[styles.catChip, active && styles.catChipActive]}
+                      onPress={() => setTargetSubject(sub)}
                     >
-                      <View style={styles.streamRowTop}>
-                        <Text style={[styles.streamTitle, active && { color: '#00E5FF' }]}>
-                          {st.label}
-                        </Text>
-                        {active && <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />}
-                      </View>
-                      <Text style={styles.streamDesc}>{st.desc}</Text>
+                      <Text style={[styles.catChipText, active && styles.catChipTextActive]}>
+                        {sub === 'All' ? 'All Subjects' : sub}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
             </View>
 
             {/* Exam Directory */}
@@ -347,10 +382,10 @@ export default function ExamTargetsScreen() {
                   <TouchableOpacity
                     key={sub}
                     style={[styles.catChip, active && styles.catChipActive]}
-                    onPress={() => setSelectedSubject(sub)}
+                    onPress={() => setTargetSubject(sub)}
                   >
                     <Text style={[styles.catChipText, active && styles.catChipTextActive]}>
-                      {sub}
+                      {sub === 'All' ? 'All Subjects' : sub}
                     </Text>
                   </TouchableOpacity>
                 );

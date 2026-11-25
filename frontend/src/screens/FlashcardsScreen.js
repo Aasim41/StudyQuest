@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
 import {
   EXAM_TARGETS,
+  getCuratedSubjectsForExam,
   getCuratedFlashcardsForExam,
   resolveStreamForExam,
 } from '../config/studyGuideData';
@@ -21,7 +22,7 @@ import { gsapTabTransition } from '../utils/gsapAnim';
 
 export default function FlashcardsScreen() {
   const navigation = useNavigation();
-  const { targetExam, targetStream, markGapMastered, awardCustomXp } = useUser();
+  const { targetExam, targetStream, targetSubject, setTargetSubject, markGapMastered, awardCustomXp } = useUser();
 
   const streamObj = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
 
@@ -30,39 +31,25 @@ export default function FlashcardsScreen() {
     return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
   }, [targetExam]);
 
-  const allCards = useMemo(() => {
-    return getCuratedFlashcardsForExam(targetExam, targetStream) || [];
+  const cardSubjects = useMemo(() => {
+    return ['All', ...getCuratedSubjectsForExam(targetExam, targetStream)];
   }, [targetExam, targetStream]);
 
-  const cardSubjects = useMemo(() => {
-    const set = new Set();
-    allCards.forEach((c) => c.subject && set.add(c.subject));
-    return ['All', ...Array.from(set)];
-  }, [allCards]);
-
-  const [selectedSubject, setSelectedSubject] = useState('All');
+  const selectedSubject = targetSubject || 'All';
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const cardAnim = useRef(new Animated.Value(1)).current;
 
   const cards = useMemo(() => {
-    if (selectedSubject === 'All') return allCards;
-    return allCards.filter((c) => c.subject === selectedSubject);
-  }, [allCards, selectedSubject]);
-
-  useEffect(() => {
-    setSelectedSubject('All');
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setCompletedCount(0);
-  }, [targetExam, targetStream]);
+    return getCuratedFlashcardsForExam(targetExam, targetStream, selectedSubject) || [];
+  }, [targetExam, targetStream, selectedSubject]);
 
   useEffect(() => {
     setCurrentIndex(0);
     setIsFlipped(false);
     setCompletedCount(0);
-  }, [selectedSubject]);
+  }, [targetExam, targetStream, selectedSubject]);
 
   const currentCard = cards[currentIndex];
   const isComplete = cards.length > 0 && currentIndex >= cards.length;
@@ -107,7 +94,11 @@ export default function FlashcardsScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>60s Blindspot Deck</Text>
           <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {streamObj ? `${activeExamLabel} • ${streamObj.shortLabel}` : activeExamLabel}
+            {selectedSubject && selectedSubject !== 'All'
+              ? `${activeExamLabel} • ${selectedSubject}`
+              : streamObj
+                ? `${activeExamLabel} • ${streamObj.label}`
+                : activeExamLabel}
           </Text>
         </View>
 
@@ -138,11 +129,11 @@ export default function FlashcardsScreen() {
                 <TouchableOpacity
                   key={sub}
                   style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => setSelectedSubject(sub)}
+                  onPress={() => setTargetSubject(sub)}
                   activeOpacity={0.85}
                 >
                   <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                    {sub}
+                    {sub === 'All' ? 'All Subjects' : sub}
                   </Text>
                 </TouchableOpacity>
               );

@@ -147,9 +147,16 @@ export const ADDITIONAL_EXAMS_KB = {
     ]
   },
 
-  // ─── CBSE CLASS 10 BOARDS ───────────────────────────────────────────────────
+  // ─── CBSE CLASS 10 BOARDS (ALL COMPULSORY SUBJECTS) ─────────────────────────
   CBSE_10: {
-    subjects: ['Mathematics', 'Science (Physics/Chem/Bio)', 'Social Science', 'English Language'],
+    subjects: [
+      'Mathematics',
+      'Science (Physics/Chem/Bio)',
+      'Social Science',
+      'English Language & Lit',
+      'Hindi / Second Language',
+      'IT / Computer Applications',
+    ],
     topics: [
       {
         id: 'cbse10-math-quadratic',
@@ -326,7 +333,7 @@ export const ADDITIONAL_EXAMS_KB = {
       },
       {
         id: 'cbse10-eng-letter-editor',
-        subject: 'English Language',
+        subject: 'English Language & Lit',
         title: 'Formal Letter to Editor: 7-Step Layout & Expression Marking Rubric',
         examRelevance: 'CBSE 10th Board Writing Skills 5-Marker Guaranteed',
         blindspotCount: 2,
@@ -370,6 +377,94 @@ export const ADDITIONAL_EXAMS_KB = {
             ],
             correctIndex: 1,
             explanation: 'The Subject line is placed directly between the Receiver address and the Salutation (or directly after salutation according to revised guidelines, with both accepted by CBSE).'
+          }
+        ]
+      },
+      {
+        id: 'cbse10-hin-vachya-padparichay',
+        subject: 'Hindi / Second Language',
+        title: 'Hindi Vyakaran: Vachya Parivartan, Pad Parichay & Formal Patra Lekhan',
+        examRelevance: 'CBSE Class 10 Course A/B 16-Mark Grammar + 5-Mark Writing',
+        blindspotCount: 2,
+        summary: 'Kartri -> Karm/Bhav vachya rules with exact tense preservation, kriya/ling/vachan tags in Pad Parichay, and formal application syntax.',
+        aiBlindspots: [
+          {
+            point: 'Preserving Tense (Kaal) During Vachya Conversion',
+            whatAiSays: 'Generic AI changes past tense sentences into present tense when converting Kartrivachya to Karmavachya.',
+            whatAiMisses: 'In CBSE Hindi marking scheme, converting "राम ने पत्र लिखा" (Bhootkaal) requires "राम द्वारा पत्र लिखा गया" (NOT "लिखा जाता है"!). Retaining the EXACT original tense and adding "द्वारा/से" + passive verb auxiliary "जाना" in matching kaal decides full grammar marks.',
+            examinerRubric: '1 mark per exact grammatical match preserving Kaal, Vachan, and Ling.'
+          }
+        ],
+        coreConcepts: [
+          'Kartrivachya -> Karmavachya: Valid only for Sakarmak (Transitive) verbs using "द्वारा" + matching "जाना" tense.',
+          'Bhavavachya: Always Akarma (Intransitive), Pullinga, Ekvachan, and Anya Purush (e.g., मुझसे चला नहीं जाता).',
+          'Pad Parichay 5 Tags: Sangya/Sarvanam/Visheshan/Kriya type + Ling + Vachan + Kaal/Karak + Sambandh.'
+        ],
+        examQuestions: [
+          {
+            question: 'निर्देशानुसार वाच्य परिवर्तन कीजिए: (क) बच्चे मैदान में खेलते हैं (भाववाच्य में), (ख) कबीर ने दोहे रचे (कर्मवाच्य में)।',
+            marks: 2,
+            keyPoints: [
+              '(क) बच्चों से/के द्वारा मैदान में खेला जाता है। (Keep वर्तमान काल intact, Verb 3rd person singular Pullinga).',
+              '(ख) कबीर के द्वारा दोहे रचे गए। (Keep सामान्य भूतकाल intact).'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'In CBSE Hindi Grammar, which tense & number MUST the verb carry in Bhavavachya?',
+            options: [
+              'Matches the subject gender and plural number',
+              'Always Pullinga, Ekvachan, and Anya Purush preserving original tense',
+              'Always Future Tense',
+              'Only Sakarmak verb forms'
+            ],
+            correctIndex: 1,
+            explanation: 'Bhavavachya is action-centered with intransitive verbs: verb stays masculine singular third-person regardless of doer gender/number.'
+          }
+        ]
+      },
+      {
+        id: 'cbse10-it-sql-queries',
+        subject: 'IT / Computer Applications',
+        title: 'IT 402 RDBMS SQL: SELECT, ORDER BY, Primary Key vs Candidate Key Traps',
+        examRelevance: 'CBSE 10th Skill Code 402 Database 4-Marker Guaranteed',
+        blindspotCount: 2,
+        summary: 'Writing exact SQL SELECT queries with string quotes, BETWEEN inclusive bounds, and distinguishing NULL vs 0 in LibreOffice Base.',
+        aiBlindspots: [
+          {
+            point: 'SQL String Literals Require Single Quotes & BETWEEN Includes Both Endpoints',
+            whatAiSays: 'Generic AI omits quotes around text values in WHERE clauses or swaps = NULL for IS NULL.',
+            whatAiMisses: 'In SQL standards tested by CBSE 402/165: checking missing values MUST use "IS NULL" (never "= NULL"), numeric/date BETWEEN includes BOTH endpoints (WHERE Marks BETWEEN 70 AND 90 includes 70 and 90), and wildcard % matches 0 or more chars while _ matches exactly 1 character.',
+            examinerRubric: '1 mark per error-free SQL statement; semicolon and quoted string constants checked.'
+          }
+        ],
+        coreConcepts: [
+          'Candidate Key: Minimal set of attributes able to uniquely identify tuples; Primary Key is chosen Candidate Key.',
+          'Foreign Key: Non-key attribute referencing Primary Key of another relation for referential integrity.',
+          'DML vs DDL: CREATE/ALTER/DROP are DDL (schema); INSERT/UPDATE/DELETE/SELECT are DML (data).'
+        ],
+        examQuestions: [
+          {
+            question: 'Write SQL queries for a STUDENT(Roll, Name, Marks, Stream) table: (a) Display names ending with "a", (b) List students sorted descending by Marks.',
+            marks: 4,
+            keyPoints: [
+              "SELECT Name FROM STUDENT WHERE Name LIKE '%a';",
+              'SELECT * FROM STUDENT ORDER BY Marks DESC;'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'Which SQL clause correctly checks for empty/missing email values in a Students table?',
+            options: [
+              'WHERE Email = NULL;',
+              'WHERE Email IS NULL;',
+              'WHERE Email == 0;',
+              'WHERE EMPTY(Email);'
+            ],
+            correctIndex: 1,
+            explanation: 'In SQL three-valued logic, NULL = NULL evaluates to UNKNOWN, so you must use the IS NULL operator.'
           }
         ]
       }
@@ -800,9 +895,18 @@ export const ADDITIONAL_EXAMS_KB = {
     ],
   },
 
-  // ─── ICSE 10 (MATHS & HISTORY/CIVICS) ──────────────────────────────────────
+  // ─── ICSE 10 (UNIFIED GROUP I + II + III: ALL CORE SUBJECTS) ──────────────────
   ICSE_10: {
-    subjects: ['English', 'Mathematics', 'Science (Physics/Chem/Bio)', 'History & Civics', 'Geography'],
+    subjects: [
+      'English (P1 & P2)',
+      'Mathematics',
+      'Physics (Science P1)',
+      'Chemistry (Science P2)',
+      'Biology (Science P3)',
+      'History & Civics',
+      'Geography',
+      'Computer Apps / 2nd Language',
+    ],
     topics: [
       {
         id: 'icse10-math-gst-rd',
@@ -884,6 +988,271 @@ export const ADDITIONAL_EXAMS_KB = {
           },
         ],
       },
+      {
+        id: 'icse10-phy-calorimetry-prism',
+        subject: 'Physics (Science P1)',
+        title: 'Calorimetry Latent Heat & Total Internal Reflection in 45°-90°-45° Prisms',
+        examRelevance: 'ICSE Physics Paper 1 Section B 4+4 Marks Guaranteed',
+        blindspotCount: 2,
+        summary: 'Principle of Mixtures heat lost = heat gained with melting latent heat mL, and 90°/180° prism turning via critical angle 42°.',
+        aiBlindspots: [
+          {
+            point: 'Omitting Container Calorimeter Heat Capacity (m_c · c_c · ΔT) and Two-Stage Ice Melt',
+            whatAiSays: 'Generic AI forgets copper calorimeter mass or melts ice directly at -10°C in one equation.',
+            whatAiMisses: 'CISCE Physics P1 deducts 1.5–2 marks if (1) Ice at -10°C -> 0°C ice (mcΔT) + melting at 0°C (mL) + warming 0°C -> T water is merged carelessly, or (2) Copper calorimeter water equivalent/heat absorption m_cal·c_cal·(T_i − T) is dropped!',
+            examinerRubric: '1 mark for stepwise phase equation, 1.5 marks for proper J/g/°C units match, 1.5 marks for final equilibrium temperature.'
+          }
+        ],
+        coreConcepts: [
+          'Principle of Method of Mixtures: Heat lost by hot body = Heat gained by cold body + Heat gained by calorimeter.',
+          'Total Internal Reflection: Light enters denser -> rarer medium with angle of incidence i > critical angle i_c (≈ 42° for crown glass).',
+          'Snell Law in Prism: Deviation minimum at symmetric path (i₁ = i₂), where δ_min = 2i − A.'
+        ],
+        examQuestions: [
+          {
+            question: '50 g of ice at 0°C is added to 200 g of water at 30°C inside a 100 g copper calorimeter (c_Cu = 0.4 J/g°C, c_w = 4.2 J/g°C, L_ice = 336 J/g). Find final temperature.',
+            marks: 4,
+            keyPoints: [
+              'Heat absorbed by ice = m_ice·L + m_ice·c_w·T = 50(336) + 50(4.2)T = 16,800 + 210T.',
+              'Heat lost by water + calorimeter = 200(4.2)(30 − T) + 100(0.4)(30 − T) = 880(30 − T) = 26,400 − 880T.',
+              'Equating: 1,090T = 9,600 => T ≈ 8.81 °C.'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'Why does dry ice or water absorb zero temperature rise while melting at 0°C?',
+            options: [
+              'Heat energy stops entering',
+              'Thermal energy overcomes intermolecular potential bonds rather than increasing average molecular KE',
+              'Specific heat capacity becomes zero',
+              'Pressure vanishes'
+            ],
+            correctIndex: 1,
+            explanation: 'Specific latent heat increases internal potential energy by breaking rigid crystalline lattice bonds without changing average translational kinetic energy (temperature).'
+          }
+        ]
+      },
+      {
+        id: 'icse10-chem-hall-heroult',
+        subject: 'Chemistry (Science P2)',
+        title: 'Hall-Heroult Metallurgy & Selective Ion Discharge in Electrolysis',
+        examRelevance: 'ICSE Chemistry Paper 2 Guaranteed 4-Marker',
+        blindspotCount: 2,
+        summary: 'Roles of Cryolite (Na₃AlF₆) and Fluorspar (CaF₂), why carbon anodes burn away, and electrochemical series discharge in aqueous vs molten electrolytes.',
+        aiBlindspots: [
+          {
+            point: 'Cryolite Serves BOTH Melting-Point Lowering AND Conductivity Roles + Carbon Anode Oxidation',
+            whatAiSays: 'Generic AI simply writes "Alumina is electrolyzed to Aluminium".',
+            whatAiMisses: 'ICSE Paper 2 marking keys ask THREE exact reasons: (1) Cryolite lowers alumina melting point from 2050°C to ~950°C AND increases fused electrical conductivity; (2) Powdered coke floats on top to prevent heat radiation loss and re-oxidation; (3) Carbon anodes must be periodically replaced because liberated oxygen reacts with hot carbon to form CO and CO₂!',
+            examinerRubric: '1 mark per exact substance role (Cryolite, Fluorspar, Coke, Anode replacement) + cathode/anode ionic equations.'
+          }
+        ],
+        coreConcepts: [
+          'Cathode Equation: Al³⁺ + 3e⁻ -> Al(l) (Reduction).',
+          'Anode Equation: 2O²⁻ − 4e⁻ -> O₂(g); followed by C + O₂ -> CO₂ (graphite anode consumption).',
+          'Active vs Inert Electrodes: CuSO₄ with Copper anode oxidizes Cu anode (Cu -> Cu²⁺ + 2e⁻), keeping blue color UNCHANGED.'
+        ],
+        examQuestions: [
+          {
+            question: 'In Hall-Heroult extraction of aluminium, explain the role of: (a) Cryolite, (b) Powdered coke, and why graphite anodes must be replaced periodically.',
+            marks: 4,
+            keyPoints: [
+              'Cryolite (Na₃AlF₆) acts as solvent lowering fusion temp from 2050°C to 950°C and boosts conductivity.',
+              'Powdered coke prevents radiative heat loss and oxidation of molten electrolyte.',
+              'Nascent oxygen liberated at anode oxidizes hot carbon to CO/CO₂, eroding the rods.'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'During electrolysis of aqueous CuSO₄ using active COPPER electrodes, how does the blue color of the solution behave?',
+            options: [
+              'Fades completely to colorless',
+              'Turns dark green',
+              'Remains unchanged because Cu²⁺ deposited at cathode is replenished from anode',
+              'Turns acidic red immediately'
+            ],
+            correctIndex: 2,
+            explanation: 'Copper anode dissolves as Cu -> Cu²⁺ + 2e⁻ at the exact rate Cu²⁺ deposits onto cathode, keeping [Cu²⁺] concentration and blue color constant.'
+          }
+        ]
+      },
+      {
+        id: 'icse10-comp-java-strings',
+        subject: 'Computer Apps / 2nd Language',
+        title: 'ICSE Group III Java: Overload Constructors, Bubble Sort & String compareTo()',
+        examRelevance: 'ICSE Computer Applications Section A Output + Section B 15-Mark Program',
+        blindspotCount: 2,
+        summary: 'Exact return value of String.compareTo() lexicographical ASCII difference, Math.rint() banker rounding, and array binary search.',
+        aiBlindspots: [
+          {
+            point: 'String.compareTo() Returns Numeric ASCII Difference — NOT Just -1/+1, and Math.rint(2.5) = 2.0',
+            whatAiSays: 'Generic AI assumes compareTo() always returns -1, 0, or 1.',
+            whatAiMisses: 'In Java, "CAT".compareTo("DOG") returns 67 - 68 = -1, while "APPLE".compareTo("DATE") returns 65 - 68 = -3 (exact Unicode difference of first mismatching char!). Also Math.rint(2.5) rounds half to EVEN -> 2.0, while Math.rint(3.5) -> 4.0!',
+            examinerRubric: 'Exact integer outputs required in Section A 2-mark predict-output traps.'
+          }
+        ],
+        coreConcepts: [
+          'Method Signature Overload: Same method name with different parameter count/type (return type alone cannot overload).',
+          'Binary Search Pre-condition: Array MUST already be sorted in ascending/descending order.',
+          'ASCII Bounds: "A"–"Z" = 65–90, "a"–"z" = 97–122, "0"–"9" = 48–57.'
+        ],
+        examQuestions: [
+          {
+            question: 'Predict output: System.out.println("BANGALORE".compareTo("DELHI")); System.out.println(Math.rint(4.5));',
+            marks: 2,
+            keyPoints: [
+              '"B" ASCII 66 minus "D" ASCII 68 => -2.',
+              'Math.rint(4.5) ties round toward even integer => 4.0.'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'What does Math.rint(5.5) + Math.floor(-2.3) evaluate to in Java?',
+            options: ['3.0', '4.0', '2.0', '3.7'],
+            correctIndex: 0,
+            explanation: 'Math.rint(5.5) rounds half-to-even -> 6.0. Math.floor(-2.3) rounds down toward -∞ -> -3.0. Sum = 6.0 + (-3.0) = 3.0.'
+          }
+        ]
+      }
+    ],
+  },
+
+  // ─── STATE BOARD CLASS 10 (SSC / SSLC / MATRIC / MADHYAMIK) ────────────────
+  STATE_10: {
+    subjects: [
+      'Mathematics',
+      'Science & Technology',
+      'Social Studies',
+      'English Language',
+      'Second / Regional Language',
+    ],
+    topics: [
+      {
+        id: 'state10-math-cramer-similarity',
+        subject: 'Mathematics',
+        title: 'Algebra & Geometry: Cramer Determinant Rule & Tangent-Secant Proofs',
+        examRelevance: 'SSC / SSLC / Madhyamik Compulsory 4-Marker Derivation & Numerical',
+        blindspotCount: 2,
+        summary: 'Standard a₁x + b₁y = c₁ alignment before forming determinants D, Dx, Dy, plus Similarity / Alternate Segment circle proofs.',
+        aiBlindspots: [
+          {
+            point: 'Rearranging Constants (c₁, c₂) to RHS Before Applying Cramer Rule Determinants',
+            whatAiSays: 'Generic AI reads coefficients straight from equations in ax + by + c = 0 form, inverting signs of Dx and Dy.',
+            whatAiMisses: 'In MH SSC, KA SSLC, and WB Madhyamik rubrics, equations MUST first be written in ax + by = c form with constants on the RIGHT side before computing D, Dx, Dy. Mixing left-hand c directly causes -1 sign inversion on both x and y!',
+            examinerRubric: '1 mark for standard ax+by=c rearrangement, 1 mark each for D, Dx, Dy determinant values, 1 mark for (x, y) solution set.'
+          }
+        ],
+        coreConcepts: [
+          'Cramer Rule: x = Dx / D and y = Dy / D provided D ≠ 0.',
+          'Ratio of Areas of Similar Triangles: Area(ΔABC)/Area(ΔPQR) = (AB/PQ)² (ratio of SQUARES of corresponding sides).',
+          'Tangent Radius Property: Tangent at any point of circle is perpendicular to radius at point of contact.'
+        ],
+        examQuestions: [
+          {
+            question: 'Solve 3x − 4y = 10 and 4x + 3y = 5 using Cramer Determinant Rule.',
+            marks: 4,
+            keyPoints: [
+              'D = |3  -4; 4  3| = 9 − (-16) = 25.',
+              'Dx = |10  -4; 5  3| = 30 − (-20) = 50; Dy = |3  10; 4  5| = 15 − 40 = -25.',
+              'x = Dx/D = 50/25 = 2; y = Dy/D = -25/25 = -1. Solution = (2, -1).'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'If two similar triangles have corresponding side ratio 3 : 5, what is the ratio of their areas?',
+            options: ['3 : 5', '5 : 3', '9 : 25', '25 : 9'],
+            correctIndex: 2,
+            explanation: 'By Theorem of Areas of Similar Triangles, Area₁ / Area₂ = (side₁ / side₂)² = (3/5)² = 9 : 25.'
+          }
+        ]
+      },
+      {
+        id: 'state10-sci-kepler-electric',
+        subject: 'Science & Technology',
+        title: 'Gravitation / Electricity & Heredity: Kepler Laws, Ohm Resistance & ATP Energy',
+        examRelevance: 'SSC / SSLC Part I & Part II Board High-Weightage Questions',
+        blindspotCount: 2,
+        summary: 'Kepler inverse-square law derivation from T² ∝ r³, heating H = I²Rt numericals with kWh energy billing, and aerobic vs anaerobic ATP count.',
+        aiBlindspots: [
+          {
+            point: 'Energy Bills Use kWh (Power in kW × Time in Hours) — NOT Watts × Minutes',
+            whatAiSays: 'Generic AI multiplies given Watt × minutes and labels result kWh.',
+            whatAiMisses: 'Board examiners deduct half-marks immediately if Watts are not divided by 1000 into kW and days/hours are not converted cleanly before multiplying by tariff rate ₹/unit (1 unit = 1 kWh = 3.6 × 10⁶ J).',
+            examinerRubric: '1 mark for P(kW) conversion, 1 mark for E = P×t (kWh), 1 mark for total monthly bill.'
+          }
+        ],
+        coreConcepts: [
+          'Kepler Third Law: T² ∝ r³ leads Newton to Inverse Square Gravity Force F ∝ 1/r² assuming circular uniform orbit.',
+          'Electric Heating: H = I²Rt Joules; Commercial 1 Unit = 1 kWh = 3.6 × 10⁶ J.',
+          'Aerobic Glycolysis -> Krebs -> ETC yields 38 ATP (net 36 in eukaryotes), vs anaerobic fermentation yielding 2 ATP + lactic acid/ethanol.'
+        ],
+        examQuestions: [
+          {
+            question: 'State Kepler three laws of planetary motion and show how Newton used Kepler third law to deduce F ∝ 1/r².',
+            marks: 3,
+            keyPoints: [
+              'Laws of Orbits (Ellipse), Equal Areas in equal times, and Period T² = K·r³.',
+              'Centripetal force F = mv²/r where v = 2πr / T.',
+              'Substitute v² => F = 4π²mr / T²; replace T² = K·r³ => F = (4π²m/K) · (1/r²) => F ∝ 1/r².'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'A 1000 W iron box runs for 2 hours daily for 30 days. How many electrical units (kWh) does it consume?',
+            options: ['6 units', '60 units', '600 units', '30 units'],
+            correctIndex: 1,
+            explanation: 'P = 1000 W = 1 kW. Total hours = 2 × 30 = 60 hrs. Energy = 1 kW × 60 h = 60 kWh = 60 units.'
+          }
+        ]
+      },
+      {
+        id: 'state10-sst-constitution',
+        subject: 'Social Studies',
+        title: 'Democratic Constitution, Federalism & Map / Data Graph Questions',
+        examRelevance: 'SSC / SSLC / Madhyamik Full Board Social Paper',
+        blindspotCount: 2,
+        summary: '73rd/74th Local Self-Government Panchayati Raj, Right to Information (RTI 2005), and state physiography climate patterns.',
+        aiBlindspots: [
+          {
+            point: 'RTI 30-Day Mandatory Response Window & Election Commission Independent Tenure',
+            whatAiSays: 'Generic AI gives vague textbook descriptions of citizens asking questions.',
+            whatAiMisses: 'State board rubrics reward specific institutional facts: RTI Act 2005 mandates 30-day PIO reply (48 hours if life/liberty threatened), and Election Commission conducts Lok Sabha, Vidhan Sabha, President/VP elections (NOT Panchayat/Municipal polls — conducted by State Election Commission!).',
+            examinerRubric: '1 mark per point with exact Act/Authority distinction.'
+          }
+        ],
+        coreConcepts: [
+          '73rd & 74th Constitutional Amendments (1992): Added 3-tier Panchayati Raj (Gram, Block, Zila) and Municipalities with 1/3rd seat reservation for women.',
+          'State Election Commission conducts local urban/rural body elections; ECI conducts national/state legislature elections.'
+        ],
+        examQuestions: [
+          {
+            question: 'Which Constitutional Amendments institutionalized Local Self-Government in India and what key reservation did they mandate?',
+            marks: 3,
+            keyPoints: [
+              '73rd Amendment (Part IX, 11th Schedule) for Rural Panchayati Raj; 74th Amendment (Part IXA, 12th Schedule) for Urban Municipalities.',
+              'Mandated regular elections every 5 years and minimum one-third (33%) seat reservation for women.'
+            ]
+          }
+        ],
+        quiz: [
+          {
+            question: 'Which constitutional body conducts Gram Panchayat and Municipal Corporation elections in Indian states?',
+            options: [
+              'Election Commission of India (ECI)',
+              'Union Ministry of Home Affairs',
+              'State Election Commission (SEC)',
+              'Supreme Court Collegium'
+            ],
+            correctIndex: 2,
+            explanation: 'Article 243K empowers an independent State Election Commission in every state to conduct local body (Panchayat and Municipal) elections.'
+          }
+        ]
+      }
     ],
   },
 
