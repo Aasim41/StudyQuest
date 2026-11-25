@@ -1,191 +1,147 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import React, { useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  TouchableOpacity,
+  Animated,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, FONTS } from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { gsapEntrance } from '../utils/gsapAnim';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const WORKFLOW_STEPS = [
   {
     icon: 'school-outline',
-    title: '1. Select Your Target Exam',
-    desc: 'Choose from CBSE 10th/12th Boards, JEE Main/Advanced, NEET UG, College Semesters, GATE, UPSC, or define a Custom exam target.'
+    title: '1. Exam & Stream Blueprint',
+    desc: 'Select from 21 competitive, national board, and state board exams with exact streams, subject codes, and chapter weights.',
   },
   {
     icon: 'shield-search',
-    title: '2. Audit Blindspots That Standard AI Misses',
-    desc: 'Paste a syllabus topic or upload question notes. StudyQuest pinpoints exact omission areas—definitions, edge cases, and graph intercepts that generic LLMs fail to mention.'
+    title: '2. Blindspot & Rubric Audit',
+    desc: 'Spot the boundary conditions, SI units, and derivations standard notes skip, backed by step-marking evaluation keys.',
   },
   {
-    icon: 'format-list-checks',
-    title: '3. Examiner Marking Scheme Rubrics',
-    desc: 'Access official step-marking rubrics. Know exactly how many marks examiners allocate for intermediate formulas, units, labeled diagrams, and concluding remarks.'
+    icon: 'play-circle-outline',
+    title: '3. Flow Distraction-Free Video',
+    desc: 'Stream curated lectures and search study topics ad-free without Shorts or recommendation algorithms.',
   },
   {
-    icon: 'radar',
-    title: '4. 5-Year Question Probability Radar',
-    desc: 'Review questions ranked by recurring patterns and examiner likelihood over the past 5 years so you prioritize high-probability topics first.'
+    icon: 'shield-lock-outline',
+    title: '4. Regain Deep Focus Shield',
+    desc: 'Lock in with structured sprint timers, Reels blockers, and a 5-second mindful breathing brake before distraction.',
   },
-  {
-    icon: 'file-pdf-box',
-    title: '5. 60s Flashcards & 1-Page Cheat Sheet PDF',
-    desc: 'Flip interactive 3D flashcards on exam morning for rapid retention, or export a formatted 1-page printable cheat sheet PDF with one tap.'
-  }
 ];
 
 export default function HowItWorksScreen({ navigation }) {
+  const listAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    return gsapEntrance(listAnim, { duration: 0.4, ease: 'power2.out' });
+  }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
-      <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#FFF" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="arrow-left" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>How It Works</Text>
-        <View style={{ width: 40 }} />
-      </Animated.View>
+        <View style={{ width: 36 }} />
+      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <Text style={styles.subtitle}>The AI Exam Blindspot Workflow</Text>
-          <Text style={styles.description}>
-            StudyQuest is built to eliminate mark loss from overlooked syllabus points and unstandardized answers. Here is how your preparation is secured:
-          </Text>
-        </Animated.View>
-
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={{
+          opacity: listAnim,
+          transform: [{ translateY: listAnim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+        }}
+      >
         <View style={styles.stepsContainer}>
           {WORKFLOW_STEPS.map((step, index) => (
-            <Animated.View
-              key={index}
-              entering={FadeInDown.delay(150 + index * 70).springify()}
-              style={styles.stepCard}
-            >
-              <LinearGradient colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.02)']} style={styles.stepGradient}>
-                <View style={styles.iconContainer}>
-                  <MaterialCommunityIcons name={step.icon} size={24} color="#00D2FF" />
-                </View>
-                <View style={styles.stepTextContainer}>
-                  <Text style={styles.stepTitle}>{step.title}</Text>
-                  <Text style={styles.stepDesc}>{step.desc}</Text>
-                </View>
-              </LinearGradient>
-            </Animated.View>
+            <View key={index} style={styles.stepCard}>
+              <View style={styles.iconContainer}>
+                <MaterialCommunityIcons name={step.icon} size={20} color="#00E5FF" />
+              </View>
+              <View style={styles.stepTextContainer}>
+                <Text style={styles.stepTitle}>{step.title}</Text>
+                <Text style={styles.stepDesc}>{step.desc}</Text>
+              </View>
+            </View>
           ))}
         </View>
 
-        <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Signup')}>
-            <LinearGradient colors={['#6C5CE7', '#00D2FF']} style={styles.primaryBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Text style={styles.primaryBtnText}>Start Free Exam Audit</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() => navigation.navigate('Signup')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.primaryBtnText}>Create Free Account →</Text>
+        </TouchableOpacity>
+      </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#0B0C12' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: 18,
     paddingTop: height * 0.06,
-    paddingBottom: SPACING.md,
+    paddingBottom: 14,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#222436',
+    backgroundColor: '#0E1018',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: 40,
-  },
-  subtitle: {
-    color: '#00D2FF',
-    fontSize: 18,
-    fontFamily: FONTS.extraBold,
-    marginBottom: 6,
-  },
-  description: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: FONTS.regular,
-    marginBottom: SPACING.lg,
-  },
-  stepsContainer: {
+  headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
+  scrollContent: { padding: 18, paddingBottom: 40, gap: 18 },
+  stepsContainer: { gap: 10 },
+  stepCard: {
+    flexDirection: 'row',
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    alignItems: 'flex-start',
     gap: 12,
   },
-  stepCard: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  stepGradient: {
-    flexDirection: 'row',
-    padding: 16,
-    alignItems: 'flex-start',
-    gap: 14,
-  },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
   },
-  stepTextContainer: {
-    flex: 1,
-  },
-  stepTitle: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    marginBottom: 4,
-  },
-  stepDesc: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: FONTS.regular,
-  },
-  footer: {
-    marginTop: 24,
-  },
+  stepTextContainer: { flex: 1, gap: 4 },
+  stepTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  stepDesc: { color: '#8E8EA8', fontSize: 12, lineHeight: 17 },
   primaryBtn: {
-    borderRadius: BORDER_RADIUS.pill,
-    overflow: 'hidden',
-  },
-  primaryBtnGradient: {
+    backgroundColor: '#00E5FF',
     paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  primaryBtnText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: FONTS.bold,
-    letterSpacing: 0.3,
-  },
+  primaryBtnText: { color: '#0B0C12', fontSize: 14, fontWeight: '900' },
 });

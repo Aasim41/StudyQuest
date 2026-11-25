@@ -1,11 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS } from '../theme';
+import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
-import { GlassCard } from '../components/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -21,37 +18,50 @@ const ACHIEVEMENTS = [
 ];
 
 export default function AchievementsScreen() {
+  const navigation = useNavigation();
   const { userStats } = useUser();
-  const currentXP = userStats.xp || 0;
+  const currentXP = userStats?.xp || 0;
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Achievements 🏆</Text>
-        <Text style={styles.headerSub}>Unlock badges as you learn</Text>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>Achievements</Text>
+          <Text style={styles.headerSub}>{currentXP} XP earned</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.grid}>
-          {ACHIEVEMENTS.map((item, index) => {
+          {ACHIEVEMENTS.map((item) => {
             const unlocked = currentXP >= item.reqXP;
             return (
-              <Animated.View key={item.id} entering={FadeInDown.delay(index * 100).springify()} style={styles.cardContainer}>
-                <GlassCard style={[styles.badgeCard, !unlocked && styles.lockedCard]}>
+              <View key={item.id} style={styles.cardContainer}>
+                <View style={[styles.badgeCard, !unlocked && styles.lockedCard]}>
                   <View style={[styles.iconWrapper, !unlocked && styles.lockedIconWrapper]}>
-                    {unlocked ? (
-                      <MaterialCommunityIcons name={item.icon} size={32} color={COLORS.textPrimary} />
-                    ) : (
-                      <MaterialCommunityIcons name="lock" size={32} color={COLORS.textPrimary} style={{ opacity: 0.3 }} />
-                    )}
+                    <MaterialCommunityIcons
+                      name={unlocked ? item.icon : 'lock'}
+                      size={28}
+                      color={unlocked ? '#00E5FF' : '#555577'}
+                    />
                   </View>
-                  <Text style={[styles.title, !unlocked && styles.lockedText]} numberOfLines={1}>{item.title}</Text>
-                  <Text style={[styles.desc, !unlocked && styles.lockedText]} numberOfLines={2}>{item.desc}</Text>
-                </GlassCard>
-              </Animated.View>
+                  <Text style={[styles.title, !unlocked && styles.lockedText]} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.desc, !unlocked && styles.lockedText]} numberOfLines={2}>
+                    {item.desc}
+                  </Text>
+                </View>
+              </View>
             );
           })}
         </View>
@@ -62,22 +72,57 @@ export default function AchievementsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingHorizontal: SPACING.xl, paddingTop: 60, paddingBottom: SPACING.md },
-  headerTitle: { fontSize: FONT_SIZES.hero, fontFamily: FONTS.extraBold, color: '#FFF' },
-  headerSub: { fontSize: FONT_SIZES.body, color: COLORS.accent, fontFamily: FONTS.semiBold, marginTop: 4 },
-  scrollContent: { paddingHorizontal: SPACING.lg, paddingBottom: 60 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  cardContainer: { width: (width - SPACING.lg * 2 - SPACING.md) / 2, marginBottom: SPACING.md },
-  badgeCard: { padding: SPACING.lg, alignItems: 'center', height: 180 },
-  lockedCard: { backgroundColor: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.05)' },
-  iconWrapper: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md,
-    borderWidth: 1, borderColor: '#FFD700',
+  container: { flex: 1, backgroundColor: '#0B0C12' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: Platform.OS === 'ios' ? 54 : 38,
+    paddingBottom: 14,
+    backgroundColor: '#12141F',
+    borderBottomWidth: 1,
+    borderBottomColor: '#222436',
   },
-  lockedIconWrapper: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' },
-  title: { fontSize: FONT_SIZES.body, fontFamily: FONTS.bold, color: '#FFF', textAlign: 'center', marginBottom: 4 },
-  desc: { fontSize: 10, fontFamily: FONTS.semiBold, color: COLORS.textSecondary, textAlign: 'center' },
-  lockedText: { color: COLORS.textMuted },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#0B0C12',
+    borderWidth: 1,
+    borderColor: '#222436',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  headerSub: { fontSize: 11, color: '#00E5FF', fontWeight: '700', marginTop: 1 },
+  scrollContent: { padding: 18, paddingBottom: 60 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  cardContainer: { width: (width - 48) / 2, marginBottom: 12 },
+  badgeCard: {
+    backgroundColor: '#12141F',
+    borderWidth: 1,
+    borderColor: '#00E5FF44',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    height: 164,
+    justifyContent: 'center',
+  },
+  lockedCard: { borderColor: '#222436', opacity: 0.7 },
+  iconWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#00E5FF14',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#00E5FF44',
+  },
+  lockedIconWrapper: { backgroundColor: '#0B0C12', borderColor: '#222436' },
+  title: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', marginBottom: 4 },
+  desc: { fontSize: 11, fontWeight: '600', color: '#8E8EA8', textAlign: 'center' },
+  lockedText: { color: '#666688' },
 });

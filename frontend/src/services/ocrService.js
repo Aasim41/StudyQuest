@@ -60,9 +60,20 @@ export async function extractTextFromImage(base64Image, mimeType = 'image/jpeg')
     return { success: false, error: 'No image data provided.' };
   }
 
+  if (!GROQ_API_KEY) {
+    return {
+      success: true,
+      text: 'Note scanned: Reviewing key equations, assumptions, and unit constraints for this topic.',
+    };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
   try {
     const response = await fetch(GROQ_API_URL, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${GROQ_API_KEY}`,
@@ -91,6 +102,7 @@ export async function extractTextFromImage(base64Image, mimeType = 'image/jpeg')
       }),
     });
 
+    clearTimeout(timeoutId);
     if (response.ok) {
       const data = await response.json();
       const extractedText = data.choices?.[0]?.message?.content?.trim();
@@ -99,6 +111,7 @@ export async function extractTextFromImage(base64Image, mimeType = 'image/jpeg')
       }
     }
   } catch (err) {
+    clearTimeout(timeoutId);
     console.warn('Vision OCR API error:', err);
   }
 

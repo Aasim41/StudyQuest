@@ -115,22 +115,25 @@ export async function auditTopic(subject = 'General', topicTitle = '', examTarge
 
   const examContext = getExamContext(examTarget);
 
-  // 4. Perform live AI audit with 10s AbortController timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Skip network latency completely when API key is not configured
+  if (GROQ_API_KEY) {
+    // 4. Perform live AI audit with 10s AbortController timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  try {
-    const systemPrompt = `You are a master exam auditor and veteran evaluator across competitive exams (JEE, NEET, GATE, UPSC, CAT), board exams (CBSE, ICSE, State Boards), and university degree courses.
+    try {
+      const cleanTopic = topicTitle.slice(0, 160);
+      const systemPrompt = `You are a master exam auditor and veteran evaluator across competitive exams (JEE, NEET, GATE, UPSC, CAT), board exams (CBSE, ICSE, State Boards), and university degree courses.
 Target Exam: "${examTarget}" (${examContext})
 Subject: "${subject}"
-Topic: "${topicTitle}"
+Topic: "${cleanTopic}"
 
 Generic AI (like standard ChatGPT) gives high-level textbook summaries that omit the exact scoring keys, edge cases, formulas, derivations, and traps that examiners penalize.
-Your job is to identify what generic AI misses for this specific exam.
+Your job is to identify what generic AI misses for this specific exam. Do not use LaTeX delimiters like \\( or \\); format math using crisp Unicode symbols.
 
 Return ONLY valid JSON with this exact structure:
 {
-  "topic": "${topicTitle}",
+  "topic": "${cleanTopic}",
   "subject": "${subject}",
   "examTarget": "${examTarget}",
   "blindspotCount": 3,
@@ -168,48 +171,49 @@ Return ONLY valid JSON with this exact structure:
   ]
 }`;
 
-    const userPrompt = `Audit the topic "${topicTitle}" for "${subject}" targeted at "${examTarget}". Detail the top 3 critical points that generic AI skips which cause students to lose marks.`;
+      const userPrompt = `Audit the topic "${cleanTopic}" for "${subject}" targeted at "${examTarget}". Detail the top 3 critical points that generic AI skips which cause students to lose marks.`;
 
-    const response = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen3.8-27b',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-        max_tokens: 1500
-      })
-    });
+      const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen3.8-27b',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+          max_tokens: 1500
+        })
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (response.ok) {
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) {
-        const parsed = JSON.parse(content);
-        const finalResult = {
-          success: true,
-          source: 'groq_ai_live',
-          ...parsed
-        };
-        // Save to in-memory & disk cache
-        MEMORY_CACHE.set(cacheKey, finalResult);
-        AsyncStorage.setItem(cacheKey, JSON.stringify(finalResult)).catch(() => {});
-        return finalResult;
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(content);
+          const finalResult = {
+            success: true,
+            source: 'groq_ai_live',
+            ...parsed
+          };
+          // Save to in-memory & disk cache
+          MEMORY_CACHE.set(cacheKey, finalResult);
+          AsyncStorage.setItem(cacheKey, JSON.stringify(finalResult)).catch(() => {});
+          return finalResult;
+        }
       }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('Groq AI audit error or timeout, activating dynamic synthesizer:', err.name === 'AbortError' ? 'Timeout (10s)' : err.message);
     }
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.warn('Groq AI audit error or timeout, activating dynamic synthesizer:', err.name === 'AbortError' ? 'Timeout (10s)' : err.message);
   }
 
   // 5. Fallback: Universal dynamic synthesizer
@@ -287,12 +291,15 @@ export async function auditUserAnswer(subject, topicTitle, examTarget, studentAn
   }
 
   const examContext = getExamContext(examTarget);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  try {
-    const systemPrompt = `You are a strict examiner grading a student's answer for "${topicTitle}" in "${subject}" for the target exam "${examTarget}" (${examContext}).
-Identify what the answer covered, and more importantly, identify the crucial points, formulas, definitions, units, or edge cases the answer OMITTED that generic AI or students forget.
+  if (GROQ_API_KEY) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const cleanAnswer = studentAnswer.trim().slice(0, 6000);
+      const systemPrompt = `You are a strict examiner grading a student's answer for "${topicTitle}" in "${subject}" for the target exam "${examTarget}" (${examContext}).
+Identify what the answer covered, and more importantly, identify the crucial points, formulas, definitions, units, or edge cases the answer OMITTED that generic AI or students forget. Do not use LaTeX delimiters like \\( or \\); use Unicode math notation.
 
 Return ONLY valid JSON matching this exact structure:
 {
@@ -314,44 +321,45 @@ Return ONLY valid JSON matching this exact structure:
   "fullMarksAdditions": "A cohesive paragraph providing the exact text needed for 100% full marks."
 }`;
 
-    const userPrompt = `Grade and audit this draft answer for "${topicTitle}" (${subject}, ${examTarget}):\n\n"${studentAnswer}"`;
+      const userPrompt = `Grade and audit this draft answer for "${topicTitle}" (${subject}, ${examTarget}):\n\n"${cleanAnswer}"`;
 
-    const response = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen3.8-27b',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-        max_tokens: 1500
-      })
-    });
+      const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen3.8-27b',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+          max_tokens: 1500
+        })
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (response.ok) {
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) {
-        const parsed = JSON.parse(content);
-        return {
-          success: true,
-          source: 'groq_ai_live',
-          ...parsed
-        };
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(content);
+          return {
+            success: true,
+            source: 'groq_ai_live',
+            ...parsed
+          };
+        }
       }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('Groq answer audit error or timeout:', err.name === 'AbortError' ? 'Timeout (10s)' : err.message);
     }
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.warn('Groq answer audit error or timeout:', err.name === 'AbortError' ? 'Timeout (10s)' : err.message);
   }
 
   return {

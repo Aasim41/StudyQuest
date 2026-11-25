@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   Share,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS, SPACING, BORDER_RADIUS } from '../theme';
 import { useUser } from '../context/UserContext';
 import { generateAndShareCheatSheetPdf } from '../services/pdfService';
 import MarkingSimulatorModal from '../components/MarkingSimulatorModal';
+import { gsapTabTransition } from '../utils/gsapAnim';
 
 export default function StudyGuideDetailScreen() {
   const navigation = useNavigation();
@@ -26,23 +27,34 @@ export default function StudyGuideDetailScreen() {
     title: 'Photoelectric Effect & Stopping Potential',
     subject: 'Physics',
     summary: 'Emission of electrons when electromagnetic radiation impinges on a material.',
-    examRelevance: 'High Probability Board & Competitive Exam Topic',
+    examRelevance: 'High Probability Exam Topic',
     aiBlindspots: [],
     coreConcepts: [],
     examQuestions: [],
     quiz: [],
   };
 
-  const isSaved = savedGuides.some(g => (g.id && g.id === guide.id) || g.title === guide.title);
+  const isSaved = savedGuides.some((g) => (g.id && g.id === guide.id) || g.title === guide.title);
 
-  // Interactive Quiz State
+  // 4 Clean Card Tabs: 'concepts' | 'blindspots' | 'pyqs' | 'quiz'
+  const [activeTab, setActiveTab] = useState('concepts');
+  const tabAnim = useRef(new Animated.Value(1)).current;
+
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [revealedQuiz, setRevealedQuiz] = useState({});
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [simulatorQuestion, setSimulatorQuestion] = useState(null);
+
+  const switchTab = (tab) => {
+    if (tab === activeTab) return;
+    gsapTabTransition(tabAnim);
+    setActiveTab(tab);
+  };
 
   const handleSelectOption = (qIdx, optIdx, isCorrect) => {
     if (revealedQuiz[qIdx]) return;
-    setSelectedAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
-    setRevealedQuiz(prev => ({ ...prev, [qIdx]: true }));
+    setSelectedAnswers((prev) => ({ ...prev, [qIdx]: optIdx }));
+    setRevealedQuiz((prev) => ({ ...prev, [qIdx]: true }));
     if (isCorrect) {
       awardCustomXp(25, 'Correct Gap Quiz Answer');
     }
@@ -51,13 +63,10 @@ export default function StudyGuideDetailScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `StudyQuest Guide: ${guide.title} (${guide.subject})\n\nCheck out the AI Blindspots & Examiner Scoring Keys on StudyQuest!`,
+        message: `StudyQuest Guide: ${guide.title} (${guide.subject})`,
       });
     } catch (e) {}
   };
-
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [simulatorQuestion, setSimulatorQuestion] = useState(null);
 
   const handleExportPdf = async () => {
     try {
@@ -75,195 +84,194 @@ export default function StudyGuideDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0A1A" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C12" />
 
-      {/* Header */}
+      {/* Minimal Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backCircleBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialCommunityIcons name="chevron-left" size={26} color="#FFF" />
-        </TouchableOpacity>
-
-        <View style={styles.headerRightRow}>
+        <View style={styles.headerTop}>
           <TouchableOpacity
-            style={styles.headerActionBtn}
+            style={styles.iconBtn}
             activeOpacity={0.8}
-            onPress={toggleSaveGuide.bind(null, guide)}
+            onPress={() => navigation.goBack()}
           >
-            <MaterialCommunityIcons
-              name={isSaved ? "bookmark" : "bookmark-outline"}
-              size={22}
-              color={isSaved ? "#00D2FF" : "#FFF"}
-            />
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.headerActionBtn}
-            activeOpacity={0.8}
-            onPress={handleExportPdf}
-            disabled={pdfLoading}
-          >
-            {pdfLoading ? (
-              <ActivityIndicator size="small" color="#FFD32A" />
-            ) : (
-              <MaterialCommunityIcons name="file-pdf-box" size={22} color="#FFD32A" />
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerMeta}>
+            <Text style={styles.headerSubject} numberOfLines={1}>{guide.subject}</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>{guide.title}</Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.headerActionBtn}
-            activeOpacity={0.8}
-            onPress={handleShare}
-          >
-            <MaterialCommunityIcons name="share-variant-outline" size={20} color="#FFF" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => toggleSaveGuide(guide)}>
+              <MaterialCommunityIcons
+                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={18}
+                color={isSaved ? '#00E5FF' : '#FFFFFF'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={handleExportPdf} disabled={pdfLoading}>
+              {pdfLoading ? (
+                <ActivityIndicator size="small" color="#FFD32A" />
+              ) : (
+                <MaterialCommunityIcons name="file-pdf-box" size={18} color="#FFD32A" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
+              <MaterialCommunityIcons name="share-variant-outline" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 4 Segmented Card Tabs */}
+        <View style={styles.cardTabsRow}>
+          {[
+            { id: 'concepts', label: 'Concepts' },
+            { id: 'blindspots', label: `Traps (${(guide.aiBlindspots || []).length})` },
+            { id: 'pyqs', label: 'PYQ Keys' },
+            { id: 'quiz', label: 'Quiz' },
+          ].map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.cardTab, active && styles.cardTabActive]}
+                onPress={() => switchTab(tab.id)}
+              >
+                <Text style={[styles.cardTabText, active && styles.cardTabTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        style={{ opacity: tabAnim, transform: [{ scale: tabAnim }] }}
       >
-        {/* Subject & Title */}
-        <View style={styles.titleSection}>
-          <View style={styles.subjectBadge}>
-            <Text style={styles.subjectBadgeText}>{guide.subject || 'Core Subject'}</Text>
-          </View>
-          <Text style={styles.guideTitle}>{guide.title}</Text>
-          <Text style={styles.guideSummary}>{guide.summary}</Text>
-          {guide.examRelevance ? (
-            <View style={styles.relevanceTag}>
-              <MaterialCommunityIcons name="fire" size={14} color="#FF6B35" style={{ marginRight: 4 }} />
-              <Text style={styles.relevanceTagText}>{guide.examRelevance}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* ─── 1. AI BLINDSPOTS SECTION (FLAGSHIP) ────────────────────── */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionIconBadge}>
-              <MaterialCommunityIcons name="shield-alert-outline" size={18} color="#FF6B35" />
-            </View>
-            <Text style={styles.sectionTitle}>What Generic AI Leaves Out</Text>
-          </View>
-          <Text style={styles.sectionSub}>
-            Examiners look for these specific details that standard online AI explanations miss:
-          </Text>
-
-          {(guide.aiBlindspots || []).map((item, idx) => (
-            <View key={idx} style={styles.blindspotBlock}>
-              <Text style={styles.blindspotPointTitle}>
-                {idx + 1}. {item.point}
-              </Text>
-              <View style={styles.omissionBox}>
-                <Text style={styles.omissionLabel}>❌ Crucial Omission:</Text>
-                <Text style={styles.omissionText}>{item.whatAiMisses}</Text>
-              </View>
-              <View style={styles.rubricBox}>
-                <MaterialCommunityIcons name="gavel" size={14} color="#FFD93D" style={{ marginRight: 6 }} />
-                <Text style={styles.rubricText}>
-                  <Text style={{ fontWeight: '800', color: '#FFD93D' }}>Marking Key: </Text>
-                  {item.examinerRubric}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* ─── 2. CORE CONCEPTS ROADMAP ─────────────────────────────────── */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(0, 210, 255, 0.15)' }]}>
-              <MaterialCommunityIcons name="book-open-page-variant" size={18} color="#00D2FF" />
-            </View>
-            <Text style={[styles.sectionTitle, { color: '#00D2FF' }]}>Core Syllabus Essentials</Text>
-          </View>
-
-          {(guide.coreConcepts || []).map((cc, i) => (
-            <View key={i} style={styles.coreItemRow}>
-              <View style={styles.coreNumberBox}>
-                <Text style={styles.coreNumberText}>{i + 1}</Text>
-              </View>
-              <Text style={styles.coreItemText}>{cc}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ─── 3. EXAMINER QUESTIONS & RUBRICS ──────────────────────────── */}
-        {guide.examQuestions && guide.examQuestions.length > 0 && (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(46, 204, 113, 0.15)' }]}>
-                <MaterialCommunityIcons name="clipboard-text-outline" size={18} color="#2ECC71" />
-              </View>
-              <Text style={[styles.sectionTitle, { color: '#2ECC71' }]}>Expected Exam Questions & Scoring Keys</Text>
+        {/* TAB 1: CONCEPTS & FORMULAS */}
+        {activeTab === 'concepts' && (
+          <View style={styles.tabBody}>
+            <View style={styles.card}>
+              <Text style={styles.cardHeading}>{guide.title}</Text>
+              <Text style={styles.cardSummary}>{guide.summary}</Text>
+              {guide.examRelevance && (
+                <Text style={styles.relevanceText}>{guide.examRelevance}</Text>
+              )}
             </View>
 
-            {guide.examQuestions.map((eq, qi) => (
-              <View key={qi} style={styles.examQBlock}>
-                <View style={styles.examQHeader}>
-                  <Text style={styles.examQTitle}>Q{qi + 1}: {eq.question}</Text>
-                  <View style={styles.marksBadge}>
-                    <Text style={styles.marksBadgeText}>{eq.marks} Marks</Text>
-                  </View>
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>CORE FORMULAS & CONCEPTS</Text>
+              {(guide.coreConcepts || []).map((cc, i) => (
+                <View key={i} style={styles.conceptRow}>
+                  <Text style={styles.conceptIndex}>{i + 1}.</Text>
+                  <Text style={styles.conceptText}>{cc}</Text>
                 </View>
-                <Text style={styles.keyHeading}>Points Required for 100% Marks:</Text>
-                {eq.keyPoints.map((kp, kpi) => (
+              ))}
+            </View>
+
+            {/* Direct Action Bridges */}
+            <View style={styles.bridgeRow}>
+              <TouchableOpacity
+                style={styles.bridgeBtnCyan}
+                onPress={() => navigation.navigate('Flow', { searchQuery: guide.title })}
+              >
+                <MaterialCommunityIcons name="play-circle" size={16} color="#0B0C12" />
+                <Text style={styles.bridgeBtnCyanText}>Watch in Flow</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bridgeBtnDark}
+                onPress={() =>
+                  navigation.navigate('AIGapAuditor', {
+                    mode: 'TOPIC',
+                    initialTopic: guide.title,
+                    initialSubject: guide.subject,
+                  })
+                }
+              >
+                <MaterialCommunityIcons name="shield-search" size={16} color="#00E5FF" />
+                <Text style={styles.bridgeBtnDarkText}>Deep Audit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* TAB 2: EXAMINER BLINDSPOTS */}
+        {activeTab === 'blindspots' && (
+          <View style={styles.tabBody}>
+            {(guide.aiBlindspots || []).map((item, idx) => (
+              <View key={idx} style={styles.card}>
+                <Text style={styles.blindspotTitle}>{idx + 1}. {item.point}</Text>
+                <View style={styles.omissionBox}>
+                  <Text style={styles.omissionLabel}>Omission Risk</Text>
+                  <Text style={styles.omissionText}>{item.whatAiMisses}</Text>
+                </View>
+                <View style={styles.rubricBox}>
+                  <Text style={styles.rubricLabel}>Marking Key</Text>
+                  <Text style={styles.rubricText}>{item.examinerRubric}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* TAB 3: PYQ QUESTIONS & SCORING KEYS */}
+        {activeTab === 'pyqs' && (
+          <View style={styles.tabBody}>
+            {(guide.examQuestions || []).map((eq, qi) => (
+              <View key={qi} style={styles.card}>
+                <View style={styles.qHeadRow}>
+                  <Text style={styles.qText}>Q{qi + 1}: {eq.question}</Text>
+                  <Text style={styles.qMarks}>{eq.marks}M</Text>
+                </View>
+
+                <Text style={styles.sectionLabel}>REQUIRED SCORING STEPS</Text>
+                {(eq.keyPoints || []).map((kp, kpi) => (
                   <View key={kpi} style={styles.kpRow}>
-                    <MaterialCommunityIcons name="check-circle" size={14} color="#2ECC71" style={{ marginRight: 6 }} />
+                    <MaterialCommunityIcons name="check" size={14} color="#00E676" />
                     <Text style={styles.kpText}>{kp}</Text>
                   </View>
                 ))}
 
                 <TouchableOpacity
-                  style={styles.simulateQBtn}
+                  style={styles.simBtn}
                   onPress={() => setSimulatorQuestion(eq)}
-                  activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="calculator-variant-outline" size={15} color="#00D2FF" />
-                  <Text style={styles.simulateQBtnText}>Simulate Score with Step-by-Step Rubric</Text>
+                  <MaterialCommunityIcons name="calculator-variant-outline" size={15} color="#00E5FF" />
+                  <Text style={styles.simBtnText}>Open Score Simulator</Text>
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
 
-        {/* ─── 4. INTERACTIVE GAP CHECK QUIZ ────────────────────────────── */}
-        {guide.quiz && guide.quiz.length > 0 && (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIconBadge, { backgroundColor: 'rgba(255, 217, 61, 0.15)' }]}>
-                <MaterialCommunityIcons name="head-check-outline" size={18} color="#FFD93D" />
-              </View>
-              <Text style={[styles.sectionTitle, { color: '#FFD93D' }]}>Test Your Knowledge: Tricky Details</Text>
-            </View>
-
-            {guide.quiz.map((q, qIndex) => {
+        {/* TAB 4: QUICK QUIZ */}
+        {activeTab === 'quiz' && (
+          <View style={styles.tabBody}>
+            {(guide.quiz || []).map((q, qIndex) => {
               const hasAnswered = !!revealedQuiz[qIndex];
               const chosen = selectedAnswers[qIndex];
 
               return (
-                <View key={qIndex} style={styles.quizBlock}>
-                  <Text style={styles.quizQText}>{qIndex + 1}. {q.question}</Text>
-                  <View style={styles.optionsList}>
+                <View key={qIndex} style={styles.card}>
+                  <Text style={styles.quizQ}>{qIndex + 1}. {q.question}</Text>
+                  <View style={styles.optStack}>
                     {q.options.map((opt, oIndex) => {
                       const isCorrect = oIndex === q.correctIndex;
                       const isChosen = chosen === oIndex;
 
-                      let btnStyle = styles.optionBtn;
-                      let textStyle = styles.optionText;
-
+                      let btnStyle = styles.optBtn;
+                      let txtStyle = styles.optText;
                       if (hasAnswered) {
                         if (isCorrect) {
-                          btnStyle = [styles.optionBtn, styles.optionCorrect];
-                          textStyle = [styles.optionText, styles.optionTextCorrect];
+                          btnStyle = [styles.optBtn, styles.optCorrect];
+                          txtStyle = [styles.optText, { color: '#00E676', fontWeight: '800' }];
                         } else if (isChosen) {
-                          btnStyle = [styles.optionBtn, styles.optionWrong];
-                          textStyle = [styles.optionText, styles.optionTextWrong];
+                          btnStyle = [styles.optBtn, styles.optWrong];
+                          txtStyle = [styles.optText, { color: '#FF4757', fontWeight: '800' }];
                         }
                       }
 
@@ -271,20 +279,18 @@ export default function StudyGuideDetailScreen() {
                         <TouchableOpacity
                           key={oIndex}
                           style={btnStyle}
-                          activeOpacity={0.8}
                           disabled={hasAnswered}
                           onPress={() => handleSelectOption(qIndex, oIndex, isCorrect)}
                         >
-                          <Text style={textStyle}>{opt}</Text>
+                          <Text style={txtStyle}>{opt}</Text>
                         </TouchableOpacity>
                       );
                     })}
                   </View>
 
                   {hasAnswered && (
-                    <View style={styles.explanationBox}>
-                      <MaterialCommunityIcons name="information" size={16} color="#00D2FF" style={{ marginRight: 6 }} />
-                      <Text style={styles.explanationText}>{q.explanation}</Text>
+                    <View style={styles.expBox}>
+                      <Text style={styles.expText}>{q.explanation}</Text>
                     </View>
                   )}
                 </View>
@@ -293,10 +299,9 @@ export default function StudyGuideDetailScreen() {
           </View>
         )}
 
-        <View style={{ height: 80 }} />
-      </ScrollView>
+        <View style={{ height: 48 }} />
+      </Animated.ScrollView>
 
-      {/* Marking Simulator Modal */}
       {simulatorQuestion && (
         <MarkingSimulatorModal
           visible={!!simulatorQuestion}
@@ -312,322 +317,150 @@ export default function StudyGuideDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A1A',
-  },
+  container: { flex: 1, backgroundColor: '#0B0C12' },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 54,
-    paddingHorizontal: 18,
-    paddingBottom: 12,
+    paddingTop: 48,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: '#0E1018',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#222436',
+    gap: 12,
   },
-  backCircleBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#161824',
+    borderWidth: 1.5,
+    borderColor: '#2A2D40',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerRightRow: {
-    flexDirection: 'row',
+  headerMeta: { flex: 1 },
+  headerSubject: { fontSize: 10, fontWeight: '800', color: '#00E5FF' },
+  headerTitle: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
+  headerActions: { flexDirection: 'row', gap: 6 },
+
+  cardTabsRow: { flexDirection: 'row', gap: 6 },
+  cardTab: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: '#141622',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cardTabActive: { backgroundColor: '#1A1E2E', borderColor: '#00E5FF' },
+  cardTabText: { fontSize: 11, fontWeight: '700', color: '#8E8EA8' },
+  cardTabTextActive: { color: '#00E5FF', fontWeight: '800' },
+
+  scrollContent: { padding: 16 },
+  tabBody: { gap: 12 },
+  card: {
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 12,
+    padding: 14,
     gap: 8,
   },
-  headerActionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  cardHeading: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', lineHeight: 21 },
+  cardSummary: { fontSize: 12, color: '#D0D2E0', lineHeight: 18 },
+  relevanceText: { fontSize: 11, fontWeight: '800', color: '#FFB800' },
+  sectionLabel: { fontSize: 10, fontWeight: '800', color: '#8E8EA8', letterSpacing: 0.7 },
+
+  conceptRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  conceptIndex: { fontSize: 12, fontWeight: '800', color: '#00E5FF' },
+  conceptText: { flex: 1, fontSize: 12, color: '#E0E2F0', lineHeight: 18 },
+
+  bridgeRow: { flexDirection: 'row', gap: 10 },
+  bridgeBtnCyan: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: '#00E5FF',
+    paddingVertical: 11,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  titleSection: {
-    marginBottom: 20,
-  },
-  subjectBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(108, 92, 231, 0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  subjectBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#A29BFE',
-    letterSpacing: 0.5,
-  },
-  guideTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: -0.4,
-    marginBottom: 6,
-  },
-  guideSummary: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    lineHeight: 19,
-  },
-  relevanceTag: {
+  bridgeBtnCyanText: { fontSize: 12, fontWeight: '900', color: '#0B0C12' },
+  bridgeBtnDark: {
+    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    backgroundColor: 'rgba(255, 107, 53, 0.12)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  relevanceTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FF8A50',
-  },
-
-  // Section Card
-  sectionCard: {
-    backgroundColor: '#12122A',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  sectionIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 107, 53, 0.15)',
+    gap: 6,
+    backgroundColor: '#161824',
+    borderWidth: 1.5,
+    borderColor: '#2A2D40',
+    paddingVertical: 11,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FF8A50',
-  },
-  sectionSub: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginBottom: 14,
-    lineHeight: 16,
-  },
+  bridgeBtnDarkText: { fontSize: 12, fontWeight: '800', color: '#00E5FF' },
 
-  // Blindspots
-  blindspotBlock: {
-    backgroundColor: '#191836',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  blindspotPointTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFF',
-    marginBottom: 6,
-  },
+  blindspotTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   omissionBox: {
-    backgroundColor: 'rgba(255, 92, 92, 0.08)',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
+    backgroundColor: '#181A26',
     borderLeftWidth: 3,
-    borderLeftColor: '#FF5C5C',
+    borderLeftColor: '#FF4757',
+    padding: 9,
+    borderRadius: 6,
+    gap: 2,
   },
-  omissionLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FF5C5C',
-    marginBottom: 2,
-  },
-  omissionText: {
-    fontSize: 12,
-    color: '#FFF',
-    lineHeight: 17,
-  },
+  omissionLabel: { fontSize: 10, fontWeight: '800', color: '#FF6B81' },
+  omissionText: { fontSize: 12, color: '#E0E2F0', lineHeight: 17 },
   rubricBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(255, 217, 61, 0.08)',
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: '#13221D',
+    borderLeftWidth: 3,
+    borderLeftColor: '#00E676',
+    padding: 9,
+    borderRadius: 6,
+    gap: 2,
   },
-  rubricText: {
-    flex: 1,
-    fontSize: 11,
-    color: '#E0DFEC',
-    lineHeight: 15,
-  },
+  rubricLabel: { fontSize: 10, fontWeight: '800', color: '#00E676' },
+  rubricText: { fontSize: 12, color: '#D0E8DC', lineHeight: 17 },
 
-  // Core Concepts
-  coreItemRow: {
+  qHeadRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  qText: { flex: 1, fontSize: 13, fontWeight: '800', color: '#FFFFFF', lineHeight: 18 },
+  qMarks: { fontSize: 11, fontWeight: '900', color: '#00E676' },
+  kpRow: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
+  kpText: { flex: 1, fontSize: 12, color: '#D0D2E0', lineHeight: 17 },
+  simBtn: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  coreNumberBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0, 210, 255, 0.15)',
+    gap: 6,
+    backgroundColor: '#181C2B',
+    borderWidth: 1,
+    borderColor: '#2A2E44',
+    paddingVertical: 9,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 2,
+    marginTop: 4,
   },
-  coreNumberText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#00D2FF',
-  },
-  coreItemText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#D1D0E4',
-    lineHeight: 18,
-  },
+  simBtnText: { fontSize: 12, fontWeight: '800', color: '#00E5FF' },
 
-  // Exam Questions
-  examQBlock: {
-    backgroundColor: '#151C22',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+  quizQ: { fontSize: 13, fontWeight: '800', color: '#FFFFFF', lineHeight: 18 },
+  optStack: { gap: 8 },
+  optBtn: {
+    backgroundColor: '#161824',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 8,
+    padding: 11,
   },
-  examQHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  examQTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFF',
-    paddingRight: 6,
-  },
-  marksBadge: {
-    backgroundColor: 'rgba(46, 204, 113, 0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  optCorrect: { borderColor: '#00E676', backgroundColor: 'rgba(0, 230, 118, 0.1)' },
+  optWrong: { borderColor: '#FF4757', backgroundColor: 'rgba(255, 71, 87, 0.1)' },
+  optText: { fontSize: 12, color: '#D0D2E0', fontWeight: '600' },
+  expBox: {
+    backgroundColor: '#141B29',
+    borderLeftWidth: 3,
+    borderLeftColor: '#00E5FF',
+    padding: 9,
     borderRadius: 6,
   },
-  marksBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2ECC71',
-  },
-  keyHeading: {
-    fontSize: 11,
-    color: '#A29BFE',
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  kpRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 3,
-  },
-  kpText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#C5E8D3',
-    lineHeight: 16,
-  },
-  simulateQBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
-    marginTop: 8,
-    gap: 6,
-  },
-  simulateQBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#00D2FF',
-  },
-
-  // Quiz
-  quizBlock: {
-    marginBottom: 16,
-  },
-  quizQText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFF',
-    marginBottom: 10,
-    lineHeight: 18,
-  },
-  optionsList: {
-    gap: 8,
-  },
-  optionBtn: {
-    backgroundColor: '#181836',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  optionCorrect: {
-    backgroundColor: 'rgba(46, 204, 113, 0.2)',
-    borderColor: '#2ECC71',
-  },
-  optionWrong: {
-    backgroundColor: 'rgba(255, 92, 92, 0.2)',
-    borderColor: '#FF5C5C',
-  },
-  optionText: {
-    fontSize: 13,
-    color: '#D1D0E4',
-    fontWeight: '600',
-  },
-  optionTextCorrect: {
-    color: '#2ECC71',
-    fontWeight: '800',
-  },
-  optionTextWrong: {
-    color: '#FF5C5C',
-    fontWeight: '800',
-  },
-  explanationBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(0, 210, 255, 0.08)',
-    borderRadius: 10,
-    padding: 10,
-    marginTop: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#00D2FF',
-  },
-  explanationText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#00D2FF',
-    lineHeight: 16,
-  },
+  expText: { fontSize: 11, color: '#00E5FF', lineHeight: 16 },
 });

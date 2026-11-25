@@ -10,10 +10,14 @@ import {
   Modal,
   Platform,
   Alert,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
+import { resolveStreamForExam } from '../config/studyGuideData';
+import { gsapTabTransition } from '../utils/gsapAnim';
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +47,13 @@ const AMBIENT_SOUNDS = [
 ];
 
 export default function RegainFocusScreen() {
-  const { targetExam, awardCustomXp, logStudySession } = useUser();
+  const navigation = useNavigation();
+  const { targetExam, targetStream, awardCustomXp, logStudySession } = useUser();
+  const streamObj = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
+
+  // Active Card Tab: 'timer' | 'shields'
+  const [activeTab, setActiveTab] = useState('timer');
+  const tabAnim = useRef(new Animated.Value(1)).current;
 
   // Timer States
   const [selectedMode, setSelectedMode] = useState(TIMER_MODES[0]);
@@ -64,13 +74,26 @@ export default function RegainFocusScreen() {
   // Ambient Sound
   const [activeSound, setActiveSound] = useState(null);
 
-  // Regain Willpower & Screen Time Stats
-  const [screenTimeSavedMinutes, setScreenTimeSavedMinutes] = useState(115);
-  const [urgesBlockedCount, setUrgesBlockedCount] = useState(8);
-  const [completedSessionsCount, setCompletedSessionsCount] = useState(3);
+  // Regain Willpower & Screen Time Stats (persisted on device)
+  const [screenTimeSavedMinutes, setScreenTimeSavedMinutes] = useState(0);
+  const [urgesBlockedCount, setUrgesBlockedCount] = useState(0);
+  const [completedSessionsCount, setCompletedSessionsCount] = useState(0);
 
   const timerRef = useRef(null);
   const breathTimerRef = useRef(null);
+
+  const switchTab = (tab) => {
+    if (tab === activeTab) return;
+    gsapTabTransition(tabAnim);
+    setActiveTab(tab);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearInterval(timerRef.current);
+      clearInterval(breathTimerRef.current);
+    };
+  }, []);
 
   // Load persisted stats on mount
   useEffect(() => {
@@ -86,7 +109,6 @@ export default function RegainFocusScreen() {
     });
   }, []);
 
-  // Save stats helper
   const persistStats = (savedMins, urges, sessions) => {
     AsyncStorage.setItem(
       '@regain_stats',
@@ -114,7 +136,6 @@ export default function RegainFocusScreen() {
   const handleTimerComplete = () => {
     setIsActive(false);
     if (!isBreak) {
-      // Completed Focus Session!
       const gainedMins = selectedMode.durationMinutes;
       const newSaved = screenTimeSavedMinutes + gainedMins;
       const newSessions = completedSessionsCount + 1;
@@ -137,7 +158,6 @@ export default function RegainFocusScreen() {
         setSecondsRemaining(selectedMode.durationMinutes * 60);
       }
     } else {
-      // Break Complete
       setIsBreak(false);
       setSecondsRemaining(selectedMode.durationMinutes * 60);
       Alert.alert('⚡ Break Complete', 'Ready to dive back into your next focus block?');
@@ -156,7 +176,6 @@ export default function RegainFocusScreen() {
 
   const toggleTimer = () => {
     if (isActive) {
-      // Trigger Regain Mindful Friction before giving up!
       if (strictMode) {
         triggerMindfulFriction('Exit Focus Session');
         return;
@@ -196,7 +215,6 @@ export default function RegainFocusScreen() {
   };
 
   const handleCancelFriction = () => {
-    // Student resisted the urge and stayed focused!
     clearInterval(breathTimerRef.current);
     setFrictionModalVisible(false);
     const newUrges = urgesBlockedCount + 1;
@@ -222,7 +240,6 @@ export default function RegainFocusScreen() {
     );
   };
 
-  // Formatting helpers
   const formatTime = (totalSeconds) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
@@ -242,291 +259,322 @@ export default function RegainFocusScreen() {
       {/* Minimal Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={styles.regainLogoBox}>
+          <View style={styles.brandRow}>
+            <View style={styles.regainIconBox}>
               <MaterialCommunityIcons name="shield-lock" size={18} color="#FF4757" />
             </View>
-            <View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.headerTitle}>Regain</Text>
-                <View style={styles.strictBadge}>
-                  <Text style={styles.strictBadgeText}>FOCUS SHIELD</Text>
-                </View>
-              </View>
-              <Text style={styles.headerSub}>Reels & Shorts Blocker • Deep Study Timer</Text>
-            </View>
+            <Text style={styles.brandTitle}>Regain Focus Shield</Text>
           </View>
+
+          <View style={styles.activeExamChip}>
+            <Text style={styles.activeExamChipText} numberOfLines={1}>
+              {streamObj ? `${(targetExam || 'Study').split(' ')[0]} • ${streamObj.shortLabel}` : (targetExam ? targetExam.split(' ')[0] : 'Study')}
+            </Text>
+          </View>
+        </View>
+
+        {/* 2-Card Segmented Tabs Switcher */}
+        <View style={styles.cardTabsRow}>
+          <TouchableOpacity
+            style={[styles.cardTab, activeTab === 'timer' && styles.cardTabActive]}
+            onPress={() => switchTab('timer')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name="timer-outline"
+              size={15}
+              color={activeTab === 'timer' ? '#00E5FF' : '#777799'}
+            />
+            <Text style={[styles.cardTabText, activeTab === 'timer' && styles.cardTabTextActive]}>
+              Focus Timer
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.cardTab, activeTab === 'shields' && styles.cardTabActive]}
+            onPress={() => switchTab('shields')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name="shield-sword-outline"
+              size={15}
+              color={activeTab === 'shields' ? '#00E5FF' : '#777799'}
+            />
+            <Text style={[styles.cardTabText, activeTab === 'shields' && styles.cardTabTextActive]}>
+              Shield Matrix
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Willpower & Screen Time Analytics Strip */}
-        <View style={styles.analyticsRow}>
-          <View style={styles.metricCard}>
-            <MaterialCommunityIcons name="clock-check-outline" size={18} color="#00E5FF" />
-            <Text style={styles.metricValue}>{Math.floor(screenTimeSavedMinutes / 60)}h {screenTimeSavedMinutes % 60}m</Text>
-            <Text style={styles.metricLabel}>Time Reclaimed</Text>
-          </View>
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        style={{ transform: [{ scale: tabAnim }] }}
+      >
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 1: FOCUS TIMER & REELS BLOCKER                           */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'timer' && (
+          <View style={styles.tabContent}>
+            {/* Mode Selector Tabs */}
+            <View style={styles.modeTabsRow}>
+              {TIMER_MODES.map((mode) => {
+                const isSel = selectedMode.id === mode.id;
+                return (
+                  <TouchableOpacity
+                    key={mode.id}
+                    style={[styles.modeTab, isSel && styles.modeTabActive]}
+                    onPress={() => handleSelectMode(mode)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.modeTabText, isSel && styles.modeTabTextActive]}>
+                      {mode.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-          <View style={styles.metricCard}>
-            <MaterialCommunityIcons name="shield-check" size={18} color="#00E676" />
-            <Text style={styles.metricValue}>{urgesBlockedCount}</Text>
-            <Text style={styles.metricLabel}>Urges Deflected</Text>
-          </View>
+            {/* Central Focus Timer Card */}
+            <View style={[styles.timerCard, isActive && styles.timerCardActive]}>
+              <View style={styles.timerCenter}>
+                <View style={styles.phaseBadge}>
+                  <Text style={styles.phaseBadgeText}>
+                    {isBreak ? 'REST BREAK' : isActive ? 'STRICT FOCUS ACTIVE' : 'READY TO STUDY'}
+                  </Text>
+                </View>
 
-          <View style={styles.metricCard}>
-            <MaterialCommunityIcons name="fire" size={18} color="#FFB800" />
-            <Text style={styles.metricValue}>{completedSessionsCount}</Text>
-            <Text style={styles.metricLabel}>Sessions Done</Text>
-          </View>
-        </View>
+                <Text style={styles.timerDigits}>{formatTime(secondsRemaining)}</Text>
 
-        {/* Central Focus Timer Card */}
-        <View style={[styles.timerCard, isActive && styles.timerCardActive]}>
-          {/* Mode Selector Tabs */}
-          <View style={styles.modeTabsRow}>
-            {TIMER_MODES.map((mode) => {
-              const isSel = selectedMode.id === mode.id;
-              return (
+                <Text style={styles.timerTargetSub}>
+                  {isBreak
+                    ? 'Breathe & hydrate'
+                    : `Target: ${targetExam}${streamObj ? ` (${streamObj.shortLabel})` : ''}`}
+                </Text>
+              </View>
+
+              {/* Progress Bar */}
+              <View style={styles.timerProgressTrack}>
+                <View style={[styles.timerProgressFill, { width: `${progressPercent}%` }]} />
+              </View>
+
+              {/* Timer Action Buttons */}
+              <View style={styles.timerActionsRow}>
                 <TouchableOpacity
-                  key={mode.id}
-                  style={[styles.modeTab, isSel && styles.modeTabActive]}
-                  onPress={() => handleSelectMode(mode)}
+                  style={[styles.mainTimerBtn, isActive ? styles.pauseBtn : styles.startBtn]}
+                  onPress={toggleTimer}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.modeTabText, isSel && styles.modeTabTextActive]}>
-                    {mode.label}
+                  <MaterialCommunityIcons
+                    name={isActive ? 'pause' : 'play'}
+                    size={20}
+                    color="#0B0C12"
+                  />
+                  <Text style={styles.mainTimerBtnText}>
+                    {isActive ? 'Pause (Mindful Check)' : 'Start Deep Work'}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
 
-          {/* Timer Display */}
-          <View style={styles.timerCenter}>
-            <View style={styles.phaseBadge}>
-              <Text style={styles.phaseBadgeText}>
-                {isBreak ? 'REST BREAK' : isActive ? 'STRICT FOCUS ACTIVE' : 'READY TO STUDY'}
-              </Text>
+                <TouchableOpacity
+                  style={styles.resetTimerBtn}
+                  onPress={resetTimer}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="reload" size={18} color="#8E8EA0" />
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={styles.timerDigits}>{formatTime(secondsRemaining)}</Text>
-            <Text style={styles.timerTargetSub}>
-              {isBreak ? 'Breathe & hydrate' : `Target: ${targetExam}`}
-            </Text>
-          </View>
 
-          {/* Progress Bar */}
-          <View style={styles.timerProgressTrack}>
-            <View style={[styles.timerProgressFill, { width: `${progressPercent}%` }]} />
-          </View>
-
-          {/* Timer Action Buttons */}
-          <View style={styles.timerActionsRow}>
-            <TouchableOpacity
-              style={[styles.mainTimerBtn, isActive ? styles.pauseBtn : styles.startBtn]}
-              onPress={toggleTimer}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons
-                name={isActive ? 'pause' : 'play'}
-                size={20}
-                color="#0B0C12"
-              />
-              <Text style={styles.mainTimerBtnText}>
-                {isActive ? 'Pause (Mindful Check)' : 'Start Deep Work'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.resetTimerBtn}
-              onPress={resetTimer}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="reload" size={18} color="#8E8EA0" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Regain Flagship: Reels & Shorts Blocker Switch */}
-        <View style={styles.shortsBlockerCard}>
-          <View style={styles.shortsBlockerLeft}>
-            <View style={styles.shortsIconBox}>
-              <MaterialCommunityIcons name="filmstrip-off" size={20} color="#FF4757" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.shortsBlockerTitle}>Reels & Shorts Blocker</Text>
-                <View style={styles.shieldActiveBadge}>
-                  <Text style={styles.shieldActiveText}>REGAIN PRO</Text>
+            {/* Reels & Shorts Blocker Switch Card */}
+            <View style={styles.settingToggleCard}>
+              <View style={styles.settingToggleLeft}>
+                <View style={styles.settingIconBoxShorts}>
+                  <MaterialCommunityIcons name="filmstrip-off" size={20} color="#FF4757" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingToggleTitle}>Reels & Shorts Blocker</Text>
+                  <Text style={styles.settingToggleDesc}>
+                    Shields against dopamine scroll loops on Instagram, YouTube Shorts, and Snapchat.
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.shortsBlockerDesc}>
-                Intercepts algorithmic short-form video dopamine loops on Instagram, YouTube, and Snapchat.
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.toggleSwitch, blockShortsReels && styles.toggleSwitchOn]}
-            onPress={() => setBlockShortsReels((prev) => !prev)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.toggleThumb, blockShortsReels && styles.toggleThumbOn]} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Strict Mode Protection */}
-        <View style={styles.strictModeCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-            <MaterialCommunityIcons
-              name={strictMode ? 'lock-outline' : 'lock-open-outline'}
-              size={18}
-              color={strictMode ? '#00E676' : '#8E8EA0'}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.strictModeTitle}>
-                Strict Mode {strictMode ? '(Enforced)' : '(Permissive)'}
-              </Text>
-              <Text style={styles.strictModeDesc}>
-                Requires 5-second mindful breath exercise before leaving focus session.
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.toggleSwitch, strictMode && styles.toggleSwitchOn]}
-            onPress={() => setStrictMode((prev) => !prev)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.toggleThumb, strictMode && styles.toggleThumbOn]} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Ambient Focus Sounds Selector */}
-        <View style={styles.ambientCard}>
-          <View style={styles.ambientHeader}>
-            <MaterialCommunityIcons name="headphones" size={16} color="#00E5FF" />
-            <Text style={styles.ambientTitle}>Study Ambient Noise (Alpha/Gamma Waves)</Text>
-          </View>
-          <View style={styles.ambientChipsRow}>
-            {AMBIENT_SOUNDS.map((snd) => {
-              const active = activeSound === snd.id;
-              return (
-                <TouchableOpacity
-                  key={snd.id}
-                  style={[styles.ambientChip, active && styles.ambientChipActive]}
-                  onPress={() => setActiveSound(active ? null : snd.id)}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons
-                    name={snd.icon}
-                    size={14}
-                    color={active ? '#0B0C12' : '#8E8EA0'}
-                  />
-                  <Text style={[styles.ambientChipText, active && styles.ambientChipTextActive]}>
-                    {snd.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Distraction App Shield Matrix */}
-        <View style={styles.shieldSection}>
-          <View style={styles.sectionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MaterialCommunityIcons name="shield-sword" size={18} color="#FFB800" />
-              <Text style={styles.sectionTitle}>App Blocker Matrix</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {blockedApps.filter((a) => a.blocked).length} Apps Shielded
-            </Text>
-          </View>
-
-          <View style={styles.appsGrid}>
-            {blockedApps.map((app) => (
               <TouchableOpacity
-                key={app.id}
-                style={[styles.appItem, app.blocked && styles.appItemBlocked]}
-                onPress={() => toggleAppBlock(app.id)}
+                style={[styles.toggleSwitch, blockShortsReels && styles.toggleSwitchOn]}
+                onPress={() => setBlockShortsReels((prev) => !prev)}
                 activeOpacity={0.8}
               >
-                <View style={styles.appItemLeft}>
-                  <MaterialCommunityIcons
-                    name={app.icon}
-                    size={20}
-                    color={app.blocked ? '#FF4757' : '#8E8EA0'}
-                  />
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={[styles.appName, app.blocked && styles.appNameBlocked]}>
-                      {app.name}
-                    </Text>
-                    {app.isReels && (
-                      <Text style={styles.reelsTag}>Reels / Shorts Shield</Text>
-                    )}
-                  </View>
-                </View>
+                <View style={[styles.toggleThumb, blockShortsReels && styles.toggleThumbOn]} />
+              </TouchableOpacity>
+            </View>
 
-                <View style={[styles.blockStatusBadge, app.blocked && styles.blockStatusBadgeBlocked]}>
-                  <Text style={[styles.blockStatusText, app.blocked && styles.blockStatusTextBlocked]}>
-                    {app.blocked ? 'BLOCKED' : 'ALLOWED'}
+            {/* Strict Mode Protection Switch Card */}
+            <View style={styles.settingToggleCard}>
+              <View style={styles.settingToggleLeft}>
+                <View style={styles.settingIconBoxStrict}>
+                  <MaterialCommunityIcons
+                    name={strictMode ? 'lock-outline' : 'lock-open-outline'}
+                    size={20}
+                    color="#00E676"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingToggleTitle}>Strict Mode Protection</Text>
+                  <Text style={styles.settingToggleDesc}>
+                    Enforces 5-second mindful breathing friction before interrupting your session.
                   </Text>
                 </View>
+              </View>
+              <TouchableOpacity
+                style={[styles.toggleSwitch, strictMode && styles.toggleSwitchOn]}
+                onPress={() => setStrictMode((prev) => !prev)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.toggleThumb, strictMode && styles.toggleThumbOn]} />
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 2: SHIELDS, APPS & AMBIENT NOISE                          */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        {activeTab === 'shields' && (
+          <View style={styles.tabContent}>
+            {/* Willpower Metrics Strip */}
+            <View style={styles.analyticsRow}>
+              <View style={styles.metricCard}>
+                <MaterialCommunityIcons name="clock-check-outline" size={16} color="#00E5FF" />
+                <Text style={styles.metricValue}>
+                  {Math.floor(screenTimeSavedMinutes / 60)}h {screenTimeSavedMinutes % 60}m
+                </Text>
+                <Text style={styles.metricLabel}>Time Saved</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <MaterialCommunityIcons name="shield-check" size={16} color="#00E676" />
+                <Text style={styles.metricValue}>{urgesBlockedCount}</Text>
+                <Text style={styles.metricLabel}>Urges Deflected</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <MaterialCommunityIcons name="fire" size={16} color="#FFB800" />
+                <Text style={styles.metricValue}>{completedSessionsCount}</Text>
+                <Text style={styles.metricLabel}>Sessions Done</Text>
+              </View>
+            </View>
+
+            {/* Ambient Noise Selector */}
+            <View style={styles.ambientCard}>
+              <Text style={styles.ambientCardTitle}>Ambient Study Noise</Text>
+              <View style={styles.ambientChipsRow}>
+                {AMBIENT_SOUNDS.map((snd) => {
+                  const active = activeSound === snd.id;
+                  return (
+                    <TouchableOpacity
+                      key={snd.id}
+                      style={[styles.ambientChip, active && styles.ambientChipActive]}
+                      onPress={() => setActiveSound(active ? null : snd.id)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons
+                        name={snd.icon}
+                        size={14}
+                        color={active ? '#0B0C12' : '#8E8EA0'}
+                      />
+                      <Text style={[styles.ambientChipText, active && styles.ambientChipTextActive]}>
+                        {snd.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Distraction App Blocker Matrix */}
+            <View style={styles.appShieldCard}>
+              <View style={styles.appShieldHeader}>
+                <Text style={styles.appShieldTitle}>App Blocker Matrix</Text>
+                <Text style={styles.appShieldCount}>
+                  {blockedApps.filter((a) => a.blocked).length} of {blockedApps.length} Blocked
+                </Text>
+              </View>
+
+              <View style={styles.appsGrid}>
+                {blockedApps.map((app) => (
+                  <TouchableOpacity
+                    key={app.id}
+                    style={[styles.appItem, app.blocked && styles.appItemBlocked]}
+                    onPress={() => toggleAppBlock(app.id)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name={app.icon}
+                      size={20}
+                      color={app.blocked ? '#FF4757' : '#777799'}
+                    />
+                    <Text
+                      style={[styles.appName, app.blocked && styles.appNameBlocked]}
+                      numberOfLines={1}
+                    >
+                      {app.name.split(' ')[0]}
+                    </Text>
+                    <View style={[styles.appStatusDot, app.blocked && styles.appStatusDotBlocked]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Regain Mindful Friction Interceptor Modal */}
+      {/* Regain Mindful Friction Modal (5-Second Breathing Interceptor) */}
       <Modal
         visible={frictionModalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => {}}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.frictionOverlay}>
           <View style={styles.frictionCard}>
-            <View style={styles.breatheIconBox}>
+            <View style={styles.frictionIconCircle}>
               <MaterialCommunityIcons name="weather-windy" size={36} color="#00E5FF" />
             </View>
 
-            <Text style={styles.frictionTitle}>Take a Mindful Breath</Text>
-            <Text style={styles.frictionSub}>
-              You're attempting to {targetAppName}. Pause for 5 seconds before giving in to the urge.
+            <Text style={styles.frictionTitle}>Mindful Breath Pause</Text>
+            <Text style={styles.frictionDesc}>
+              Before you {targetAppName.toLowerCase()}, take one deep conscious breath. Is this aligned with your {targetExam} goal?
             </Text>
 
-            {/* Breathing Circle / Countdown */}
+            {/* Countdown Circle */}
             <View style={styles.countdownBox}>
-              <Text style={styles.countdownDigits}>{breathCountdown}</Text>
-              <Text style={styles.countdownLabel}>Breathe slowly...</Text>
+              <Text style={styles.countdownNumber}>{breathCountdown}</Text>
+              <Text style={styles.countdownSub}>seconds remaining</Text>
             </View>
 
-            <Text style={styles.intentionPrompt}>
-              "Will opening this distraction help you crack your {targetExam} target score?"
-            </Text>
-
             {/* Action Buttons */}
-            <TouchableOpacity
-              style={styles.stayFocusedBtn}
-              onPress={handleCancelFriction}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="shield-check" size={18} color="#0B0C12" />
-              <Text style={styles.stayFocusedBtnText}>Stay Focused (+10 XP & Willpower)</Text>
-            </TouchableOpacity>
+            <View style={styles.frictionActions}>
+              <TouchableOpacity
+                style={styles.stayFocusedBtn}
+                onPress={handleCancelFriction}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="shield-check" size={16} color="#0B0C12" />
+                <Text style={styles.stayFocusedBtnText}>I Will Stay Focused (+10 XP)</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.giveUpBtn, breathCountdown > 0 && { opacity: 0.3 }]}
-              disabled={breathCountdown > 0}
-              onPress={handleConfirmGiveUp}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.giveUpBtnText}>
-                {breathCountdown > 0 ? `Wait ${breathCountdown}s to override` : 'I still need to break focus'}
-              </Text>
-            </TouchableOpacity>
+              {breathCountdown === 0 && (
+                <TouchableOpacity
+                  style={styles.giveUpBtn}
+                  onPress={handleConfirmGiveUp}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.giveUpBtnText}>Proceed Anyway</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -540,178 +588,183 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B0C12',
   },
   header: {
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
+    paddingTop: 48,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: '#11121C',
+    paddingBottom: 10,
+    backgroundColor: '#0E1018',
     borderBottomWidth: 1.5,
-    borderBottomColor: '#202234',
+    borderBottomColor: '#222436',
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  regainLogoBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#1B1D2C',
-    borderWidth: 1.5,
-    borderColor: '#FF4757',
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  regainIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255, 71, 87, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
+  brandTitle: {
+    fontSize: 17,
+    fontWeight: '900',
     color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
   },
-  strictBadge: {
-    backgroundColor: 'rgba(255, 71, 87, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  activeExamChip: {
+    backgroundColor: '#161824',
     borderWidth: 1,
-    borderColor: '#FF4757',
+    borderColor: '#2A2D40',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  strictBadgeText: {
-    color: '#FF4757',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-  headerSub: {
-    color: '#8E8EA0',
+  activeExamChipText: {
     fontSize: 11,
-    fontWeight: '500',
-    marginTop: 1,
+    fontWeight: '800',
+    color: '#FF4757',
   },
-  scrollContent: {
-    padding: 16,
-  },
-  analyticsRow: {
+
+  // 2-Card Segmented Tabs Switcher
+  cardTabsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
   },
-  metricCard: {
+  cardTab: {
     flex: 1,
-    backgroundColor: '#141522',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    padding: 10,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  metricValue: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  metricLabel: {
-    color: '#8E8EA0',
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  timerCard: {
-    backgroundColor: '#141522',
-    borderRadius: 12,
+    gap: 6,
+    paddingVertical: 9,
+    backgroundColor: '#141622',
     borderWidth: 1.5,
     borderColor: '#222436',
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
+    borderRadius: 10,
   },
-  timerCardActive: {
+  cardTabActive: {
+    backgroundColor: '#1A1E2E',
     borderColor: '#00E5FF',
-    backgroundColor: '#151726',
   },
+  cardTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8E8EA8',
+  },
+  cardTabTextActive: {
+    color: '#00E5FF',
+    fontWeight: '800',
+  },
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  tabContent: {
+    gap: 12,
+  },
+
+  // Timer Modes
   modeTabsRow: {
     flexDirection: 'row',
-    backgroundColor: '#1A1C2C',
-    borderRadius: 8,
-    padding: 3,
-    marginBottom: 16,
-    width: '100%',
+    gap: 6,
   },
   modeTab: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
     alignItems: 'center',
-    borderRadius: 6,
   },
   modeTabActive: {
-    backgroundColor: '#00E5FF',
+    backgroundColor: '#1A1E2E',
+    borderColor: '#00E5FF',
   },
   modeTabText: {
-    color: '#8E8EA0',
     fontSize: 11,
     fontWeight: '700',
+    color: '#8E8EA8',
   },
   modeTabTextActive: {
-    color: '#0B0C12',
+    color: '#00E5FF',
     fontWeight: '800',
+  },
+
+  // Timer Card
+  timerCard: {
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    gap: 16,
+  },
+  timerCardActive: {
+    borderColor: '#00E5FF',
   },
   timerCenter: {
     alignItems: 'center',
-    marginVertical: 12,
+    gap: 8,
   },
   phaseBadge: {
-    backgroundColor: '#1C1E30',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    marginBottom: 6,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   phaseBadgeText: {
-    color: '#00E5FF',
     fontSize: 10,
     fontWeight: '800',
+    color: '#00E5FF',
     letterSpacing: 0.5,
   },
   timerDigits: {
-    color: '#FFFFFF',
-    fontSize: 52,
+    fontSize: 54,
     fontWeight: '900',
-    letterSpacing: 2,
+    color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -1,
   },
   timerTargetSub: {
-    color: '#8E8EA0',
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
+    color: '#8E8EA8',
   },
   timerProgressTrack: {
     width: '100%',
-    height: 4,
-    backgroundColor: '#202236',
-    borderRadius: 2,
-    marginVertical: 14,
+    height: 6,
+    backgroundColor: '#1A1C2C',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   timerProgressFill: {
     height: '100%',
     backgroundColor: '#00E5FF',
-    borderRadius: 2,
+    borderRadius: 3,
   },
   timerActionsRow: {
     flexDirection: 'row',
-    width: '100%',
+    alignItems: 'center',
     gap: 10,
-    marginTop: 4,
+    width: '100%',
   },
   mainTimerBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 12,
     borderRadius: 8,
   },
@@ -719,81 +772,79 @@ const styles = StyleSheet.create({
     backgroundColor: '#00E5FF',
   },
   pauseBtn: {
-    backgroundColor: '#FFB800',
+    backgroundColor: '#FF4757',
   },
   mainTimerBtnText: {
-    color: '#0B0C12',
     fontSize: 13,
     fontWeight: '800',
+    color: '#0B0C12',
   },
   resetTimerBtn: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#1B1D2C',
+    backgroundColor: '#161824',
+    borderWidth: 1,
+    borderColor: '#2A2D40',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#292B40',
   },
-  shortsBlockerCard: {
+
+  // Toggle Cards
+  settingToggleCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#141522',
-    borderRadius: 10,
+    backgroundColor: '#12141F',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 71, 87, 0.35)',
+    borderColor: '#222436',
+    borderRadius: 12,
     padding: 14,
-    marginBottom: 12,
+    gap: 12,
   },
-  shortsBlockerLeft: {
+  settingToggleLeft: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    gap: 12,
     flex: 1,
-    marginRight: 12,
   },
-  shortsIconBox: {
+  settingIconBoxShorts: {
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 71, 87, 0.15)',
+    backgroundColor: 'rgba(255, 71, 87, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shortsBlockerTitle: {
-    color: '#FFFFFF',
+  settingIconBoxStrict: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingToggleTitle: {
     fontSize: 13,
     fontWeight: '800',
+    color: '#FFFFFF',
   },
-  shieldActiveBadge: {
-    backgroundColor: '#FF4757',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  shieldActiveText: {
-    color: '#0B0C12',
-    fontSize: 8,
-    fontWeight: '900',
-  },
-  shortsBlockerDesc: {
-    color: '#8E8EA0',
-    fontSize: 11,
-    lineHeight: 15,
+  settingToggleDesc: {
+    fontSize: 10,
+    color: '#8E8EA8',
+    lineHeight: 14,
     marginTop: 2,
   },
   toggleSwitch: {
-    width: 46,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#202236',
-    padding: 3,
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#2A2D40',
+    padding: 2,
     justifyContent: 'center',
   },
   toggleSwitchOn: {
-    backgroundColor: '#00E676',
+    backgroundColor: '#00E5FF',
   },
   toggleThumb: {
     width: 20,
@@ -803,46 +854,45 @@ const styles = StyleSheet.create({
   },
   toggleThumbOn: {
     alignSelf: 'flex-end',
+    backgroundColor: '#0B0C12',
   },
-  strictModeCard: {
+
+  // Shields Tab Styles
+  analyticsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#141522',
-    borderRadius: 10,
+    gap: 8,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: '#12141F',
     borderWidth: 1.5,
     borderColor: '#222436',
+    borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
+    alignItems: 'center',
+    gap: 4,
   },
-  strictModeTitle: {
+  metricValue: {
+    fontSize: 15,
+    fontWeight: '900',
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
   },
-  strictModeDesc: {
-    color: '#8E8EA0',
+  metricLabel: {
     fontSize: 10,
-    marginTop: 1,
+    color: '#8E8EA8',
   },
   ambientCard: {
-    backgroundColor: '#141522',
-    borderRadius: 10,
+    backgroundColor: '#12141F',
     borderWidth: 1.5,
     borderColor: '#222436',
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
   },
-  ambientHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  ambientTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  ambientCardTitle: {
+    fontSize: 13,
     fontWeight: '800',
+    color: '#FFFFFF',
   },
   ambientChipsRow: {
     flexDirection: 'row',
@@ -852,190 +902,160 @@ const styles = StyleSheet.create({
   ambientChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#1B1D2C',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#161824',
     borderWidth: 1,
-    borderColor: '#292B40',
+    borderColor: '#2A2D40',
   },
   ambientChipActive: {
     backgroundColor: '#00E5FF',
     borderColor: '#00E5FF',
   },
   ambientChipText: {
-    color: '#8E8EA0',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
+    color: '#8E8EA8',
   },
   ambientChipTextActive: {
     color: '#0B0C12',
     fontWeight: '800',
   },
-  shieldSection: {
-    marginBottom: 16,
+  appShieldCard: {
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
   },
-  sectionHeader: {
+  appShieldHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  sectionTitle: {
-    color: '#FFFFFF',
+  appShieldTitle: {
     fontSize: 13,
     fontWeight: '800',
+    color: '#FFFFFF',
   },
-  sectionCount: {
-    color: '#8E8EA0',
+  appShieldCount: {
     fontSize: 11,
-    fontWeight: '600',
+    color: '#8E8EA8',
   },
   appsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   appItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#141522',
-    borderRadius: 8,
+    width: (width - 72) / 4,
+    backgroundColor: '#161824',
     borderWidth: 1.5,
-    borderColor: '#222436',
-    padding: 12,
+    borderColor: '#2A2D40',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    gap: 4,
   },
   appItemBlocked: {
-    borderColor: 'rgba(255, 71, 87, 0.35)',
-    backgroundColor: '#161726',
-  },
-  appItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    borderColor: '#FF4757',
+    backgroundColor: 'rgba(255, 71, 87, 0.08)',
   },
   appName: {
-    color: '#8E8EA0',
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '700',
+    color: '#8E8EA8',
   },
   appNameBlocked: {
-    color: '#FFFFFF',
-  },
-  reelsTag: {
     color: '#FF4757',
-    fontSize: 9,
-    fontWeight: '700',
-    marginTop: 1,
   },
-  blockStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: '#1F2136',
+  appStatusDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#555577',
   },
-  blockStatusBadgeBlocked: {
+  appStatusDotBlocked: {
     backgroundColor: '#FF4757',
   },
-  blockStatusText: {
-    color: '#8E8EA0',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  blockStatusTextBlocked: {
-    color: '#0B0C12',
-  },
-  modalOverlay: {
+
+  // Mindful Friction Modal
+  frictionOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(11, 12, 18, 0.92)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(5, 6, 10, 0.88)',
     justifyContent: 'center',
-    padding: 20,
+    alignItems: 'center',
+    padding: 24,
   },
   frictionCard: {
     width: '100%',
-    backgroundColor: '#141524',
-    borderRadius: 14,
+    backgroundColor: '#12141F',
     borderWidth: 1.5,
     borderColor: '#00E5FF',
-    padding: 20,
+    borderRadius: 18,
+    padding: 22,
     alignItems: 'center',
+    gap: 14,
   },
-  breatheIconBox: {
+  frictionIconCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    borderWidth: 2,
-    borderColor: '#00E5FF',
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   frictionTitle: {
-    color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 6,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
-  frictionSub: {
-    color: '#8E8EA0',
+  frictionDesc: {
     fontSize: 12,
+    color: '#8E8EA8',
     textAlign: 'center',
-    lineHeight: 16,
-    marginBottom: 16,
+    lineHeight: 18,
   },
   countdownBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#1B1D30',
-    borderWidth: 2,
-    borderColor: '#00E5FF',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
+    marginVertical: 6,
   },
-  countdownDigits: {
-    color: '#00E5FF',
-    fontSize: 32,
+  countdownNumber: {
+    fontSize: 48,
     fontWeight: '900',
+    color: '#00E5FF',
   },
-  countdownLabel: {
-    color: '#8E8EA0',
-    fontSize: 9,
-    fontWeight: '600',
+  countdownSub: {
+    fontSize: 11,
+    color: '#777799',
   },
-  intentionPrompt: {
-    color: '#FFB800',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginBottom: 18,
+  frictionActions: {
+    width: '100%',
+    gap: 10,
   },
   stayFocusedBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: '#00E5FF',
-    width: '100%',
     paddingVertical: 12,
     borderRadius: 8,
-    marginBottom: 10,
   },
   stayFocusedBtnText: {
-    color: '#0B0C12',
     fontSize: 13,
     fontWeight: '800',
+    color: '#0B0C12',
   },
   giveUpBtn: {
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: 6,
   },
   giveUpBtnText: {
-    color: '#8E8EA0',
     fontSize: 11,
-    fontWeight: '600',
+    color: '#8E8EA8',
   },
 });

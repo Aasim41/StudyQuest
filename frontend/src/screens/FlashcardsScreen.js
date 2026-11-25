@@ -1,53 +1,74 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  ScrollView,
   StatusBar,
+  Platform,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
 import {
   EXAM_TARGETS,
   getCuratedFlashcardsForExam,
+  resolveStreamForExam,
 } from '../config/studyGuideData';
-
-const { width } = Dimensions.get('window');
+import { gsapTabTransition } from '../utils/gsapAnim';
 
 export default function FlashcardsScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
-  const { targetExam, markGapMastered, awardCustomXp } = useUser();
+  const { targetExam, targetStream, markGapMastered, awardCustomXp } = useUser();
+
+  const streamObj = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
 
   const activeExamLabel = useMemo(() => {
     const match = EXAM_TARGETS.find((e) => e.id === targetExam || e.label === targetExam);
     return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
   }, [targetExam]);
 
-  // Build card deck curated specifically for the active target exam
-  const cards = useMemo(() => {
-    const curated = getCuratedFlashcardsForExam(targetExam);
-    return curated && curated.length > 0 ? curated : [];
-  }, [targetExam]);
+  const allCards = useMemo(() => {
+    return getCuratedFlashcardsForExam(targetExam, targetStream) || [];
+  }, [targetExam, targetStream]);
 
+  const cardSubjects = useMemo(() => {
+    const set = new Set();
+    allCards.forEach((c) => c.subject && set.add(c.subject));
+    return ['All', ...Array.from(set)];
+  }, [allCards]);
+
+  const [selectedSubject, setSelectedSubject] = useState('All');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
+  const cardAnim = useRef(new Animated.Value(1)).current;
 
-  // Reset progress when active target exam is switched
+  const cards = useMemo(() => {
+    if (selectedSubject === 'All') return allCards;
+    return allCards.filter((c) => c.subject === selectedSubject);
+  }, [allCards, selectedSubject]);
+
+  useEffect(() => {
+    setSelectedSubject('All');
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setCompletedCount(0);
+  }, [targetExam, targetStream]);
+
   useEffect(() => {
     setCurrentIndex(0);
     setIsFlipped(false);
     setCompletedCount(0);
-  }, [targetExam]);
+  }, [selectedSubject]);
 
   const currentCard = cards[currentIndex];
-  const isComplete = currentIndex >= cards.length;
+  const isComplete = cards.length > 0 && currentIndex >= cards.length;
 
   const handleFlip = () => {
+    gsapTabTransition(cardAnim);
     setIsFlipped((prev) => !prev);
   };
 
@@ -56,12 +77,14 @@ export default function FlashcardsScreen() {
       markGapMastered(currentCard.id);
       awardCustomXp(15, 'Mastered Flashcard');
     }
+    gsapTabTransition(cardAnim);
     setIsFlipped(false);
     setCurrentIndex((prev) => prev + 1);
     setCompletedCount((prev) => prev + 1);
   };
 
   const handleRestart = () => {
+    gsapTabTransition(cardAnim);
     setCurrentIndex(0);
     setIsFlipped(false);
     setCompletedCount(0);
@@ -69,7 +92,7 @@ export default function FlashcardsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0A1A" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C12" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -78,22 +101,24 @@ export default function FlashcardsScreen() {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialCommunityIcons name="chevron-left" size={26} color="#FFFFFF" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>60-Second Exam Deck</Text>
-          <Text style={styles.headerSubtitle}>{activeExamLabel}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>60s Blindspot Deck</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {streamObj ? `${activeExamLabel} • ${streamObj.shortLabel}` : activeExamLabel}
+          </Text>
         </View>
 
         <View style={styles.counterBadge}>
           <Text style={styles.counterText}>
-            {isComplete ? cards.length : currentIndex + 1}/{cards.length}
+            {cards.length === 0 ? '0/0' : `${isComplete ? cards.length : currentIndex + 1}/${cards.length}`}
           </Text>
         </View>
       </View>
 
-      {/* Progress Bar */}
+      {/* Progress Track */}
       <View style={styles.progressTrack}>
         <View
           style={[
@@ -103,82 +128,102 @@ export default function FlashcardsScreen() {
         />
       </View>
 
-      {isComplete ? (
-        /* Completion Screen */
-        <View style={styles.completeContainer}>
+      {/* Compact Subject Filter Strip */}
+      {cardSubjects.length > 1 && (
+        <View style={styles.filterWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {cardSubjects.map((sub) => {
+              const active = selectedSubject === sub;
+              return (
+                <TouchableOpacity
+                  key={sub}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setSelectedSubject(sub)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {sub}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {cards.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <MaterialCommunityIcons name="cards-outline" size={38} color="#555577" />
+          <Text style={styles.emptyTitle}>No Cards For Selection</Text>
+          <Text style={styles.emptySub}>Switch subject filter or change your exam stream.</Text>
+        </View>
+      ) : isComplete ? (
+        <Animated.View style={[styles.completeContainer, { opacity: cardAnim }]}>
           <View style={styles.trophyCircle}>
-            <MaterialCommunityIcons name="trophy" size={48} color="#FFD32A" />
+            <MaterialCommunityIcons name="trophy" size={42} color="#FFB800" />
           </View>
-          <Text style={styles.completeTitle}>Session Complete!</Text>
+          <Text style={styles.completeTitle}>Deck Cleared</Text>
           <Text style={styles.completeSub}>
-            You reviewed all {cards.length} high-yield blindspots for {activeExamLabel}.
+            Reviewed all {cards.length} verified blindspots for {activeExamLabel}.
           </Text>
 
           <TouchableOpacity style={styles.restartBtn} onPress={handleRestart}>
-            <MaterialCommunityIcons name="reload" size={18} color="#FFFFFF" />
-            <Text style={styles.restartBtnText}>Review Deck Again</Text>
+            <MaterialCommunityIcons name="reload" size={17} color="#0B0C12" />
+            <Text style={styles.restartBtnText}>Review Again</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.backGuidesBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backGuidesText}>Return to Guides</Text>
+          <TouchableOpacity style={styles.backGuidesBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backGuidesText}>Back to Syllabus</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       ) : (
-        /* Active Flashcard */
-        <View style={styles.cardArea}>
+        <Animated.View style={[styles.cardArea, { opacity: cardAnim }]}>
           <TouchableOpacity
-            style={[styles.flashcard, isFlipped ? styles.flashcardBack : styles.flashcardFront]}
+            style={[styles.flashcard, isFlipped && styles.flashcardBack]}
             onPress={handleFlip}
             activeOpacity={0.92}
           >
-            {/* Top Tag */}
             <View style={styles.cardTopRow}>
               <View style={styles.subjectPill}>
                 <Text style={styles.subjectPillText}>{currentCard.subject}</Text>
               </View>
               <Text style={styles.flipHintText}>
-                {isFlipped ? 'Tap to see Question' : 'Tap to reveal Blindspot'}
+                {isFlipped ? 'Tap for Question' : 'Tap to Reveal Key'}
               </Text>
             </View>
 
             {!isFlipped ? (
-              /* Front of Card */
-              <View style={styles.cardContentFront}>
+              <View style={styles.cardBody}>
                 <Text style={styles.cardTopicTitle}>{currentCard.topicTitle}</Text>
                 <Text style={styles.cardQuestionText}>{currentCard.question}</Text>
                 <View style={styles.tapPrompt}>
-                  <MaterialCommunityIcons name="gesture-tap" size={20} color="#00D2FF" />
-                  <Text style={styles.tapPromptText}>Tap to reveal what generic AI misses</Text>
+                  <MaterialCommunityIcons name="gesture-tap" size={18} color="#00E5FF" />
+                  <Text style={styles.tapPromptText}>Reveal examiner key & hidden trap</Text>
                 </View>
               </View>
             ) : (
-              /* Back of Card */
-              <View style={styles.cardContentBack}>
-                <Text style={styles.backBlindspotHeading}>
-                  ⚠️ Point: {currentCard.point}
-                </Text>
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                <Text style={styles.backBlindspotHeading}>{currentCard.point}</Text>
 
                 <View style={styles.backMissBox}>
-                  <Text style={styles.backMissLabel}>What Generic AI Skips:</Text>
+                  <Text style={styles.backMissLabel}>WHERE STUDENTS LOSE MARKS</Text>
                   <Text style={styles.backMissText}>{currentCard.whatAiMisses}</Text>
                 </View>
 
                 <View style={styles.backRubricBox}>
-                  <Text style={styles.backRubricLabel}>Examiner Scoring Key:</Text>
+                  <Text style={styles.backRubricLabel}>EXAMINER SCORING KEY</Text>
                   <Text style={styles.backRubricText}>{currentCard.examinerRubric}</Text>
                 </View>
-              </View>
+              </ScrollView>
             )}
           </TouchableOpacity>
 
-          {/* Action Buttons */}
+          {/* Bottom Controls */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.reviewAgainBtn}
               onPress={() => handleNext(false)}
+              activeOpacity={0.85}
             >
               <MaterialCommunityIcons name="reload" size={16} color="#8E8EA8" />
               <Text style={styles.reviewAgainText}>Review Again</Text>
@@ -187,269 +232,194 @@ export default function FlashcardsScreen() {
             <TouchableOpacity
               style={styles.masteredBtn}
               onPress={() => handleNext(true)}
+              activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
+              <MaterialCommunityIcons name="check-decagram" size={16} color="#0B0C12" />
               <Text style={styles.masteredBtnText}>Mastered (+15 XP)</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A1A',
-  },
+  container: { flex: 1, backgroundColor: '#0B0C12' },
   header: {
-    paddingTop: 48,
-    paddingHorizontal: 20,
-    paddingBottom: 14,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0D0D20',
+    paddingTop: Platform.OS === 'ios' ? 54 : 38,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+    backgroundColor: '#12141F',
+    borderBottomWidth: 1,
+    borderBottomColor: '#222436',
+    gap: 10,
   },
   backBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#00D2FF',
-    marginTop: 1,
-  },
-  counterBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  counterText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#DDDDEE',
-  },
-  progressTrack: {
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#00D2FF',
-  },
-  cardArea: {
-    flex: 1,
-    padding: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#0B0C12',
+    borderWidth: 1,
+    borderColor: '#222436',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  flashcard: {
-    borderRadius: 20,
-    padding: 20,
-    minHeight: 380,
-    justifyContent: 'space-between',
+  headerTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+  headerSubtitle: { color: '#777799', fontSize: 11, fontWeight: '600', marginTop: 1 },
+  counterBadge: {
+    backgroundColor: '#00E5FF14',
     borderWidth: 1,
+    borderColor: '#00E5FF44',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  flashcardFront: {
-    backgroundColor: '#121228',
-    borderColor: 'rgba(0, 210, 255, 0.25)',
+  counterText: { color: '#00E5FF', fontSize: 12, fontWeight: '800' },
+
+  progressTrack: { height: 3, backgroundColor: '#181B29', width: '100%' },
+  progressFill: { height: '100%', backgroundColor: '#00E5FF' },
+
+  filterWrap: { paddingTop: 12, paddingBottom: 4 },
+  filterScroll: { paddingHorizontal: 18, gap: 8 },
+  filterChip: {
+    backgroundColor: '#12141F',
+    borderWidth: 1,
+    borderColor: '#222436',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  flashcardBack: {
-    backgroundColor: '#151532',
-    borderColor: 'rgba(108, 92, 231, 0.4)',
+  filterChipActive: { backgroundColor: '#00E5FF', borderColor: '#00E5FF' },
+  filterChipText: { color: '#8E8EA8', fontSize: 11, fontWeight: '700' },
+  filterChipTextActive: { color: '#0B0C12', fontWeight: '800' },
+
+  cardArea: { flex: 1, padding: 18, justifyContent: 'space-between' },
+  flashcard: {
+    flex: 1,
+    backgroundColor: '#12141F',
+    borderWidth: 1,
+    borderColor: '#222436',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 16,
   },
+  flashcardBack: { borderColor: '#00E5FF' },
   cardTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   subjectPill: {
-    backgroundColor: 'rgba(108, 92, 231, 0.2)',
-    paddingHorizontal: 10,
+    backgroundColor: '#00E5FF15',
+    borderWidth: 1,
+    borderColor: '#00E5FF44',
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
-  subjectPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#A29BFE',
-    textTransform: 'uppercase',
-  },
-  flipHintText: {
-    fontSize: 11,
-    color: '#8E8EA8',
-  },
-  cardContentFront: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-  },
-  cardTopicTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#00D2FF',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  cardQuestionText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: 24,
-  },
+  subjectPillText: { color: '#00E5FF', fontSize: 11, fontWeight: '800' },
+  flipHintText: { color: '#777799', fontSize: 11, fontWeight: '600' },
+
+  cardBody: { flex: 1, justifyContent: 'center', gap: 14 },
+  cardTopicTitle: { color: '#00E5FF', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  cardQuestionText: { color: '#FFFFFF', fontSize: 19, fontWeight: '800', lineHeight: 27 },
   tapPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 18,
+    backgroundColor: '#0B0C12',
+    borderWidth: 1,
+    borderColor: '#222436',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  tapPromptText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#00D2FF',
-  },
-  cardContentBack: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  backBlindspotHeading: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FF6B81',
-    marginBottom: 14,
-  },
+  tapPromptText: { color: '#8E8EA8', fontSize: 12, fontWeight: '600' },
+
+  backBlindspotHeading: { color: '#FFB800', fontSize: 16, fontWeight: '800', lineHeight: 22, marginBottom: 14 },
   backMissBox: {
-    backgroundColor: 'rgba(255, 165, 2, 0.08)',
-    borderRadius: 12,
+    backgroundColor: '#FF475712',
+    borderWidth: 1,
+    borderColor: '#FF475744',
+    borderRadius: 10,
     padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FFA502',
     marginBottom: 12,
+    gap: 5,
   },
-  backMissLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFA502',
-    marginBottom: 4,
-  },
-  backMissText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    lineHeight: 18,
-  },
+  backMissLabel: { color: '#FF6B81', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  backMissText: { color: '#E2E4F0', fontSize: 13, lineHeight: 19 },
   backRubricBox: {
-    backgroundColor: 'rgba(46, 213, 115, 0.08)',
-    borderRadius: 12,
+    backgroundColor: '#00E5A312',
+    borderWidth: 1,
+    borderColor: '#00E5A344',
+    borderRadius: 10,
     padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2ED573',
+    gap: 5,
   },
-  backRubricLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2ED573',
-    marginBottom: 4,
-  },
-  backRubricText: {
-    fontSize: 12,
-    color: '#CCD0E0',
-    lineHeight: 17,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
+  backRubricLabel: { color: '#00E5A3', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  backRubricText: { color: '#FFFFFF', fontSize: 13, lineHeight: 19, fontWeight: '600' },
+
+  actionsRow: { flexDirection: 'row', gap: 10, paddingBottom: Platform.OS === 'ios' ? 16 : 6 },
   reviewAgainBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingVertical: 14,
-    borderRadius: 14,
     gap: 6,
+    backgroundColor: '#12141F',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#222436',
+    paddingVertical: 14,
+    borderRadius: 10,
   },
-  reviewAgainText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#8E8EA8',
-  },
+  reviewAgainText: { color: '#8E8EA8', fontSize: 13, fontWeight: '700' },
   masteredBtn: {
-    flex: 1.3,
+    flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6C5CE7',
-    paddingVertical: 14,
-    borderRadius: 14,
     gap: 6,
+    backgroundColor: '#00E5FF',
+    paddingVertical: 14,
+    borderRadius: 10,
   },
-  masteredBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  completeContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-  },
+  masteredBtnText: { color: '#0B0C12', fontSize: 13, fontWeight: '800' },
+
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 8 },
+  emptyTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800' },
+  emptySub: { color: '#8E8EA8', fontSize: 13, textAlign: 'center' },
+
+  completeContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 12 },
   trophyCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
-    justifyContent: 'center',
+    width: 78,
+    height: 78,
+    borderRadius: 16,
+    backgroundColor: '#FFB80015',
+    borderWidth: 1,
+    borderColor: '#FFB80044',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
   },
-  completeTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 6,
-  },
-  completeSub: {
-    fontSize: 13,
-    color: '#8E8EA8',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 24,
-  },
+  completeTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
+  completeSub: { color: '#8E8EA8', fontSize: 13, textAlign: 'center', lineHeight: 19 },
   restartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#6C5CE7',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 12,
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#00E5FF',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 8,
   },
-  restartBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  backGuidesBtn: {
-    paddingVertical: 10,
-  },
-  backGuidesText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#00D2FF',
-  },
+  restartBtnText: { color: '#0B0C12', fontSize: 14, fontWeight: '800' },
+  backGuidesBtn: { paddingVertical: 12 },
+  backGuidesText: { color: '#8E8EA8', fontSize: 13, fontWeight: '700' },
 });

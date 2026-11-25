@@ -28,7 +28,7 @@ try {
 if (serviceAccount) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: "studyquest-43b26.firebasestorage.app",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "studyquest-2.firebasestorage.app",
   });
 } else {
   admin.initializeApp();

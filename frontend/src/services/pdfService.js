@@ -7,14 +7,25 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
+function escapeHtml(raw = '') {
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function generateCheatSheetHtml(subject = 'General', targetExam = 'CBSE Class 12 Boards', topics = []) {
-  const currentDate = new Date().toLocaleDateString('en-US', {
+  const safeSubject = escapeHtml(subject);
+  const safeExam = escapeHtml(targetExam);
+  const currentDate = escapeHtml(new Date().toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  });
+  }));
 
-  const topicRows = topics.map((t, idx) => {
+  const topicRows = (topics || []).map((t, idx) => {
     const blindspot = t.aiBlindspots?.[0] || {
       point: 'Key Boundary Invariant',
       whatAiMisses: 'Examiners deduct marks if boundary exceptions and scientific units are omitted.',
@@ -26,14 +37,14 @@ export async function generateCheatSheetHtml(subject = 'General', targetExam = '
     return `
       <div class="topic-row ${idx % 2 === 0 ? 'even' : 'odd'}">
         <div class="topic-left">
-          <div class="topic-title">${idx + 1}. ${t.title}</div>
-          <div class="topic-concept">${coreConcept}</div>
-          <div class="topic-relevance">Relevance: ${t.examRelevance || 'High Probability'}</div>
+          <div class="topic-title">${idx + 1}. ${escapeHtml(t.title)}</div>
+          <div class="topic-concept">${escapeHtml(coreConcept)}</div>
+          <div class="topic-relevance">Relevance: ${escapeHtml(t.examRelevance || 'High Probability')}</div>
         </div>
         <div class="topic-right">
           <div class="blindspot-title">&#9888; What Generic AI Leaves Out:</div>
-          <div class="blindspot-body">${blindspot.whatAiMisses}</div>
-          <div class="rubric-note"><strong>Examiner Key:</strong> ${blindspot.examinerRubric}</div>
+          <div class="blindspot-body">${escapeHtml(blindspot.whatAiMisses)}</div>
+          <div class="rubric-note"><strong>Examiner Key:</strong> ${escapeHtml(blindspot.examinerRubric)}</div>
         </div>
       </div>
     `;
@@ -44,7 +55,7 @@ export async function generateCheatSheetHtml(subject = 'General', targetExam = '
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>StudyQuest Cheat Sheet - ${subject}</title>
+        <title>StudyQuest Cheat Sheet - ${safeSubject}</title>
         <style>
           @page {
             size: A4;
@@ -167,7 +178,7 @@ export async function generateCheatSheetHtml(subject = 'General', targetExam = '
           <tr>
             <td>
               <h1 class="header-title">StudyQuest &bull; Exam Blindspot Cheat Sheet</h1>
-              <div class="header-sub">${subject} &bull; Targeted for ${targetExam}</div>
+              <div class="header-sub">${safeSubject} &bull; Targeted for ${safeExam}</div>
             </td>
             <td class="header-meta">
               <div class="meta-badge">EXAM READY</div>

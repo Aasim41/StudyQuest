@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,21 @@ import {
   ScrollView,
   FlatList,
   Image,
+  Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../context/UserContext';
-import { COLORS, SPACING, FONT_SIZES, FONTS, BORDER_RADIUS, SHADOWS } from '../theme';
+import {
+  EXAM_TARGETS,
+  EXAM_CATEGORIES,
+  getStreamsForExam,
+} from '../config/studyGuideData';
+import { gsapTabTransition } from '../utils/gsapAnim';
 
 const { width } = Dimensions.get('window');
-
-// ─── CUSTOMIZATION OPTIONS ───────────────────────────────────────────────────
 
 const SKIN_COLORS = [
   { value: 'ffdbb4', label: 'Light' },
@@ -39,85 +41,21 @@ const HAIR_STYLES = [
   { value: 'shortCurly', label: 'Short Curly' },
   { value: 'sides', label: 'Sides' },
   { value: 'theCaesar', label: 'Caesar' },
-  { value: 'theCaesarAndSidePart', label: 'Caesar Side' },
   { value: 'bob', label: 'Bob' },
   { value: 'bun', label: 'Bun' },
   { value: 'curly', label: 'Curly' },
-  { value: 'curvy', label: 'Curvy' },
   { value: 'dreads', label: 'Dreads' },
-  { value: 'longButNotTooLong', label: 'Long' },
   { value: 'straight01', label: 'Straight' },
-  { value: 'straight02', label: 'Straight 2' },
-  { value: 'straightAndStrand', label: 'Strand' },
-  { value: 'shavedSides', label: 'Shaved' },
-  { value: 'froBand', label: 'Fro Band' },
-  { value: 'fro', label: 'Fro' },
-  { value: 'bigHair', label: 'Big Hair' },
   { value: 'turban', label: 'Turban' },
-  { value: 'winterHat01', label: 'Beanie' },
 ];
 
 const HAIR_COLORS = [
   { value: '2c1b18', label: 'Black' },
-  { value: '4a312c', label: 'Dark Brown' },
+  { value: '4a312c', label: 'Dark' },
   { value: '724133', label: 'Brown' },
   { value: 'a55728', label: 'Auburn' },
   { value: 'b58143', label: 'Caramel' },
   { value: 'd6b370', label: 'Blonde' },
-  { value: 'e8e1e1', label: 'Platinum' },
-  { value: 'c93305', label: 'Red' },
-  { value: '6C5CE7', label: 'Purple' },
-  { value: '00b4d8', label: 'Blue' },
-];
-
-const EYE_OPTIONS = [
-  { value: 'default', label: 'Default' },
-  { value: 'happy', label: 'Happy' },
-  { value: 'wink', label: 'Wink' },
-  { value: 'hearts', label: 'Hearts' },
-  { value: 'surprised', label: 'Surprised' },
-  { value: 'side', label: 'Side' },
-  { value: 'squint', label: 'Squint' },
-  { value: 'dizzy', label: 'Dizzy' },
-  { value: 'eyeRoll', label: 'Eye Roll' },
-  { value: 'winkWacky', label: 'Wink Wacky' },
-];
-
-const EYEBROW_OPTIONS = [
-  { value: 'default', label: 'Default' },
-  { value: 'defaultNatural', label: 'Natural' },
-  { value: 'raisedExcited', label: 'Raised' },
-  { value: 'raisedExcitedNatural', label: 'Raised Alt' },
-  { value: 'flatNatural', label: 'Flat' },
-  { value: 'upDown', label: 'Up Down' },
-  { value: 'upDownNatural', label: 'Up Down Alt' },
-  { value: 'angry', label: 'Angry' },
-  { value: 'angryNatural', label: 'Angry Alt' },
-  { value: 'sadConcerned', label: 'Sad' },
-  { value: 'unibrowNatural', label: 'Unibrow' },
-];
-
-const MOUTH_OPTIONS = [
-  { value: 'smile', label: 'Smile' },
-  { value: 'default', label: 'Default' },
-  { value: 'twinkle', label: 'Twinkle' },
-  { value: 'tongue', label: 'Tongue' },
-  { value: 'eating', label: 'Eating' },
-  { value: 'serious', label: 'Serious' },
-  { value: 'grimace', label: 'Grimace' },
-  { value: 'sad', label: 'Sad' },
-  { value: 'concerned', label: 'Concerned' },
-  { value: 'disbelief', label: 'Disbelief' },
-  { value: 'screamOpen', label: 'Scream' },
-];
-
-const FACIAL_HAIR_OPTIONS = [
-  { value: '', label: 'None' },
-  { value: 'beardLight', label: 'Light Beard' },
-  { value: 'beardMedium', label: 'Medium Beard' },
-  { value: 'beardMajestic', label: 'Full Beard' },
-  { value: 'moustacheFancy', label: 'Fancy Stache' },
-  { value: 'moustacheMagnum', label: 'Magnum Stache' },
 ];
 
 const ACCESSORY_OPTIONS = [
@@ -125,9 +63,7 @@ const ACCESSORY_OPTIONS = [
   { value: 'prescription01', label: 'Glasses 1' },
   { value: 'prescription02', label: 'Glasses 2' },
   { value: 'round', label: 'Round' },
-  { value: 'sunglasses', label: 'Sunglasses' },
   { value: 'wayfarers', label: 'Wayfarers' },
-  { value: 'kurt', label: 'Kurt' },
 ];
 
 const CLOTHING_OPTIONS = [
@@ -135,53 +71,45 @@ const CLOTHING_OPTIONS = [
   { value: 'blazerAndShirt', label: 'Blazer' },
   { value: 'blazerAndSweater', label: 'Sweater' },
   { value: 'collarAndSweater', label: 'Collar' },
-  { value: 'graphicShirt', label: 'Graphic Tee' },
-  { value: 'overall', label: 'Overall' },
   { value: 'shirtCrewNeck', label: 'Crew Neck' },
-  { value: 'shirtScoopNeck', label: 'Scoop Neck' },
   { value: 'shirtVNeck', label: 'V-Neck' },
 ];
 
-const CLOTHES_COLORS = [
-  { value: '3c4f5c', label: 'Charcoal' },
-  { value: '65c9ff', label: 'Sky Blue' },
-  { value: '25557c', label: 'Navy' },
-  { value: 'e6e6e6', label: 'White' },
-  { value: '929598', label: 'Gray' },
-  { value: 'ff5c5c', label: 'Red' },
-  { value: 'ff488e', label: 'Pink' },
-  { value: '6C5CE7', label: 'Purple' },
-  { value: '262e33', label: 'Black' },
-];
-
-// ─── CATEGORY TABS ───────────────────────────────────────────────────────────
-
 const CATEGORIES = [
-  { id: 'skin', label: 'Skin', icon: 'face-man-profile', options: SKIN_COLORS, isColor: true },
-  { id: 'top', label: 'Hair', icon: 'content-cut', options: HAIR_STYLES, isColor: false },
-  { id: 'hairColor', label: 'Hair Color', icon: 'palette', options: HAIR_COLORS, isColor: true },
-  { id: 'eyes', label: 'Eyes', icon: 'eye-outline', options: EYE_OPTIONS, isColor: false },
-  { id: 'eyebrows', label: 'Brows', icon: 'arrow-up-bold-outline', options: EYEBROW_OPTIONS, isColor: false },
-  { id: 'mouth', label: 'Mouth', icon: 'emoticon-happy-outline', options: MOUTH_OPTIONS, isColor: false },
-  { id: 'facialHair', label: 'Beard', icon: 'face-man-shimmer', options: FACIAL_HAIR_OPTIONS, isColor: false },
-  { id: 'accessories', label: 'Glasses', icon: 'glasses', options: ACCESSORY_OPTIONS, isColor: false },
-  { id: 'clothing', label: 'Outfit', icon: 'tshirt-crew-outline', options: CLOTHING_OPTIONS, isColor: false },
-  { id: 'clothesColor', label: 'Outfit Color', icon: 'palette-outline', options: CLOTHES_COLORS, isColor: true },
+  { id: 'skin', label: 'Skin', options: SKIN_COLORS, isColor: true },
+  { id: 'top', label: 'Hair', options: HAIR_STYLES, isColor: false },
+  { id: 'hairColor', label: 'Tone', options: HAIR_COLORS, isColor: true },
+  { id: 'accessories', label: 'Glasses', options: ACCESSORY_OPTIONS, isColor: false },
+  { id: 'clothing', label: 'Outfit', options: CLOTHING_OPTIONS, isColor: false },
 ];
-
-// ─── COMPONENT ───────────────────────────────────────────────────────────────
 
 export default function AvatarSelectionScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userStats, saveStatsToFirestore, completeOnboarding } = useUser();
+  const {
+    userStats,
+    saveStatsToFirestore,
+    completeOnboarding,
+    targetExam,
+    targetStream,
+    setTargetExam,
+  } = useUser();
+
   const isEditing = route.params?.isEditing || false;
 
-  const [activeCategory, setActiveCategory] = useState('skin');
+  // Card Tabs: 'exam' | 'avatar' (Skip exam step automatically if editing avatar only)
+  const [setupTab, setSetupTab] = useState(isEditing ? 'avatar' : 'exam');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [chosenExamLabel, setChosenExamLabel] = useState(targetExam || 'CBSE Class 12 Boards');
+  const [chosenStreamId, setChosenStreamId] = useState(targetStream || 'pcm');
+
+  const [activeAvatarCategory, setActiveAvatarCategory] = useState('skin');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Avatar customization state
+  const tabAnim = useRef(new Animated.Value(1)).current;
+  const imgTimerRef = useRef(null);
+
   const [config, setConfig] = useState({
     skin: 'ffdbb4',
     top: 'shortFlat',
@@ -195,7 +123,12 @@ export default function AvatarSelectionScreen() {
     clothesColor: '3c4f5c',
   });
 
-  // Parse existing avatar URL when editing (Crash-proof without requiring URL polyfills)
+  useEffect(() => {
+    return () => {
+      if (imgTimerRef.current) clearTimeout(imgTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (isEditing && userStats?.avatarUrl) {
       try {
@@ -211,21 +144,35 @@ export default function AvatarSelectionScreen() {
           skin: map.skinColor || prev.skin,
           top: map.top || prev.top,
           hairColor: map.hairColor || prev.hairColor,
-          eyes: map.eyes || prev.eyes,
-          eyebrows: map.eyebrows || prev.eyebrows,
-          mouth: map.mouth || prev.mouth,
-          facialHair: map.facialHair || '',
           accessories: map.accessories || '',
           clothing: map.clothing || prev.clothing,
-          clothesColor: map.clothesColor || prev.clothesColor,
         }));
-      } catch (e) {
-        // If parsing fails, keep defaults safely
-      }
+      } catch (e) {}
     }
   }, []);
 
-  // Build the DiceBear URL (natively PNG for 100% Android Image compatibility)
+  const availableStreams = useMemo(() => {
+    return getStreamsForExam(chosenExamLabel);
+  }, [chosenExamLabel]);
+
+  // Keep chosenStreamId valid when exam changes
+  useEffect(() => {
+    if (availableStreams.length > 0 && !availableStreams.some((s) => s.id === chosenStreamId)) {
+      setChosenStreamId(availableStreams[0].id);
+    }
+  }, [chosenExamLabel, availableStreams]);
+
+  const filteredExams = useMemo(() => {
+    if (selectedCategoryFilter === 'ALL') return EXAM_TARGETS;
+    return EXAM_TARGETS.filter((e) => e.category === selectedCategoryFilter);
+  }, [selectedCategoryFilter]);
+
+  const switchSetupTab = (tab) => {
+    if (tab === setupTab) return;
+    gsapTabTransition(tabAnim);
+    setSetupTab(tab);
+  };
+
   const buildAvatarUrl = useCallback(() => {
     const base = 'https://api.dicebear.com/9.x/avataaars/png';
     const params = [
@@ -235,17 +182,12 @@ export default function AvatarSelectionScreen() {
       `eyes=${encodeURIComponent(config.eyes || 'default')}`,
       `eyebrows=${encodeURIComponent(config.eyebrows || 'default')}`,
       `mouth=${encodeURIComponent(config.mouth || 'smile')}`,
-      `facialHair=${encodeURIComponent(config.facialHair || '')}`,
-      `facialHairProbability=${config.facialHair ? '100' : '0'}`,
       `accessories=${encodeURIComponent(config.accessories || '')}`,
       `accessoriesProbability=${config.accessories ? '100' : '0'}`,
       `clothing=${encodeURIComponent(config.clothing || 'hoodie')}`,
       `clothesColor=${encodeURIComponent(config.clothesColor || '3c4f5c')}`,
       `backgroundColor=b6e3f4`,
     ];
-    if (config.facialHair) {
-      params.push(`facialHairColor=${encodeURIComponent(config.hairColor || '2c1b18')}`);
-    }
     return `${base}?${params.join('&')}`;
   }, [config]);
 
@@ -253,97 +195,50 @@ export default function AvatarSelectionScreen() {
 
   const updateOption = (categoryId, value) => {
     setLoading(true);
-    setConfig(prev => ({ ...prev, [categoryId]: value }));
-    setTimeout(() => setLoading(false), 300);
+    setConfig((prev) => ({ ...prev, [categoryId]: value }));
+    if (imgTimerRef.current) clearTimeout(imgTimerRef.current);
+    imgTimerRef.current = setTimeout(() => setLoading(false), 250);
   };
 
-  const randomize = () => {
-    setLoading(true);
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)].value;
-    setConfig({
-      skin: pick(SKIN_COLORS),
-      top: pick(HAIR_STYLES),
-      hairColor: pick(HAIR_COLORS),
-      eyes: pick(EYE_OPTIONS),
-      eyebrows: pick(EYEBROW_OPTIONS),
-      mouth: pick(MOUTH_OPTIONS),
-      facialHair: Math.random() > 0.5 ? pick(FACIAL_HAIR_OPTIONS.filter(o => o.value)) : '',
-      accessories: Math.random() > 0.5 ? pick(ACCESSORY_OPTIONS.filter(o => o.value)) : '',
-      clothing: pick(CLOTHING_OPTIONS),
-      clothesColor: pick(CLOTHES_COLORS),
-    });
-    setTimeout(() => setLoading(false), 400);
-  };
-
-  const handleSave = async () => {
+  const finishOnboardingRedirect = async (saveProfile = true) => {
     try {
       setSaving(true);
-      await saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
-      await AsyncStorage.setItem('@avatarUrl', currentAvatarUrl).catch(() => {});
+      if (saveProfile) {
+        if (!isEditing && setTargetExam) {
+          await setTargetExam(chosenExamLabel, chosenStreamId);
+        }
+        await saveStatsToFirestore({ ...userStats, avatarUrl: currentAvatarUrl });
+        await AsyncStorage.setItem('@avatarUrl', currentAvatarUrl).catch(() => {});
+      }
       if (completeOnboarding) {
         await completeOnboarding();
       }
-      if (isEditing || navigation.canGoBack()) {
+      if (isEditing && navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        });
+        // AppNavigator transitions from OnboardingStack to MainStack on onboardingComplete=true
+        try {
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        } catch {}
       }
     } catch (e) {
-      console.warn('Save avatar error', e);
       if (completeOnboarding) await completeOnboarding();
-      if (isEditing || navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-      }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSkip = async () => {
-    try {
-      setSaving(true);
-      if (completeOnboarding) {
-        await completeOnboarding();
-      }
-      if (isEditing || navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        });
-      }
-    } catch (e) {
-      console.warn('Skip avatar error', e);
-      if (completeOnboarding) await completeOnboarding();
-      if (isEditing || navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const activeCat = CATEGORIES.find(c => c.id === activeCategory);
-
-  // ─── RENDER ──────────────────────────────────────────────────────────────────
+  const activeCat = CATEGORIES.find((c) => c.id === activeAvatarCategory);
 
   const renderColorSwatch = ({ item }) => {
-    const isSelected = config[activeCategory] === item.value;
+    const isSelected = config[activeAvatarCategory] === item.value;
     return (
       <TouchableOpacity
-        onPress={() => updateOption(activeCategory, item.value)}
-        style={[styles.colorSwatch, isSelected && styles.colorSwatchSelected]}
+        onPress={() => updateOption(activeAvatarCategory, item.value)}
+        style={styles.colorSwatch}
       >
-        <View style={[styles.colorDot, { backgroundColor: `#${item.value}` }]}>
-          {isSelected && <MaterialCommunityIcons name="check" size={18} color="#FFF" />}
+        <View style={[styles.colorDot, { backgroundColor: `#${item.value}` }, isSelected && styles.colorDotSelected]}>
+          {isSelected && <MaterialCommunityIcons name="check" size={16} color="#FFFFFF" />}
         </View>
         <Text style={[styles.swatchLabel, isSelected && styles.swatchLabelSelected]}>{item.label}</Text>
       </TouchableOpacity>
@@ -351,13 +246,12 @@ export default function AvatarSelectionScreen() {
   };
 
   const renderOptionChip = ({ item }) => {
-    const isSelected = config[activeCategory] === item.value;
+    const isSelected = config[activeAvatarCategory] === item.value;
     return (
       <TouchableOpacity
-        onPress={() => updateOption(activeCategory, item.value)}
+        onPress={() => updateOption(activeAvatarCategory, item.value)}
         style={[styles.optionChip, isSelected && styles.optionChipSelected]}
       >
-        {isSelected && <MaterialCommunityIcons name="check-circle" size={16} color={COLORS.accent} style={{ marginRight: 4 }} />}
         <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{item.label}</Text>
       </TouchableOpacity>
     );
@@ -366,95 +260,181 @@ export default function AvatarSelectionScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <LinearGradient colors={COLORS.gradientDark} style={StyleSheet.absoluteFill} />
 
-      {/* Header */}
+      {/* Minimal Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{isEditing ? 'Edit Avatar' : 'Create Your Avatar'}</Text>
-        <Text style={styles.headerSub}>Customize every detail</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Customize Avatar' : 'Workspace Setup'}</Text>
+
+        {!isEditing && (
+          <View style={styles.cardTabsRow}>
+            <TouchableOpacity
+              style={[styles.cardTab, setupTab === 'exam' && styles.cardTabActive]}
+              onPress={() => switchSetupTab('exam')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.cardTabText, setupTab === 'exam' && styles.cardTabTextActive]}>
+                1. Exam & Stream
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.cardTab, setupTab === 'avatar' && styles.cardTabActive]}
+              onPress={() => switchSetupTab('avatar')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.cardTabText, setupTab === 'avatar' && styles.cardTabTextActive]}>
+                2. Scholar Avatar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* Avatar Preview */}
-      <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.avatarContainer}>
-        <LinearGradient colors={['rgba(108,92,231,0.3)', 'rgba(108,92,231,0)']} style={styles.avatarGlow} />
-        <View style={styles.avatarCard}>
-          {loading ? (
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          ) : (
-            <Image 
-              source={{ uri: currentAvatarUrl.replace('/svg?', '/png?') }} 
-              style={{ width: 150, height: 150 }} 
-            />
-          )}
-        </View>
-        <TouchableOpacity style={styles.randomizeBtn} onPress={randomize}>
-          <MaterialCommunityIcons name="dice-multiple" size={20} color="#FFF" />
-          <Text style={styles.randomizeText}>Randomize</Text>
-        </TouchableOpacity>
+      <Animated.View style={[styles.body, { opacity: tabAnim, transform: [{ scale: tabAnim }] }]}>
+        {setupTab === 'exam' && !isEditing ? (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.examScrollContent}>
+            {/* Category Tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catFilterRow}>
+              {EXAM_CATEGORIES.map((cat) => {
+                const active = selectedCategoryFilter === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.catChip, active && styles.catChipActive]}
+                    onPress={() => setSelectedCategoryFilter(cat.id)}
+                  >
+                    <Text style={[styles.catChipText, active && styles.catChipTextActive]}>{cat.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Target Exam Picker */}
+            <Text style={styles.sectionLabel}>SELECT TARGET EXAM ({filteredExams.length})</Text>
+            <View style={styles.examList}>
+              {filteredExams.map((item) => {
+                const isSelected = chosenExamLabel === item.label;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.examCard, isSelected && styles.examCardActive]}
+                    onPress={() => setChosenExamLabel(item.label)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.examCardLabel, isSelected && { color: '#00E5FF' }]}>
+                        {item.label}
+                      </Text>
+                      <Text style={styles.examCardWeightage}>{item.weightage}</Text>
+                    </View>
+                    {isSelected && <MaterialCommunityIcons name="check-circle" size={18} color="#00E5FF" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Stream Selector for Selected Exam */}
+            <Text style={[styles.sectionLabel, { marginTop: 16 }]}>SELECT STREAM / TRACK</Text>
+            <View style={styles.streamList}>
+              {availableStreams.map((str) => {
+                const isSel = chosenStreamId === str.id;
+                return (
+                  <TouchableOpacity
+                    key={str.id}
+                    style={[styles.streamCard, isSel && styles.streamCardActive]}
+                    onPress={() => setChosenStreamId(str.id)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.streamCardTop}>
+                      <Text style={[styles.streamTitle, isSel && { color: '#00E5FF' }]}>{str.label}</Text>
+                      {isSel && <MaterialCommunityIcons name="check-circle" size={16} color="#00E5FF" />}
+                    </View>
+                    <Text style={styles.streamDesc}>{str.desc}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.nextTabBtn}
+              onPress={() => switchSetupTab('avatar')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nextTabBtnText}>Next: Customize Avatar →</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 24 }} />
+          </ScrollView>
+        ) : (
+          <View style={styles.avatarTabContainer}>
+            <View style={styles.avatarPreviewBox}>
+              <View style={styles.avatarCircle}>
+                {loading ? (
+                  <ActivityIndicator size="large" color="#00E5FF" />
+                ) : (
+                  <Image
+                    source={{ uri: currentAvatarUrl }}
+                    style={{ width: 132, height: 132 }}
+                  />
+                )}
+              </View>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ maxHeight: 46 }}
+              contentContainerStyle={styles.avatarCatRow}
+            >
+              {CATEGORIES.map((cat) => {
+                const isActive = activeAvatarCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.avatarCatChip, isActive && styles.avatarCatChipActive]}
+                    onPress={() => setActiveAvatarCategory(cat.id)}
+                  >
+                    <Text style={[styles.avatarCatLabel, isActive && styles.avatarCatLabelActive]}>
+                      {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.optionsBox}>
+              <FlatList
+                data={activeCat?.options || []}
+                renderItem={activeCat?.isColor ? renderColorSwatch : renderOptionChip}
+                keyExtractor={(item) => item.value + item.label}
+                numColumns={activeCat?.isColor ? 6 : 3}
+                key={activeCat?.isColor ? 'color' : 'chip'}
+                showsVerticalScrollIndicator={false}
+              />
+            </View>
+          </View>
+        )}
       </Animated.View>
 
-      {/* Category Tabs */}
-      <Animated.View entering={FadeIn.delay(200).duration(400)}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryRow}
-        >
-          {CATEGORIES.map((cat) => {
-            const isActive = activeCategory === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.categoryTab, isActive && styles.categoryTabActive]}
-                onPress={() => setActiveCategory(cat.id)}
-              >
-                <MaterialCommunityIcons
-                  name={cat.icon}
-                  size={20}
-                  color={isActive ? '#FFF' : COLORS.textMuted}
-                />
-                <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </Animated.View>
-
-      {/* Options Grid */}
-      <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.optionsContainer}>
-        <FlatList
-          data={activeCat?.options || []}
-          renderItem={activeCat?.isColor ? renderColorSwatch : renderOptionChip}
-          keyExtractor={(item) => item.value + item.label}
-          numColumns={activeCat?.isColor ? 6 : 3}
-          key={activeCat?.isColor ? 'color' : 'chip'}
-          contentContainerStyle={styles.optionsGrid}
-          showsVerticalScrollIndicator={false}
-        />
-      </Animated.View>
-
-      {/* Footer Buttons */}
+      {/* Bottom Action Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleSave} disabled={saving}>
-          <LinearGradient
-            colors={COLORS.gradientPrimary}
-            style={styles.primaryBtnGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.primaryBtnText}>{isEditing ? 'Save Avatar' : 'Looking Good!'}</Text>
-            )}
-          </LinearGradient>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() => finishOnboardingRedirect(true)}
+          disabled={saving}
+          activeOpacity={0.85}
+        >
+          {saving ? (
+            <ActivityIndicator color="#0B0C12" />
+          ) : (
+            <Text style={styles.primaryBtnText}>
+              {isEditing ? 'Save Changes' : 'Launch Workspace →'}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {!isEditing && (
-          <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-            <Text style={styles.skipBtnText}>Skip for now</Text>
+          <TouchableOpacity style={styles.skipBtn} onPress={() => finishOnboardingRedirect(false)}>
+            <Text style={styles.skipBtnText}>Skip Customization</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -462,192 +442,162 @@ export default function AvatarSelectionScreen() {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#0B0C12' },
   header: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: 56,
+    paddingHorizontal: 16,
+    paddingTop: 52,
+    paddingBottom: 12,
+    backgroundColor: '#0E1018',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#222436',
+    gap: 12,
+  },
+  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.3 },
+  cardTabsRow: { flexDirection: 'row', gap: 8 },
+  cardTab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#141622',
+    borderWidth: 1.5,
+    borderColor: '#222436',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
   },
-  headerTitle: {
-    fontSize: FONT_SIZES.heading,
-    fontFamily: FONTS.extraBold,
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  headerSub: {
-    fontSize: FONT_SIZES.body,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.textSecondary,
-  },
+  cardTabActive: { backgroundColor: '#1A1E2E', borderColor: '#00E5FF' },
+  cardTabText: { fontSize: 12, fontWeight: '700', color: '#8E8EA8' },
+  cardTabTextActive: { color: '#00E5FF', fontWeight: '800' },
 
-  // Avatar preview
-  avatarContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.md,
+  body: { flex: 1 },
+  examScrollContent: { padding: 16 },
+  catFilterRow: { gap: 8, marginBottom: 14 },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
   },
-  avatarGlow: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    top: -10,
+  catChipActive: { backgroundColor: '#1A1E2E', borderColor: '#00E5FF' },
+  catChipText: { fontSize: 11, fontWeight: '700', color: '#8E8EA8' },
+  catChipTextActive: { color: '#00E5FF', fontWeight: '800' },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8E8EA8',
+    letterSpacing: 0.7,
+    marginBottom: 8,
   },
-  avatarCard: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 3,
-    borderColor: COLORS.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    ...SHADOWS.glow,
-  },
-  randomizeBtn: {
+  examList: { gap: 8 },
+  examCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(108,92,231,0.3)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.pill,
-    marginTop: SPACING.sm,
-    gap: 6,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 10,
+    padding: 12,
   },
-  randomizeText: {
-    color: '#FFF',
-    fontFamily: FONTS.semiBold,
-    fontSize: FONT_SIZES.caption,
+  examCardActive: { borderColor: '#00E5FF', backgroundColor: '#181C2B' },
+  examCardLabel: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  examCardWeightage: { fontSize: 11, color: '#777799', marginTop: 2 },
+  streamList: { gap: 8 },
+  streamCard: {
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
   },
-
-  // Category tabs
-  categoryRow: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    gap: 6,
-  },
-  categoryTab: {
+  streamCardActive: { borderColor: '#00E5FF', backgroundColor: '#181C2B' },
+  streamCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  streamTitle: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  streamDesc: { fontSize: 11, color: '#8E8EA8' },
+  nextTabBtn: {
+    marginTop: 18,
+    backgroundColor: '#181C2B',
+    borderWidth: 1.5,
+    borderColor: '#00E5FF',
+    borderRadius: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.md,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'transparent',
-    minWidth: 60,
   },
-  categoryTabActive: {
-    backgroundColor: 'rgba(108,92,231,0.25)',
-    borderColor: COLORS.accent,
-  },
-  categoryLabel: {
-    fontSize: 10,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  categoryLabelActive: {
-    color: '#FFF',
-  },
+  nextTabBtnText: { fontSize: 12, fontWeight: '800', color: '#00E5FF' },
 
-  // Options
-  optionsContainer: {
-    flex: 1,
-    paddingHorizontal: SPACING.md,
-  },
-  optionsGrid: {
-    paddingBottom: SPACING.md,
-  },
-
-  // Color swatches
-  colorSwatch: {
-    flex: 1,
+  // Avatar Tab
+  avatarTabContainer: { flex: 1, padding: 16, gap: 14 },
+  avatarPreviewBox: { alignItems: 'center', paddingVertical: 8 },
+  avatarCircle: {
+    width: 144,
+    height: 144,
+    borderRadius: 72,
+    backgroundColor: '#12141F',
+    borderWidth: 2,
+    borderColor: '#00E5FF',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    maxWidth: (width - SPACING.md * 2) / 6,
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  colorSwatchSelected: {},
+  avatarCatRow: { gap: 8, alignItems: 'center' },
+  avatarCatChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+  },
+  avatarCatChipActive: { borderColor: '#00E5FF', backgroundColor: '#1A1E2E' },
+  avatarCatLabel: { fontSize: 12, fontWeight: '700', color: '#8E8EA8' },
+  avatarCatLabelActive: { color: '#00E5FF', fontWeight: '800' },
+  optionsBox: { flex: 1 },
+  colorSwatch: { flex: 1, alignItems: 'center', paddingVertical: 8, maxWidth: (width - 32) / 6 },
   colorDot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
     marginBottom: 4,
   },
-  swatchLabel: {
-    fontSize: 9,
-    fontFamily: FONTS.medium,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-  },
-  swatchLabelSelected: {
-    color: COLORS.accent,
-  },
-
-  // Option chips
+  colorDotSelected: { borderColor: '#00E5FF' },
+  swatchLabel: { fontSize: 10, color: '#8E8EA8' },
+  swatchLabelSelected: { color: '#00E5FF', fontWeight: '800' },
   optionChip: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: '#12141F',
+    borderWidth: 1.5,
+    borderColor: '#222436',
+    borderRadius: 8,
     paddingVertical: 10,
-    paddingHorizontal: 6,
-    margin: 3,
+    margin: 4,
   },
-  optionChipSelected: {
-    backgroundColor: 'rgba(108,92,231,0.2)',
-    borderColor: COLORS.accent,
-  },
-  chipText: {
-    fontSize: 11,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  chipTextSelected: {
-    color: '#FFF',
-  },
+  optionChipSelected: { borderColor: '#00E5FF', backgroundColor: '#1A1E2E' },
+  chipText: { fontSize: 11, fontWeight: '700', color: '#8E8EA8' },
+  chipTextSelected: { color: '#00E5FF', fontWeight: '800' },
 
-  // Footer
   footer: {
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.xl,
-    paddingTop: SPACING.sm,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingTop: 10,
+    borderTopWidth: 1.5,
+    borderTopColor: '#222436',
+    backgroundColor: '#0E1018',
+    gap: 8,
   },
   primaryBtn: {
-    width: '100%',
-    borderRadius: BORDER_RADIUS.pill,
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
-  },
-  primaryBtnGradient: {
-    paddingVertical: 14,
+    backgroundColor: '#00E5FF',
+    paddingVertical: 13,
+    borderRadius: 10,
     alignItems: 'center',
   },
-  primaryBtnText: {
-    color: '#FFF',
-    fontSize: FONT_SIZES.bodyLarge,
-    fontFamily: FONTS.extraBold,
-    letterSpacing: 1,
-  },
-  skipBtn: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-  },
-  skipBtnText: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZES.body,
-    fontFamily: FONTS.semiBold,
-  },
+  primaryBtnText: { color: '#0B0C12', fontSize: 14, fontWeight: '900' },
+  skipBtn: { alignItems: 'center', paddingVertical: 6 },
+  skipBtnText: { color: '#8E8EA8', fontSize: 12, fontWeight: '700' },
 });

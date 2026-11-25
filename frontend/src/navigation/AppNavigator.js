@@ -175,6 +175,11 @@ const MainStack = () => (
       options={{ animation: 'slide_from_right' }}
     />
     <Stack.Screen 
+      name="Regain" 
+      component={RegainFocusScreen} 
+      options={{ animation: 'slide_from_right' }}
+    />
+    <Stack.Screen 
       name="RegainFocus" 
       component={RegainFocusScreen} 
       options={{ animation: 'slide_from_right' }}

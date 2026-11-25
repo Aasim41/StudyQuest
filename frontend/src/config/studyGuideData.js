@@ -1,4 +1,22 @@
 import { ADDITIONAL_EXAMS_KB } from './expandedExamsData.js';
+import { STREAM_SHARED_TOPICS } from './streamTopicsPool.js';
+import {
+  EXAM_STREAM_CATALOG,
+  getExamMeta,
+  getStreamsForExam,
+  resolveStreamForExam,
+  getSubjectsForExamAndStream,
+  getChaptersForSubject,
+} from './examCatalog.js';
+
+export {
+  EXAM_STREAM_CATALOG,
+  getExamMeta,
+  getStreamsForExam,
+  resolveStreamForExam,
+  getSubjectsForExamAndStream,
+  getChaptersForSubject,
+};
 
 /**
  * StudyQuest Universal Exam & Subject Knowledgebase (High-Precision Curation Engine)
@@ -2655,9 +2673,8 @@ export function normalizeExamKey(examTarget = '') {
   if (str.includes('ICSE') || (str.includes('CISCE') && str.includes('10'))) return 'ICSE_10';
   if (str.includes('ISC') && !str.includes('MISC')) return 'ISC_12';
 
-  // State Boards
-  if (str.includes('MAHARASHTRA') || str.includes('MSBSHSE') || str.includes('MH_BOARD') || str.includes('MH BOARD') || str.includes('HSC')) return 'MH_BOARD';
-  if (str.includes('KARNATAKA') || str.includes('KSEEB') || str.includes('KA_BOARD') || str.includes('PUC')) return 'KA_BOARD';
+  // State Boards (Check specific states BEFORE generic 'HSC' catch-all for Maharashtra)
+  if (str.includes('KARNATAKA') || str.includes('KSEEB') || str.includes('KSEAB') || str.includes('KA_BOARD') || str.includes('PUC')) return 'KA_BOARD';
   if (str.includes('TAMIL') || str.includes('TN_BOARD') || str.includes('SAMACHEER') || str.includes('DGE')) return 'TN_BOARD';
   if (str.includes('KERALA') || str.includes('KL_BOARD') || str.includes('DHSE')) return 'KL_BOARD';
   if (str.includes('UP BOARD') || str.includes('UP_BOARD') || str.includes('UPMSP') || str.includes('UTTAR PRADESH')) return 'UP_BOARD';
@@ -2667,6 +2684,7 @@ export function normalizeExamKey(examTarget = '') {
   if (str.includes('ANDHRA') || str.includes('TELANGANA') || str.includes('AP_BOARD') || str.includes('TSBIE') || str.includes('BIEAP') || str.includes('IPE')) return 'AP_BOARD';
   if (str.includes('BIHAR') || str.includes('BSEB') || str.includes('BIHAR_BOARD')) return 'BIHAR_BOARD';
   if (str.includes('GUJARAT') || str.includes('GSEB') || str.includes('GJ_BOARD')) return 'GJ_BOARD';
+  if (str.includes('MAHARASHTRA') || str.includes('MSBSHSE') || str.includes('MH_BOARD') || str.includes('MH BOARD') || str.includes('HSC')) return 'MH_BOARD';
 
   // Generic Board & College Fallbacks
   if (str.includes('10') || str.includes('CLASS 10')) return 'CBSE_10';
@@ -2675,10 +2693,31 @@ export function normalizeExamKey(examTarget = '') {
   return 'CBSE_12';
 }
 
+function normalizeSubjectAlias(subj = '') {
+  const s = (subj || '').toLowerCase();
+  if (s.includes('accountan') || s.includes('book-keeping')) return 'Accountancy';
+  if (s.includes('business') || s.includes('ocm')) return 'Business Studies';
+  if (s.includes('econom')) return 'Economics';
+  if (s.includes('history') && !s.includes('civics')) return 'History';
+  if (s.includes('political')) return 'Political Science';
+  if (s.includes('geograph')) return 'Geography';
+  if (s.includes('computer') || s === 'cs') return 'Computer Science';
+  if (s.includes('english')) return 'English Core';
+  if (s.includes('math')) return 'Mathematics';
+  if (s.includes('physics')) return 'Physics';
+  if (s.includes('chem')) return 'Chemistry';
+  if (s.includes('botany') || s.includes('zoology') || s.includes('bio')) return 'Biology';
+  return subj;
+}
+
 /**
- * Get exact curated subjects for the active target exam
+ * Get exact curated subjects for the active target exam & stream
  */
-export function getCuratedSubjectsForExam(examTarget = '') {
+export function getCuratedSubjectsForExam(examTarget = '', streamId = null) {
+  const streamSubjects = getSubjectsForExamAndStream(examTarget, streamId);
+  if (streamSubjects && streamSubjects.length > 0) {
+    return streamSubjects.map((s) => s.name);
+  }
   const key = normalizeExamKey(examTarget);
   if (EXAM_KNOWLEDGEBASE[key]) {
     return EXAM_KNOWLEDGEBASE[key].subjects;
@@ -2687,37 +2726,94 @@ export function getCuratedSubjectsForExam(examTarget = '') {
 }
 
 /**
- * Get curated topics and blindspots for the active target exam
+ * Get curated topics and blindspots for the active target exam, stream, and subject filter
  */
-export function getCuratedTopicsForExam(examTarget = '', selectedSubject = 'All') {
+export function getCuratedTopicsForExam(examTarget = '', selectedSubject = 'All', streamId = null) {
   const key = normalizeExamKey(examTarget);
   const examData = EXAM_KNOWLEDGEBASE[key] || EXAM_KNOWLEDGEBASE['CBSE_12'];
-  let list = examData.topics || [];
+  const examTopics = examData.topics || [];
+  const allowedSubjects = getCuratedSubjectsForExam(examTarget, streamId);
+  const allowedAliases = new Set(allowedSubjects.map(normalizeSubjectAlias));
 
-  if (selectedSubject && selectedSubject !== 'All') {
-    list = list.filter(t => t.subject === selectedSubject || t.subject.toLowerCase().includes(selectedSubject.toLowerCase()));
-  }
-
-  // If specific subject has no items in specific bucket, fall back to global subject pool
-  if (list.length === 0 && selectedSubject !== 'All') {
-    Object.values(EXAM_KNOWLEDGEBASE).forEach(data => {
-      data.topics?.forEach(t => {
-        if (t.subject === selectedSubject && !list.some(existing => existing.id === t.id)) {
-          list.push(t);
+  // Combine exam-specific topics with stream-shared verified topics (Commerce, Humanities, CS, etc.)
+  const pool = [...examTopics];
+  Object.entries(STREAM_SHARED_TOPICS).forEach(([sharedSubj, sharedList]) => {
+    if (allowedAliases.has(sharedSubj) || allowedSubjects.some((s) => s.toLowerCase().includes(sharedSubj.toLowerCase()))) {
+      sharedList.forEach((t) => {
+        if (!pool.some((existing) => existing.id === t.id)) {
+          pool.push(t);
         }
       });
-    });
+    }
+  });
+
+  if (selectedSubject && selectedSubject !== 'All') {
+    const targetAlias = normalizeSubjectAlias(selectedSubject);
+    let filtered = pool.filter(
+      (t) =>
+        t.subject === selectedSubject ||
+        normalizeSubjectAlias(t.subject) === targetAlias ||
+        t.subject.toLowerCase().includes(selectedSubject.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      Object.values(EXAM_KNOWLEDGEBASE).forEach((data) => {
+        data.topics?.forEach((t) => {
+          if (
+            (t.subject === selectedSubject || normalizeSubjectAlias(t.subject) === targetAlias) &&
+            !filtered.some((existing) => existing.id === t.id)
+          ) {
+            filtered.push(t);
+          }
+        });
+      });
+    }
+    return filtered;
   }
 
-  return list;
+  // Filter All-view cleanly to match stream subjects when a stream is selected (e.g. Commerce/Arts vs Science)
+  if (streamId) {
+    const streamMatched = pool.filter(
+      (t) => allowedSubjects.includes(t.subject) || allowedAliases.has(normalizeSubjectAlias(t.subject))
+    );
+    if (streamMatched.length > 0) return streamMatched;
+  }
+
+  return pool;
 }
 
 /**
- * Generate a high-precision, 4-phase day-by-day curated study plan for the active exam
+ * Generate a high-precision, 4-phase day-by-day curated study plan for the active exam & stream
  */
-export function getCuratedPlanForExam(examTarget = '') {
+export function getCuratedPlanForExam(examTarget = '', streamId = null) {
   const key = normalizeExamKey(examTarget);
-  const subjects = getCuratedSubjectsForExam(examTarget);
+  const subjects = getCuratedSubjectsForExam(examTarget, streamId);
+  const sNorm = (streamId || '').toLowerCase();
+
+  // If Commerce or Humanities stream is active on any Board, build stream-accurate 4-phase plan
+  if (sNorm === 'commerce' || subjects.some((s) => s.includes('Account') || s.includes('Business'))) {
+    const acc = subjects[0] || 'Accountancy';
+    const bst = subjects[1] || 'Business Studies';
+    const econ = subjects[2] || 'Economics';
+    return [
+      { id: `plan-${key}-com-1`, phase: 'Phase 1: Working Notes & AS-26 Formats', week: 'Week 1', day: 'Day 1 & 2', subject: acc, topic: 'Partnership Hidden Goodwill & Share Forfeiture Capital Reserve', focus: 'Avoid reversing received Securities Premium on forfeiture; show full Implied Capital note.', estimatedMinutes: 55, priority: 'CRITICAL', isCompleted: false },
+      { id: `plan-${key}-com-2`, phase: 'Phase 2: Macroeconomic Schedules & Multipliers', week: 'Week 2', day: 'Day 3 & 4', subject: econ, topic: 'Investment Multiplier k = 1/(1−MPC) & Operating Surplus Reconciliation', focus: 'Write 3-round income table; never double-count Dividend alongside Operating Surplus.', estimatedMinutes: 50, priority: 'CRITICAL', isCompleted: false },
+      { id: `plan-${key}-com-3`, phase: 'Phase 3: Case Studies & Financial Leverage', week: 'Week 3', day: 'Day 5 to 7', subject: bst, topic: 'Trading on Equity EPS Verification & Consumer Protection 2019 Limits', focus: 'Verify ROI > Cost of Debt before concluding Favorable Leverage in EBIT-EPS tables.', estimatedMinutes: 45, priority: 'HIGH', isCompleted: false },
+      { id: `plan-${key}-com-4`, phase: 'Phase 4: Cash Flow AS-3 & Timed Sample Paper', week: 'Week 4', day: 'Day 8 to 10', subject: acc, topic: 'Cash Flow Statement Operating/Investing Indirect Adjustments', focus: 'Separate Provision for Tax made vs paid cleanly under Working Notes.', estimatedMinutes: 60, priority: 'CRITICAL', isCompleted: false },
+    ];
+  }
+  if (sNorm === 'humanities' || subjects.some((s) => s.includes('Political Science') || (s.includes('History') && key !== 'ICSE_10'))) {
+    const hist = subjects[0] || 'History';
+    const pol = subjects[1] || 'Political Science';
+    const geo = subjects[2] || 'Geography';
+    return [
+      { id: `plan-${key}-hum-1`, phase: 'Phase 1: Source-Based Primary Evidence', week: 'Week 1', day: 'Day 1 & 2', subject: hist, topic: '1857 Awadh Summary Settlement & Azamgarh Rebel Proclamation', focus: 'Link sepoy barracks anger directly to rural peasant & Taluqdar dispossession.', estimatedMinutes: 50, priority: 'CRITICAL', isCompleted: false },
+      { id: `plan-${key}-hum-2`, phase: 'Phase 2: Constitutional Articles & Amendments', week: 'Week 2', day: 'Day 3 & 4', subject: pol, topic: '1975 Emergency Art 352 & 44th Constitutional Amendment Reforms', focus: 'Cite "Armed Rebellion", Written Cabinet advice & Art 20/21 non-suspendability.', estimatedMinutes: 45, priority: 'CRITICAL', isCompleted: false },
+      { id: `plan-${key}-hum-3`, phase: 'Phase 3: Demographic Curves & India Maps', week: 'Week 3', day: 'Day 5 to 7', subject: geo, topic: 'Demographic Transition Theory 3 Stages & Ports Map Work', focus: 'Draw Stage I-III Birth/Death gap curves; practice exact India port coordinates.', estimatedMinutes: 45, priority: 'HIGH', isCompleted: false },
+      { id: `plan-${key}-hum-4`, phase: 'Phase 4: Timed 8-Marker Structuring', week: 'Week 4', day: 'Day 8 to 10', subject: 'All Subjects', topic: 'Chronological Subheadings & 60s Flashcard Recall', focus: 'Format long answers with Intro -> Evidence Points -> Conclusion.', estimatedMinutes: 55, priority: 'CRITICAL', isCompleted: false },
+    ];
+  }
+
   const mainSub1 = subjects[0] || 'Core Subject 1';
   const mainSub2 = subjects[1] || 'Core Subject 2';
   const mainSub3 = subjects[2] || 'Core Subject 3';
@@ -3309,11 +3405,11 @@ export function getCuratedPlanForExam(examTarget = '') {
 }
 
 /**
- * Get high-yield question predictor radar questions specifically for the active target exam
+ * Get high-yield question predictor radar questions specifically for the active target exam & stream
  */
-export function getCuratedPredictorQuestionsForExam(examTarget = '') {
+export function getCuratedPredictorQuestionsForExam(examTarget = '', streamId = null) {
   const key = normalizeExamKey(examTarget);
-  const topics = getCuratedTopicsForExam(examTarget);
+  const topics = getCuratedTopicsForExam(examTarget, 'All', streamId);
 
   return topics.map((t, idx) => {
     const qItem = t.examQuestions?.[0] || {};
@@ -3322,7 +3418,7 @@ export function getCuratedPredictorQuestionsForExam(examTarget = '') {
       id: `pred-${key}-${idx + 1}`,
       subject: t.subject,
       topic: t.title,
-      probability: 94 - idx * 4,
+      probability: Math.max(70, 94 - idx * 3),
       probabilityTier: idx === 0 ? 'Guaranteed (90%+)' : idx === 1 ? 'High Recurrence (85%+)' : 'Frequent Trap (75%+)',
       marks: qItem.marks || 5,
       pastFrequency: `Featured in 4 of last 5 official ${examTarget || 'exam'} cycles`,
@@ -3338,10 +3434,10 @@ export function getCuratedPredictorQuestionsForExam(examTarget = '') {
 }
 
 /**
- * Get rapid 60-second exam morning flashcards specifically for the active target exam
+ * Get rapid 60-second exam morning flashcards specifically for the active target exam & stream
  */
-export function getCuratedFlashcardsForExam(examTarget = '') {
-  const topics = getCuratedTopicsForExam(examTarget);
+export function getCuratedFlashcardsForExam(examTarget = '', streamId = null) {
+  const topics = getCuratedTopicsForExam(examTarget, 'All', streamId);
   const deck = [];
 
   topics.forEach((t) => {
@@ -3363,10 +3459,10 @@ export function getCuratedFlashcardsForExam(examTarget = '') {
 }
 
 /**
- * Get high-risk question vault items dynamically curated for the active target exam
+ * Get high-risk question vault items dynamically curated for the active target exam & stream
  */
-export function getCuratedVaultQuestionsForExam(examTarget = '', selectedSubject = 'All') {
-  const topics = getCuratedTopicsForExam(examTarget, selectedSubject);
+export function getCuratedVaultQuestionsForExam(examTarget = '', selectedSubject = 'All', streamId = null) {
+  const topics = getCuratedTopicsForExam(examTarget, selectedSubject, streamId);
 
   return topics.map((t, idx) => {
     const qItem = t.examQuestions?.[0] || {};

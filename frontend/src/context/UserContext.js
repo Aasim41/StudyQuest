@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../../firebaseConfig';
@@ -201,6 +201,7 @@ export const UserProvider = ({ children }) => {
 
   // Study Guide & AI Blindspot Auditor States (Generic for all competitive & school exams)
   const [targetExam, setTargetExamState] = useState('CBSE Class 12 Boards');
+  const [targetStream, setTargetStreamState] = useState('pcm');
   const [savedGuides, setSavedGuides] = useState([]);
   const [auditedHistory, setAuditedHistory] = useState([]);
   const [masteredGapsCount, setMasteredGapsCount] = useState(7);
@@ -213,10 +214,11 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const init = async () => {
       try {
-        const [complete, guestVal, storedExam] = await Promise.all([
+        const [complete, guestVal, storedExam, storedStream] = await Promise.all([
           AsyncStorage.getItem('@onboardingComplete'),
           AsyncStorage.getItem('@isGuest'),
-          AsyncStorage.getItem('@targetExam')
+          AsyncStorage.getItem('@targetExam'),
+          AsyncStorage.getItem('@targetStream')
         ]);
         if (complete === 'true') {
           setOnboardingComplete(true);
@@ -227,6 +229,9 @@ export const UserProvider = ({ children }) => {
         const activeExam = storedExam || 'CBSE Class 12 Boards';
         if (storedExam) {
           setTargetExamState(storedExam);
+        }
+        if (storedStream) {
+          setTargetStreamState(storedStream);
         }
 
         // Check and refresh syllabus freshness in background on init
@@ -385,8 +390,8 @@ export const UserProvider = ({ children }) => {
       const activeBatch = batchStr || 'B31';
       setUserBatchState(activeBatch);
 
-      const savedExam = await getScopedItem('@targetExam');
-      if (savedExam) setTargetExamState(savedExam);
+      const savedStream = await getScopedItem('@targetStream');
+      if (savedStream) setTargetStreamState(savedStream);
 
       const savedGuidesStr = await getScopedItem('@savedGuides');
       if (savedGuidesStr) setSavedGuides(JSON.parse(savedGuidesStr));
@@ -476,6 +481,15 @@ export const UserProvider = ({ children }) => {
         if (data.attendanceRecords && typeof data.attendanceRecords === 'object') {
           setAttendanceRecords(data.attendanceRecords);
           setScopedItem('@attendanceRecords', JSON.stringify(data.attendanceRecords)).catch(() => {});
+        }
+
+        if (data.targetExam) {
+          setTargetExamState(data.targetExam);
+          setScopedItem('@targetExam', data.targetExam).catch(() => {});
+        }
+        if (data.targetStream) {
+          setTargetStreamState(data.targetStream);
+          setScopedItem('@targetStream', data.targetStream).catch(() => {});
         }
 
         // Sync onboarding flag from Firestore (survives reinstalls)
@@ -881,18 +895,24 @@ export const UserProvider = ({ children }) => {
     return { leveledUp, newLevel, unlockedBadges: unlocked, xpGained };
   };
 
-  const setTargetExam = async (exam) => {
+  const setTargetExam = async (exam, streamId = null) => {
     setTargetExamState(exam);
     await setScopedItem('@targetExam', exam).catch(() => {});
 
-    // Automatically curate high-precision study plan for the new target exam
-    const curatedPlan = getCuratedPlanForExam(exam);
+    if (streamId) {
+      setTargetStreamState(streamId);
+      await setScopedItem('@targetStream', streamId).catch(() => {});
+    }
+
+    // Automatically curate high-precision study plan for the new target exam & stream
+    const curatedPlan = getCuratedPlanForExam(exam, streamId || targetStream);
     setStudyPlan(curatedPlan);
     await setScopedItem('@studyPlan', JSON.stringify(curatedPlan)).catch(() => {});
 
     if (auth.currentUser) {
       setDoc(doc(db, 'users', auth.currentUser.uid), {
         targetExam: exam,
+        ...(streamId ? { targetStream: streamId } : {}),
         studyPlan: curatedPlan,
         updatedAt: new Date().toISOString()
       }, { merge: true }).catch(() => {});
@@ -903,6 +923,23 @@ export const UserProvider = ({ children }) => {
       if (res?.lastUpdated) setSyllabusLastUpdated(res.lastUpdated);
       if (res?.data) setSyllabusTrendData(res.data);
     }).catch(e => console.warn('Background syllabus refresh error:', e));
+  };
+
+  const setTargetStream = async (streamId) => {
+    setTargetStreamState(streamId);
+    await setScopedItem('@targetStream', streamId).catch(() => {});
+
+    const curatedPlan = getCuratedPlanForExam(targetExam, streamId);
+    setStudyPlan(curatedPlan);
+    await setScopedItem('@studyPlan', JSON.stringify(curatedPlan)).catch(() => {});
+
+    if (auth.currentUser) {
+      setDoc(doc(db, 'users', auth.currentUser.uid), {
+        targetStream: streamId,
+        studyPlan: curatedPlan,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(() => {});
+    }
   };
 
   const refreshSyllabusData = async (exam = targetExam) => {
@@ -969,52 +1006,61 @@ export const UserProvider = ({ children }) => {
     awardCustomXp(25, 'Mastered Exam Gap');
   };
 
+  const contextValue = useMemo(() => ({
+    onboardingComplete,
+    completeOnboarding,
+    setOnboardingComplete,
+    isGuest,
+    enterGuestMode,
+    exitGuestMode,
+    loading,
+    userStats,
+    loadFirestoreStats,
+    saveStatsToFirestore,
+    userBatch,
+    switchBatch,
+    ALL_BATCHES,
+    BATCH_GROUPS,
+    getDistinctSubjectsForBatch,
+    filterTimetableForBatch,
+    testTriggerClassEndNotification,
+    studyPlan,
+    loadLocalStudyPlan,
+    updateStudyPlan,
+    togglePlanItemCompleted,
+    timetable,
+    attendanceRecords,
+    saveTimetable,
+    markClassAttendance,
+    updateManualAttendance,
+    syncCampusLynxData,
+    BADGE_DEFINITIONS,
+    unlockBadge,
+    logStudySession,
+    targetExam,
+    setTargetExam,
+    targetStream,
+    setTargetStream,
+    savedGuides,
+    toggleSaveGuide,
+    auditedHistory,
+    saveAuditResult,
+    masteredGapsCount,
+    markGapMastered,
+    awardCustomXp,
+    syllabusLastUpdated,
+    syllabusTrendData,
+    isRefreshingSyllabus,
+    refreshSyllabusData
+  }), [
+    onboardingComplete, isGuest, loading, userStats, userBatch, studyPlan,
+    timetable, attendanceRecords, targetExam, targetStream, savedGuides,
+    auditedHistory, masteredGapsCount, syllabusLastUpdated, syllabusTrendData,
+    isRefreshingSyllabus
+  ]);
+
   return (
-    <UserContext.Provider value={{
-      onboardingComplete,
-      completeOnboarding,
-      setOnboardingComplete,
-      isGuest,
-      enterGuestMode,
-      exitGuestMode,
-      loading,
-      userStats,
-      loadFirestoreStats,
-      saveStatsToFirestore,
-      userBatch,
-      switchBatch,
-      ALL_BATCHES,
-      BATCH_GROUPS,
-      getDistinctSubjectsForBatch,
-      filterTimetableForBatch,
-      testTriggerClassEndNotification,
-      studyPlan,
-      loadLocalStudyPlan,
-      updateStudyPlan,
-      togglePlanItemCompleted,
-      timetable,
-      attendanceRecords,
-      saveTimetable,
-      markClassAttendance,
-      updateManualAttendance,
-      syncCampusLynxData,
-      BADGE_DEFINITIONS,
-      unlockBadge,
-      logStudySession,
-      targetExam,
-      setTargetExam,
-      savedGuides,
-      toggleSaveGuide,
-      auditedHistory,
-      saveAuditResult,
-      masteredGapsCount,
-      markGapMastered,
-      awardCustomXp,
-      syllabusLastUpdated,
-      syllabusTrendData,
-      isRefreshingSyllabus,
-      refreshSyllabusData
-    }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );

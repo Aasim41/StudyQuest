@@ -706,5 +706,753 @@ export const ADDITIONAL_EXAMS_KB = {
         ]
       }
     ]
+  },
+
+  // ─── NEET CHEMISTRY & PHYSICS ─────────────────────────────────────────────
+  NEET: {
+    subjects: ['Botany', 'Zoology', 'Chemistry', 'Physics'],
+    topics: [
+      {
+        id: 'neet-chem-cft-octahedral',
+        subject: 'Chemistry',
+        title: 'Coordination Compounds: CFT Splitting (Δₒ vs P) & Magnetic Moment',
+        examRelevance: 'NEET 4-Marker Guaranteed Inorganic Chemistry',
+        blindspotCount: 2,
+        summary: 'Strong-field vs weak-field ligand pairing criteria, tetrahedral inversion Δₜ = (4/9)Δₒ, and spin-only μ = √(n(n+2)) BM.',
+        aiBlindspots: [
+          {
+            point: 'Ammonia Acts as Strong Field with Co³⁺ (d⁶) but Weak Field with Co²⁺ / Mn²⁺',
+            whatAiSays: 'Generic AI labels ligands strictly strong or weak regardless of central metal oxidation state.',
+            whatAiMisses: 'Crystal field splitting Δₒ depends BOTH on ligand AND metal oxidation state! [Co(NH₃)₆]³⁺ has Co³⁺ (3d⁶, higher charge draws ligands closer -> larger Δₒ > P) forming low-spin diamagnetic t₂g⁶ e_g⁰ (n = 0), whereas [Co(NH₃)₆]²⁺ is high-spin paramagnetic!',
+            examinerRubric: '+4 for checking metal charge (+3 vs +2) and spectrochemical strength before counting unpaired electrons n.',
+          },
+        ],
+        coreConcepts: [
+          'Octahedral d-splitting: Lower energy t₂g (dxy, dyz, dxz) and higher energy e_g (dx²−y², dz²).',
+          'Spin-Only Magnetic Moment: μ = √(n(n+2)) Bohr Magnetons (BM); n = 4 gives √24 ≈ 4.90 BM.',
+          'Tetrahedral Complexes: Δₜ = (4/9)Δₒ < P almost universally, so tetrahedral complexes rarely spin-pair.',
+        ],
+        examQuestions: [
+          {
+            question: 'Compare the magnetic behavior of [Fe(CN)₆]³⁻ and [FeF₆]³⁻ with justification from Crystal Field Theory.',
+            marks: 4,
+            keyPoints: [
+              'Both contain Fe³⁺ (3d⁵).',
+              'CN⁻ is a strong-field ligand (Δₒ > P), pairing four electrons -> t₂g⁵ e_g⁰ -> n = 1 unpaired electron (μ ≈ 1.73 BM).',
+              'F⁻ is a weak-field ligand (Δₒ < P) -> t₂g³ e_g² -> n = 5 unpaired electrons (μ ≈ 5.92 BM).',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'Which octahedral complex has ZERO unpaired electrons (diamagnetic)?',
+            options: ['[CoF₆]³⁻', '[Co(NH₃)₆]³⁺', '[FeF₆]³⁻', '[NiCl₄]²⁻'],
+            correctIndex: 1,
+            explanation: 'Co³⁺ is d⁶ and NH₃ triggers low-spin pairing here (Δₒ > P), placing all 6 electrons paired into t₂g⁶ e_g⁰.',
+          },
+        ],
+      },
+      {
+        id: 'neet-phy-zener-logic',
+        subject: 'Physics',
+        title: 'Semiconductors: Zener Reverse Voltage Regulation & Universal Logic Gates',
+        examRelevance: 'NEET Modern Physics 4-Marker Compulsory',
+        blindspotCount: 2,
+        summary: 'Heavy doping thin depletion width (< 10⁻⁶ m), reverse breakdown constant V_Z across load, and De Morgan NAND/NOR conversions.',
+        aiBlindspots: [
+          {
+            point: 'Series Current Limiting Resistor R_s Power & Load Range Check',
+            whatAiSays: 'Generic AI stops at V_out = V_Z without computing current distribution I_in = I_Z + I_L.',
+            whatAiMisses: 'In NEET numericals, R_s carries BOTH Zener current I_Z AND Load current I_L = V_Z / R_L! Students compute R_s using only I_Z or drop I_R = (V_in − V_Z)/R_s and miss subtracting I_L.',
+            examinerRubric: 'Verify: I_total = (V_in − V_Z) / R_s and I_Z = I_total − V_Z / R_L.',
+          },
+        ],
+        coreConcepts: [
+          'Zener Diode: Heavily doped p-n junction designed specifically to operate safely in Reverse Breakdown region.',
+          'Universal Gates: Both NAND (¬(A·B)) and NOR (¬(A+B)) can construct NOT, AND, OR, and XOR logic.',
+          'De Morgan Laws: ¬(A·B) = ¬A + ¬B and ¬(A+B) = ¬A · ¬B.',
+        ],
+        examQuestions: [
+          {
+            question: 'A 10 V Zener diode is connected with input 15 V across a series resistor of 250 Ω and a load resistor of 1 kΩ. Find the current flowing through the Zener diode.',
+            marks: 4,
+            keyPoints: [
+              'Voltage across load = V_Z = 10 V => Load current I_L = 10 V / 1000 Ω = 10 mA.',
+              'Voltage drop across series resistor = 15 V − 10 V = 5 V => Total current I_s = 5 V / 250 Ω = 20 mA.',
+              'Current through Zener diode I_Z = I_s − I_L = 20 mA − 10 mA = 10 mA.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'What happens to the width of the depletion layer in an unbiased p-n junction when doping concentration is heavily increased (like a Zener diode)?',
+            options: [
+              'Depletion width increases tenfold',
+              'Depletion width decreases sharply (< 10⁻⁶ m)',
+              'Remains independent of doping',
+              'Conductivity becomes zero',
+            ],
+            correctIndex: 1,
+            explanation: 'Higher doping density reduces depletion barrier width (W ∝ √(1/N_d)), creating a very high electric field (~10⁶ V/m) at modest reverse voltages.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── ICSE 10 (MATHS & HISTORY/CIVICS) ──────────────────────────────────────
+  ICSE_10: {
+    subjects: ['English', 'Mathematics', 'Science (Physics/Chem/Bio)', 'History & Civics', 'Geography'],
+    topics: [
+      {
+        id: 'icse10-math-gst-rd',
+        subject: 'Mathematics',
+        title: 'Commercial Maths: Inter-State IGST vs Intra-State CGST+SGST & RD Interest',
+        examRelevance: 'ICSE 10th Section A Compulsory 3+3 Marks',
+        blindspotCount: 2,
+        summary: 'Splitting tax rate into equal CGST/SGST halves for intra-state sales vs full IGST for inter-state, plus n(n+1)/24 RD interest formula.',
+        aiBlindspots: [
+          {
+            point: 'Net Tax Payable to Government Equals Output Tax Minus Input Tax Credit (ITC)',
+            whatAiSays: 'Generic AI reports full tax collected from consumer as dealer GST paid to government.',
+            whatAiMisses: 'In multi-stage dealer chains (Wholesaler -> Retailer -> Consumer), Net GST Paid by Dealer = Output GST Collected − Input Tax Credit already paid on purchase. Also CGST and SGST must be written SEPARATELY for intra-state bills!',
+            examinerRubric: '1 mark for Discounted Selling Price, 1 mark for CGST & SGST split, 1 mark for Output Tax − ITC.',
+          },
+        ],
+        coreConcepts: [
+          'Recurring Deposit Interest: I = P × [n(n+1) / (2 × 12)] × (r / 100), where n is number of months.',
+          'Maturity Value (MV): MV = (P × n) + Interest I.',
+          'GST Rule: Intra-state splits r% into (r/2)% CGST + (r/2)% SGST; Inter-state charges full r% as IGST.',
+        ],
+        examQuestions: [
+          {
+            question: 'Mohan deposits ₹1,000 every month in an RD account for 2 years. If he receives ₹26,000 on maturity, find the rate of interest per annum.',
+            marks: 4,
+            keyPoints: [
+              'P = ₹1,000, n = 24 months, Total Principal Deposited = ₹1,000 × 24 = ₹24,000.',
+              'Interest earned I = MV − Principal = ₹26,000 − ₹24,000 = ₹2,000.',
+              'Apply formula: 2,000 = 1,000 × [(24 × 25) / 24] × (r / 100) => 2,000 = 250 × r => r = 8% p.a.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'A retailer in Pune buys goods for ₹10,000 (18% GST) from Mumbai and sells to a customer in Pune for ₹12,000. What is his Net CGST payable?',
+            options: ['₹1,080', '₹900', '₹180', '₹360'],
+            correctIndex: 2,
+            explanation: 'Total GST at 18% (9% CGST + 9% SGST): Output CGST = 9% of ₹12,000 = ₹1,080. Input CGST = 9% of ₹10,000 = ₹900. Net CGST = ₹1,080 − ₹900 = ₹180.',
+          },
+        ],
+      },
+      {
+        id: 'icse10-hc-supreme-court',
+        subject: 'History & Civics',
+        title: 'Union Judiciary: Supreme Court Writs & Original vs Advisory Jurisdiction',
+        examRelevance: 'ICSE Civics 4-Marker Guaranteed',
+        blindspotCount: 2,
+        summary: 'Five Fundamental Rights Writs (Habeas Corpus, Mandamus, Prohibition, Certiorari, Quo Warranto) and Art 143 President advice.',
+        aiBlindspots: [
+          {
+            point: 'Prohibition (Preventive Before Judgement) vs Certiorari (Quashing After Judgement)',
+            whatAiSays: 'Generic AI merges Prohibition and Certiorari as generic orders to lower courts.',
+            whatAiMisses: 'CISCE marking scheme explicitly distinguishes timing: Prohibition is issued DURING ongoing proceedings to stop excess jurisdiction; Certiorari is issued AFTER a lower court order/decision to quash it and transfer records upward.',
+            examinerRubric: '1 mark each for accurate scope & court timing of writs.',
+          },
+        ],
+        coreConcepts: [
+          'Original Jurisdiction: Exclusive authority over Centre vs State or State vs State federal disputes.',
+          'Advisory Jurisdiction (Article 143): President can seek SC opinion on public-interest law questions (opinion is NOT binding on President).',
+          'Court of Record (Art 129): Judgements serve as legal precedents and SC holds power to punish for contempt.',
+        ],
+        examQuestions: [
+          {
+            question: 'Distinguish between Original and Appellate Jurisdiction of the Supreme Court. Name the writ issued when a person holds a public office unlawfully.',
+            marks: 4,
+            keyPoints: [
+              'Original Jurisdiction: Cases heard directly for the first time in Supreme Court (e.g., Union vs States disputes).',
+              'Appellate Jurisdiction: Hearing appeals against High Court verdicts in Constitutional, Civil & Criminal cases.',
+              'Unlawful public office writ: Quo Warranto ("By what authority").',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'Which writ is issued by the Supreme Court or High Court to command a lower court to quash an order already passed beyond its jurisdiction?',
+            options: ['Habeas Corpus', 'Mandamus', 'Certiorari', 'Quo Warranto'],
+            correctIndex: 2,
+            explanation: 'Certiorari is curative/post-order: it quashes an already pronounced verdict by an inferior court or tribunal acting ultra vires.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── ISC CLASS 12 (MATHS & COMPUTER SCIENCE) ───────────────────────────────
+  ISC_12: {
+    subjects: ['English', 'Physics', 'Chemistry', 'Mathematics', 'Biology/Computer Science'],
+    topics: [
+      {
+        id: 'isc12-math-linear-de',
+        subject: 'Mathematics',
+        title: 'Linear Differential Equations (Integrating Factor) & Shortest Distance of Skew Lines',
+        examRelevance: 'ISC Section A 6-Marker Compulsory',
+        blindspotCount: 2,
+        summary: 'Standard form dy/dx + P(x)y = Q(x), IF = e^(∫P dx), and |(a₂−a₁)·(b₁×b₂)| / |b₁×b₂| vector shortest distance.',
+        aiBlindspots: [
+          {
+            point: 'Verify If Two Lines Are Parallel (b₁ = λb₂) Before Using Skew Distance Formula',
+            whatAiSays: 'Generic AI computes |b₁ × b₂| blindly.',
+            whatAiMisses: 'If b₁ × b₂ = 0 (parallel lines!), the skew-line formula gives 0/0! You MUST check b₁ × b₂ ≠ 0; if parallel, switch to |(a₂ − a₁) × b| / |b|!',
+            examinerRubric: '1.5M for extracting a₁, a₂, b₁, b₂; 2M for b₁×b₂ non-zero check; 2.5M for magnitude & dot product calculation.',
+          },
+        ],
+        coreConcepts: [
+          'Integrating Factor (IF) = e^(∫ P(x) dx) for linear first-order equation dy/dx + Py = Q.',
+          'General Solution: y · (IF) = ∫ Q(x) · (IF) dx + C (never omit arbitrary constant C!).',
+          'Coefficient Normalization: Must divide by leading x coefficient so dy/dx has coefficient +1 BEFORE identifying P(x).',
+        ],
+        examQuestions: [
+          {
+            question: 'Solve the differential equation: (1 + x²) dy/dx + 2xy = cos x.',
+            marks: 6,
+            keyPoints: [
+              'Divide throughout by (1 + x²): dy/dx + [2x / (1 + x²)]y = cos x / (1 + x²).',
+              'Here P(x) = 2x / (1 + x²). Integrating Factor IF = e^(∫ 2x/(1+x²) dx) = e^(ln(1+x²)) = 1 + x².',
+              'Multiply by IF: y(1 + x²) = ∫ [cos x / (1 + x²)] · (1 + x²) dx = ∫ cos x dx = sin x + C.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'What is the Integrating Factor of the differential equation x(dy/dx) − y = 2x²?',
+            options: ['x', '1/x', 'e^x', 'e^(-x)'],
+            correctIndex: 1,
+            explanation: 'Dividing by x gives dy/dx − (1/x)y = 2x. Here P(x) = -1/x. IF = e^(∫ -1/x dx) = e^(-ln x) = 1/x.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── TAMIL NADU BOARD (+2 SAMACHEER KALVI) ────────────────────────────────
+  TN_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'tn-chem-electrometallurgy',
+        subject: 'Chemistry',
+        title: 'Metallurgy & Buffer pH: Ellingham Diagram & Ostwald Dilution Law',
+        examRelevance: 'TN +2 Samacheer Part IV 5-Marker',
+        blindspotCount: 2,
+        summary: 'ΔG° vs T negative slope intersections in Ellingham curves, self-reduction of Cu₂S, and α = √(Kₐ / C) Ostwald weak electrolyte derivation.',
+        aiBlindspots: [
+          {
+            point: 'C(s) -> CO(g) Line Has Negative Slope Because ΔS° > 0 (+∆n_gas = +1)',
+            whatAiSays: 'Generic AI states carbon always reduces all metal oxides at high temperature.',
+            whatAiMisses: 'Samacheer Kalvi marking scheme asks WHY ΔG° for 2C + O₂ -> 2CO slopes DOWNWARD with temperature: 1 mol O₂(g) forms 2 mol CO(g), so entropy increases (ΔS° > 0), making −TΔS° increasingly negative! Any metal whose oxide line lies ABOVE the C -> CO line is reduced at that intersection temperature.',
+            examinerRubric: '2 marks for entropy Δn_g = +1 slope explanation, 2 marks for intersection point interpretation, 1 mark for limitation (does not predict kinetics rate).',
+          },
+        ],
+        coreConcepts: [
+          'Ellingham Thermodynamic Rule: A reducing agent lowers ΔG° of the coupled reaction below zero.',
+          'Ostwald Dilution Law: Kₐ = α²C / (1 − α) ≈ α²C for weak electrolytes (α ≪ 1), so α ∝ √(1/C).',
+          'Solubility Product Precipitation: Precipitation occurs ONLY if Ionic Product Q_sp > K_sp.',
+        ],
+        examQuestions: [
+          {
+            question: 'Derive Ostwald Dilution Law relating degree of dissociation α and molar concentration C for a weak monobasic acid.',
+            marks: 5,
+            keyPoints: [
+              'CH₃COOH ⇌ H⁺ + CH₃COO⁻ with initial moles 1 and equilibrium moles (1−α), α, α.',
+              'Equilibrium concentrations: C(1−α), Cα, Cα.',
+              'Dissociation constant Kₐ = Cα² / (1−α). Since α is very small for weak acid, (1−α) ≈ 1 => Kₐ = α²C => α = √(Kₐ/C).',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'Why does the ΔG° vs T line for C(s) + 1/2 O₂(g) -> CO(g) slope downward as temperature rises?',
+            options: [
+              'The reaction is endothermic',
+              'Entropy increases because 0.5 mol gas produces 1 mol gas (ΔS > 0)',
+              'Carbon becomes liquid at 500 K',
+              'ΔH becomes positive at high temperature',
+            ],
+            correctIndex: 1,
+            explanation: 'Since ΔG° = ΔH° − TΔS° and Δn_gas = 1 − 0.5 = +0.5 (> 0), ΔS° is positive, giving a negative slope (−ΔS°) on the ΔG° vs T graph.',
+          },
+        ],
+      },
+      {
+        id: 'tn-math-gauss-rank',
+        subject: 'Mathematics',
+        title: 'Applications of Matrices: Rank Consistency (Rouché-Capelli) & Cramer Rule',
+        examRelevance: 'TN HSC +2 Chapter 1 Guaranteed 5-Marker',
+        blindspotCount: 2,
+        summary: 'Echelon form row reductions for augmented matrix [A|B], ρ(A) vs ρ([A|B]) criteria, and non-trivial homogeneous solutions |A| = 0.',
+        aiBlindspots: [
+          {
+            point: 'Rank ρ(A) = ρ([A|B]) < n Guarantees Infinite Solutions — Never Assume Unique Without Comparing to n',
+            whatAiSays: 'Generic AI stops after checking consistency ρ(A) = ρ([A|B]).',
+            whatAiMisses: 'TNDGE 5-mark scheme requires writing all three step conclusions: (1) If ρ(A) = ρ([A|B]) = n -> consistent & unique solution; (2) If ρ(A) = ρ([A|B]) < n -> infinite 1-parameter/2-parameter family using k; (3) If ρ(A) ≠ ρ([A|B]) -> inconsistent.',
+            examinerRubric: '2 marks for row-echelon transformations with labels (R₂ -> R₂ − 2R₁), 1 mark for rank comparison, 2 marks for parameter substitution.',
+          },
+        ],
+        coreConcepts: [
+          'Homogeneous System AX = 0 is ALWAYS consistent (trivial solution X = 0 always exists).',
+          'Non-trivial solution exists for AX = 0 if and only if ρ(A) < n ⇔ det(A) = 0.',
+          'Row Echelon transformations preserve matrix rank without changing solution set.',
+        ],
+        examQuestions: [
+          {
+            question: 'Test for consistency and solve by rank method: x − y + 2z = 2, 2x + y + 4z = 7, 4x − y + z = 4.',
+            marks: 5,
+            keyPoints: [
+              'Form augmented matrix [A|B] and reduce below pivot (1,1) using R₂->R₂−2R₁ and R₃->R₃−4R₁.',
+              'Further reduce R₃ using R₂ to obtain upper triangular echelon form.',
+              'Verify ρ(A) = 3 and ρ([A|B]) = 3 = number of unknowns -> unique consistent solution.',
+              'Back-substitute to find z, y, and x.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'A system of 3 linear equations in 3 unknowns has ρ(A) = 2 and ρ([A|B]) = 2. How many solutions exist?',
+            options: ['Zero solutions', 'Unique solution', 'Infinitely many solutions (1 parameter k)', 'Exactly two solutions'],
+            correctIndex: 2,
+            explanation: 'Since ρ(A) = ρ([A|B]) = 2 < 3 (number of unknowns), the system is consistent with 3 − 2 = 1 free parameter, yielding infinitely many solutions.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── BIHAR BOARD (BSEB 50% OMR + 50% SUBJECTIVE) ────────────────────────────
+  BIHAR_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'bihar-chem-raoult-vanthoff',
+        subject: 'Chemistry',
+        title: 'Solutions: Raoult Law, Elevation in Boiling Point & van t Hoff Factor (i)',
+        examRelevance: 'BSEB Intermediate OMR MCQs + 5-Marker Long Numerical',
+        blindspotCount: 2,
+        summary: 'Ideal vs Azeotrope mixtures, ΔT_b = i · K_b · m (molality, NOT molarity), and abnormal molar mass degree of dissociation.',
+        aiBlindspots: [
+          {
+            point: 'ΔT_b and ΔT_f Strictly Use Molality (m) & Solvent Mass in kg — NOT Solution Volume!',
+            whatAiSays: 'Generic AI substitutes Molarity when density or solvent weight is given.',
+            whatAiMisses: 'In BSEB 5-mark numericals and OMR MCQs (where students pick 10-second distractors), remember Colligative ΔT_b uses Molality (moles of solute / kg of SOLVENT) because mass is temperature-independent, whereas Molarity changes with temperature!',
+            examinerRubric: '1 mark for i factor, 2 marks for molality calculation with kg conversion, 2 marks for molar mass with g/mol units.',
+          },
+        ],
+        coreConcepts: [
+          'Minimum Boiling Azeotrope: Positive deviation from Raoult Law (e.g., Ethanol + Water 95.6%).',
+          'van t Hoff Factor i = Normal Molar Mass / Observed Molar Mass = 1 + (n − 1)α for dissociation.',
+          'Osmotic Pressure π = i·C·R·T (preferred for polymers/proteins due to large measurable pressure at room temperature).',
+        ],
+        examQuestions: [
+          {
+            question: '18 g of glucose (C₆H₁₂O₆, M = 180 g/mol) is dissolved in 1 kg of water. At what temperature will this water boil at 1.013 bar? (K_b for water = 0.52 K kg mol⁻¹)',
+            marks: 5,
+            keyPoints: [
+              'Moles of glucose n = 18 / 180 = 0.1 mol; van t Hoff factor i = 1 (non-electrolyte).',
+              'Molality m = 0.1 mol / 1 kg = 0.1 mol/kg.',
+              'ΔT_b = K_b × m = 0.52 × 0.1 = 0.052 K.',
+              'Water normal boiling point = 373.15 K => Solution boiling point = 373.15 + 0.052 = 373.202 K (or 100.052 °C).',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'Which concentration term is temperature-independent and used directly in Boiling Point Elevation ΔT_b?',
+            options: ['Molarity (M)', 'Normality (N)', 'Molality (m)', 'Weight/Volume %'],
+            correctIndex: 2,
+            explanation: 'Molality involves only masses (moles/kg solvent), so it does not vary with thermal expansion.',
+          },
+        ],
+      },
+      {
+        id: 'bihar-bio-biotech-pcr',
+        subject: 'Biology',
+        title: 'Biotechnology: PCR Thermal Cycle Steps & pBR322 Plasmid Selection',
+        examRelevance: 'BSEB High-Yield 5-Marker Diagram + OMR Favorite',
+        blindspotCount: 2,
+        summary: 'Denaturation (94°C), Annealing (50-60°C), Extension (72°C with Taq polymerase), and amp^R / tet^R insertional inactivation.',
+        aiBlindspots: [
+          {
+            point: 'Taq Polymerase Isolated from Thermus aquaticus Resists 94°C Denaturation',
+            whatAiSays: 'Generic AI calls the PCR enzyme DNA polymerase.',
+            whatAiMisses: 'Normal E. coli DNA polymerase denatures immediately at 94°C! BSEB evaluation specifically awards 1 mark for naming thermostable Taq DNA polymerase from hot-spring bacterium Thermus aquaticus and listing exact temperatures (94°C -> 54°C -> 72°C).',
+            examinerRubric: '2 marks for 3 temperature stages diagram, 1.5 marks for Taq polymerase source, 1.5 marks for 2^n amplification yield.',
+          },
+        ],
+        coreConcepts: [
+          'Three PCR Steps: Denaturation (H-bond melting 94°C) -> Primer Annealing (50–60°C) -> Extension (Taq at 72°C).',
+          'After n PCR cycles, 1 DNA template amplifies into 2^n copies (30 cycles ≈ 1 billion copies).',
+          'Restriction Sites in pBR322: BamHI and SalI lie inside tet^R (Tetracycline resistance gene).',
+        ],
+        examQuestions: [
+          {
+            question: 'Explain the three steps of Polymerase Chain Reaction (PCR) with a neat diagram and mention why Taq polymerase is essential.',
+            marks: 5,
+            keyPoints: [
+              '1. Denaturation (94°C): Heat separates dsDNA strands by breaking hydrogen bonds.',
+              '2. Annealing (~55°C): Forward & reverse primers bind complementary 3-prime ends.',
+              '3. Extension (72°C): Thermostable Taq polymerase (from Thermus aquaticus) adds dNTPs across new strand without heat denaturation.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'In pBR322 vector, if foreign DNA is inserted at the BamHI site within the tet^R gene, recombinant transformants will:',
+            options: [
+              'Grow in both ampicillin and tetracycline media',
+              'Grow in ampicillin medium but die in tetracycline medium',
+              'Die in ampicillin medium',
+              'Become resistant to kanamycin automatically',
+            ],
+            correctIndex: 1,
+            explanation: 'Inserting foreign DNA at BamHI causes insertional inactivation of tet^R; recombinants retain amp^R resistance but lose tetracycline resistance.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── KERALA BOARD (DHSE +2) ─────────────────────────────────────────────────
+  KL_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'kl-chem-kinetics-arrhenius',
+        subject: 'Chemistry',
+        title: 'Chemical Kinetics: Pseudo-First Order & Arrhenius Activation Energy',
+        examRelevance: 'Kerala DHSE SCERT 3-4 Marker Guaranteed',
+        blindspotCount: 2,
+        summary: 'Slope = −Eₐ / (2.303 R) on log k vs 1/T plot, half-life t₁/₂ = 0.693 / k independence of initial concentration [R]₀.',
+        aiBlindspots: [
+          {
+            point: 'Unit Trap for Activation Energy R (8.314 J mol⁻¹ K⁻¹ vs kJ)',
+            whatAiSays: 'Generic AI substitutes R = 0.0821 (gas law atm L value) into Arrhenius equation.',
+            whatAiMisses: 'DHSE evaluators penalize substituting R = 0.0821 L atm! Since Eₐ is measured in Joules or kJ/mol, you MUST use R = 8.314 J K⁻¹ mol⁻¹ and convert final answer from Joules to kJ by dividing by 1000.',
+            examinerRubric: '1 mark for log(k₂/k₁) formula, 1 mark for R = 8.314, 1 mark for Kelvin temperature conversion (273.15 + °C), 1 mark for Eₐ in kJ/mol.',
+          },
+        ],
+        coreConcepts: [
+          'First-order half-life: t₁/₂ = 0.693 / k (completely independent of initial concentration [R]₀).',
+          'Arrhenius Equation: k = A · e^(-Eₐ / RT) => log(k₂/k₁) = [Eₐ / (2.303 R)] · [(T₂ − T₁) / (T₁T₂)].',
+          'Catalyst Effect: Lowers activation energy Eₐ by providing an alternate path, increasing k without shifting ΔG or equilibrium K.',
+        ],
+        examQuestions: [
+          {
+            question: 'Prove that for a first-order reaction, time required for 99.9% completion is approximately 10 times its half-life (t₁/₂).',
+            marks: 3,
+            keyPoints: [
+              't_99.9% = (2.303 / k) log(100 / 0.1) = (2.303 / k) log(1000) = (2.303 / k) × 3 = 6.909 / k.',
+              't_50% = (2.303 / k) log(2) = 0.693 / k.',
+              'Ratio: t_99.9% / t_50% = 6.909 / 0.693 ≈ 9.97 ≈ 10.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'What is the slope of the linear plot of ln(k) versus 1/T in the Arrhenius equation?',
+            options: ['-Eₐ / R', '-Eₐ / (2.303 R)', '+Eₐ / R', 'ln A'],
+            correctIndex: 0,
+            explanation: 'In natural log ln(k) = ln(A) − (Eₐ/R)(1/T), the slope is −Eₐ/R. In base-10 log₁₀(k), slope becomes −Eₐ/(2.303 R).',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── WEST BENGAL BOARD (WBCHSE) ─────────────────────────────────────────────
+  WB_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'wb-phy-ampere-solenoid',
+        subject: 'Physics',
+        title: 'Electromagnetism: Biot-Savart Axis Field & Ampere Solenoid Interior Derivation',
+        examRelevance: 'WBCHSE Group C 3-5 Marker Compulsory',
+        blindspotCount: 2,
+        summary: 'Circular current coil axial field B = μ₀IR² / [2(R²+x²)^(3/2)], Amperian rectangular loop boundary, and end-effect half field μ₀nI/2.',
+        aiBlindspots: [
+          {
+            point: 'Magnetic Field at Solenoid Edge Drops to HALF of Center Value (B_edge = μ₀nI / 2)',
+            whatAiSays: 'Generic AI states B = μ₀nI everywhere inside any solenoid.',
+            whatAiMisses: 'WBCHSE conceptual 2-markers test end-effects: B = μ₀nI holds deep inside a long solenoid (where total subtended angle spans 0 to π), while at either OPEN END the integration stops at π/2, giving exactly HALF the field: B_end = (1/2)μ₀nI!',
+            examinerRubric: 'Full marks for clearly drawing the 4-sided Amperian loop showing perpendicular sides zero dot product (∫B·dl = 0) and exterior B = 0.',
+          },
+        ],
+        coreConcepts: [
+          'Circular Coil Center Field: At x = 0, B = μ₀NI / (2R) tesla.',
+          'Ideal Long Solenoid Center Field: B = μ₀nI, where n = N/L turns per unit length.',
+          'Magnetic Force on Moving Charge: F = q(v × B) does ZERO work because F ⊥ v always.',
+        ],
+        examQuestions: [
+          {
+            question: 'Using Ampere Circuital Law, derive the expression for magnetic field well inside a long current-carrying solenoid. State its value at one end.',
+            marks: 4,
+            keyPoints: [
+              'Choose rectangular Amperian loop abcd enclosing nL turns.',
+              'Along vertical arms bc & da, B ⊥ dl so ∫B·dl = 0; outside solenoid B ≈ 0.',
+              '∮ B·dl = BL = μ₀ (nLI) => B = μ₀nI at interior.',
+              'At open ends of solenoid: B_end = (1/2) μ₀nI.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'If the number of turns per unit length of a long solenoid is doubled while current is halved, magnetic field inside becomes:',
+            options: ['Quadrupled', 'Halved', 'Unchanged', 'Zero'],
+            correctIndex: 2,
+            explanation: 'B = μ₀ n I. If n -> 2n and I -> I/2, the product (2n)(I/2) = nI remains identical.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── AP & TELANGANA BOARD (BIEAP / TSBIE IPE) ──────────────────────────────
+  AP_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics (2A & 2B)', 'Botany & Zoology'],
+    topics: [
+      {
+        id: 'ap-math-demoivre-2a',
+        subject: 'Mathematics (2A & 2B)',
+        title: 'Maths 2A: De Moivre Theorem Proof & nth Roots of Complex Numbers',
+        examRelevance: 'AP/TS IPE Section C 7-Marker LAQ Guaranteed',
+        blindspotCount: 2,
+        summary: '(cosθ + i sinθ)ⁿ = cos(nθ) + i sin(nθ) for integer & rational fractions, cis notation, and k = 0,1,...,n−1 distinct roots.',
+        aiBlindspots: [
+          {
+            point: 'Adding 2kπ Period Before Applying Fractional Exponent 1/n',
+            whatAiSays: 'Generic AI divides θ directly by n without 2kπ, yielding only 1 root instead of n distinct roots.',
+            whatAiMisses: 'BIEAP/TSBIE 7-mark evaluators award ZERO for step 3 if 2kπ is omitted! Before taking (cos θ + i sin θ)^(1/n), you MUST write cis(2kπ + θ) so taking 1/n yields all n distinct roots k = 0, 1, ..., n−1!',
+            examinerRubric: '2 marks for polar r cis θ conversion, 2 marks for 2kπ inclusion, 3 marks for enumerating k = 0, 1, ..., n−1.',
+          },
+        ],
+        coreConcepts: [
+          'Polar Form: z = x + iy = r(cos θ + i sin θ), where r = √(x²+y²) and principal arg θ ∈ (−π, π].',
+          'De Moivre Identity: (cis θ)ⁿ = cis(nθ); if n = p/q rational, all q roots are cis[(2kπ + θ)p/q] for k=0..q−1.',
+          'Cube Roots Sum & Product: 1 + ω + ω² = 0 and ω³ = 1.',
+        ],
+        examQuestions: [
+          {
+            question: 'Using De Moivre Theorem, show that (1 + cos θ + i sin θ)ⁿ + (1 + cos θ − i sin θ)ⁿ = 2^(n+1) cosⁿ(θ/2) cos(nθ/2).',
+            marks: 7,
+            keyPoints: [
+              'Substitute half-angle identities: 1 + cos θ = 2 cos²(θ/2) and sin θ = 2 sin(θ/2)cos(θ/2).',
+              'Factor 2 cos(θ/2) out -> [2 cos(θ/2)]ⁿ [cis(nθ/2) + cis(−nθ/2)].',
+              'Since cis(α) + cis(−α) = 2 cos α, simplify to 2^(n+1) cosⁿ(θ/2) cos(nθ/2).',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'How many distinct values does (cos π + i sin π)^(1/4) have according to De Moivre Theorem?',
+            options: ['1', '2', '4', '8'],
+            correctIndex: 2,
+            explanation: 'A rational exponent p/q = 1/4 always produces exactly q = 4 distinct complex roots by substituting k = 0, 1, 2, 3 into cis[(2kπ + π)/4].',
+          },
+        ],
+      },
+      {
+        id: 'ap-bio-krebs-cycle',
+        subject: 'Botany & Zoology',
+        title: 'Plant Respiration: Krebs (TCA) Cycle ATP/NADH Accounting & Mitochondria Matrix',
+        examRelevance: 'AP/TS IPE Botany 8-Marker LAQ Compulsory',
+        blindspotCount: 2,
+        summary: 'Oxaloacetate (4C) condensation with Acetyl-CoA (2C), 3 NADH + 1 FADH₂ + 1 GTP per turn, and SDH inner-membrane enzyme.',
+        aiBlindspots: [
+          {
+            point: 'One Glucose Yields TWO Pyruvates -> Double the Single-Cycle Counts!',
+            whatAiSays: 'Generic AI cites 3 NADH, 1 FADH₂, 1 GTP as total output for 1 glucose.',
+            whatAiMisses: 'One glucose molecule breaks into TWO Pyruvate -> TWO Acetyl-CoA! So per glucose, the Krebs cycle turns TWICE producing 6 NADH, 2 FADH₂, 2 ATP(GTP), and 4 CO₂ inside Krebs itself (plus 2 NADH from Link Reaction)!',
+            examinerRubric: 'IPE 8-mark rubric: 4 marks for labeled 8-step cyclic pathway with carbon atom counts (6C->5C->4C), 2 marks for enzyme cofactors (Mg²⁺/NAD⁺), 2 marks for exact net ATP balance.',
+          },
+        ],
+        coreConcepts: [
+          'Link Reaction: Pyruvate (3C) -> Acetyl-CoA (2C) + CO₂ + NADH (enzyme: Pyruvate Dehydrogenase + Mg²⁺).',
+          'Unique Location Exception: Succinate Dehydrogenase (SDH) is bound to the INNER mitochondrial membrane, whereas all other TCA enzymes float in Matrix.',
+          'Net Oxidative Yield: 1 NADH ≈ 3 ATP (in classical/IPE text) and 1 FADH₂ ≈ 2 ATP -> 38 ATP aerobic net.',
+        ],
+        examQuestions: [
+          {
+            question: 'Give an account of the Tricarboxylic Acid (Krebs) Cycle in plants with schematic reactions and net ATP yield per glucose.',
+            marks: 8,
+            keyPoints: [
+              'Oxaloacetate (4C) + Acetyl-CoA (2C) -> Citrate (6C) catalyzed by Citrate Synthase.',
+              'Two oxidative decarboxylations: Isocitrate (6C)->α-Ketoglutarate (5C) and α-KG (5C)->Succinyl-CoA (4C), releasing NADH + CO₂.',
+              'Substrate-level phosphorylation: Succinyl-CoA -> Succinate produces GTP/ATP.',
+              '2 Turns per Glucose yield 6 NADH, 2 FADH₂, 2 ATP.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'Which enzyme of the Krebs (TCA) cycle is uniquely attached to the inner mitochondrial membrane instead of the mitochondrial matrix?',
+            options: ['Citrate Synthase', 'Isocitrate Dehydrogenase', 'Succinate Dehydrogenase', 'Malate Dehydrogenase'],
+            correctIndex: 2,
+            explanation: 'Succinate Dehydrogenase (also Complex II of Electron Transport Chain) is embedded in the inner mitochondrial membrane.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── RAJASTHAN BOARD (RBSE) ─────────────────────────────────────────────────
+  RJ_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'rj-chem-dblock-kmno4',
+        subject: 'Chemistry',
+        title: 'd & f Block Elements: KMnO₄ Preparation, Lanthanoid Contraction & Catalytic Action',
+        examRelevance: 'RBSE 4-Marker Guaranteed Inorganic Question',
+        blindspotCount: 2,
+        summary: 'Pyrolusite fusion + electrolytic oxidation, poor shielding of 4f orbitals causing Zr/Hf identical radii, and variable oxidation catalysis.',
+        aiBlindspots: [
+          {
+            point: 'Acidic vs Neutral vs Alkaline Oxidation Equivalent Factor of MnO₄⁻',
+            whatAiSays: 'Generic AI says KMnO₄ always reduces to Mn²⁺.',
+            whatAiMisses: 'In RBSE balanced equation questions: Acidic KMnO₄ (MnO₄⁻ + 8H⁺ + 5e⁻ -> Mn²⁺) gains 5 electrons; Neutral/Faintly Alkaline KMnO₄ (MnO₄⁻ + 2H₂O + 3e⁻ -> MnO₂↓) gains ONLY 3 electrons (oxidizing I⁻ to IO₃⁻ instead of I₂)!',
+            examinerRubric: '1 mark for Pyrolusite reaction, 1.5 marks for balancing ionic oxidation reactions in acidic vs neutral media, 1.5 marks for 4f poor-shielding definition.',
+          },
+        ],
+        coreConcepts: [
+          'Lanthanoid Contraction: Steady atomic/ionic size decrease from La³⁺ to Lu³⁺ due to poor nuclear shielding by 4f electrons.',
+          'Consequence: Zr (4d) and Hf (5d) possess nearly identical atomic radii (160 pm vs 159 pm), making separation difficult.',
+          'Interstitial Alloys & Catalysis: Vacant d-orbitals + multiple oxidation states enable adsorption and low-activation-energy intermediates.',
+        ],
+        examQuestions: [
+          {
+            question: 'What is Lanthanoid Contraction? State two consequences and write the balanced ionic equation for oxidation of Fe²⁺ by acidic KMnO₄.',
+            marks: 4,
+            keyPoints: [
+              'Definition: Progressive decrease in ionic radii with rising atomic number across 4f series due to imperfect 4f orbital shielding.',
+              'Consequences: Similar chemical radii of 4d/5d transition pairs (Zr/Hf) and progressive decrease in basicity of lanthanoid hydroxides.',
+              'Balanced Ionic Equation: MnO₄⁻ + 5Fe²⁺ + 8H⁺ -> Mn²⁺ + 5Fe³⁺ + 4H₂O.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'In faintly alkaline or neutral medium, permanganate ion (MnO₄⁻) reduces to which manganese species when oxidizing iodide (I⁻) to iodate (IO₃⁻)?',
+            options: ['Mn²⁺', 'MnO₂', 'MnO₄²⁻', 'Mn₂O₇'],
+            correctIndex: 1,
+            explanation: 'In neutral/faintly alkaline medium, MnO₄⁻ undergoes a 3-electron reduction to form brown MnO₂ precipitate.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── GUJARAT BOARD (GSEB) ───────────────────────────────────────────────────
+  GJ_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'gj-math-lpp-cornerpoint',
+        subject: 'Mathematics',
+        title: 'Linear Programming: Feasible Region Boundary & Unbounded Open Half-Plane Test',
+        examRelevance: 'GSEB Section D 4-Marker Guaranteed Graph Question',
+        blindspotCount: 2,
+        summary: 'Corner point evaluation, Z = ax + by extremum, and mandatory open half-plane verification (ax + by > M) when feasible region is unbounded.',
+        aiBlindspots: [
+          {
+            point: 'Mandatory Unbounded Verification Test (Does Z = ax+by Have ANY Point Beyond M?)',
+            whatAiSays: 'Generic AI always declares the largest corner point Z value as maximum without checking boundedness.',
+            whatAiMisses: 'When the feasible region is UNBOUNDED, the maximum/minimum corner value M exists ONLY IF the open half-plane ax + by > M (for Max) or ax + by < M (for Min) shares ZERO points with the feasible region! GSEB Section D deducts 1.5 full marks for skipping the dotted half-plane test!',
+            examinerRubric: '1M constraints intersection points, 1.5M shaded graph & corner table, 1.5M explicit unbounded open half-plane check.',
+          },
+        ],
+        coreConcepts: [
+          'Fundamental Theorem of LPP: Optimal values of objective function Z = ax + by, if they exist, ALWAYS occur at corner vertices.',
+          'Bounded Region: Both Maximum and Minimum of Z are guaranteed to exist at corner vertices.',
+          'Unbounded Region: Maximum/Minimum may NOT exist; graph dotted line ax+by = M to verify no feasible overlap.',
+        ],
+        examQuestions: [
+          {
+            question: 'Minimize Z = 200x + 500y subject to x + 2y ≥ 10, 3x + 4y ≤ 24, x ≥ 0, y ≥ 0 using graphical corner-point method.',
+            marks: 4,
+            keyPoints: [
+              'Plot lines x + 2y = 10 and 3x + 4y = 24; identify shaded bounded triangular feasible region.',
+              'Corner points: A(0, 5), B(4, 3), C(0, 6).',
+              'Evaluate Z: At A(0,5) -> 2500; At B(4,3) -> 800 + 1500 = 2300; At C(0,6) -> 3000.',
+              'Minimum Z = 2300 at (4, 3).',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'When solving an LPP with an unbounded feasible region, under what condition does the corner value M fail to be the Minimum of Z = ax + by?',
+            options: [
+              'When there are more than 3 corner vertices',
+              'When the open half-plane ax + by < M has common points with the feasible region',
+              'When objective coefficients are positive',
+              'When x and y intercepts are integers',
+            ],
+            correctIndex: 1,
+            explanation: 'If the open half-plane ax + by < M overlaps the unbounded feasible region, points inside that overlap produce even smaller Z values, so no minimum exists.',
+          },
+        ],
+      },
+    ],
+  },
+
+  // ─── MADHYA PRADESH BOARD (MPBSE) ──────────────────────────────────────────
+  MP_BOARD: {
+    subjects: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    topics: [
+      {
+        id: 'mp-chem-kohlrausch-nernst',
+        subject: 'Chemistry',
+        title: 'Electrochemistry: Kohlrausch Law of Independent Migration & Molar Conductivity',
+        examRelevance: 'MPBSE Blueprint 4-Marker Guaranteed Derivation + Numerical',
+        blindspotCount: 2,
+        summary: 'Λ°_m = ν₊λ°₊ + ν₋λ°₋, strong (Debye-Huckel-Onsager straight line) vs weak electrolyte (steep asymptotic rise) dilution curves.',
+        aiBlindspots: [
+          {
+            point: 'Why Strong Electrolyte Λ_m Graph Can Extrapolate to c=0 While Weak Electrolyte Cannot',
+            whatAiSays: 'Generic AI states molar conductivity increases for all electrolytes and stops.',
+            whatAiMisses: 'MPBSE conceptual 4-markers specifically ask WHY Λ°_m of CH₃COOH (weak) CANNOT be found by linear graph extrapolation to √c -> 0: its Λ_m rises steeply near infinite dilution due to sudden jump in degree of ionization α -> 1, making extrapolation impossible—requiring Kohlrausch additive ion sum instead!',
+            examinerRubric: '1 mark for Kohlrausch statement, 1 mark for √c vs Λ_m graph showing strong vs weak curves, 2 marks for degree of dissociation α = Λ_m / Λ°_m.',
+          },
+        ],
+        coreConcepts: [
+          'Kohlrausch Law: At infinite dilution, limiting molar conductivity of an electrolyte equals the sum of individual ionic conductivities.',
+          'Application: Λ°(CH₃COOH) = Λ°(CH₃COONa) + Λ°(HCl) − Λ°(NaCl).',
+          'Specific Conductivity κ decreases on dilution (fewer ions per cm³), whereas Molar Conductivity Λ_m = 1000κ / M ALWAYS increases on dilution.',
+        ],
+        examQuestions: [
+          {
+            question: 'State Kohlrausch Law and explain its two key applications. Why does specific conductivity κ decrease with dilution while molar conductivity Λ_m increases?',
+            marks: 4,
+            keyPoints: [
+              'Statement: Limiting molar conductivity is sum of cation and anion contributions multiplied by stoichiometric ion count.',
+              'Applications: Calculating Λ°_m and dissociation constant Kₐ = cα²/(1−α) for weak electrolytes.',
+              'Dilution Paradox: κ decreases because ions per unit volume drop; Λ_m increases because total solution volume V containing 1 mole grows faster than κ drops.',
+            ],
+          },
+        ],
+        quiz: [
+          {
+            question: 'As an aqueous solution of NaCl is diluted with pure water, how do Specific Conductivity (κ) and Molar Conductivity (Λ_m) change?',
+            options: [
+              'Both κ and Λ_m decrease',
+              'κ decreases while Λ_m increases',
+              'κ increases while Λ_m decreases',
+              'Both remain completely constant',
+            ],
+            correctIndex: 1,
+            explanation: 'Dilution lowers ion count per cm³ (lowering κ), but increases inter-ionic separation and volume per mole, increasing Λ_m.',
+          },
+        ],
+      },
+    ],
   }
 };
+
