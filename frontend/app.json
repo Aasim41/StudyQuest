@@ -34,7 +34,8 @@
           "color": "#00D2FF"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/withFocusShield"
     ],
     "extra": {
       "eas": {
