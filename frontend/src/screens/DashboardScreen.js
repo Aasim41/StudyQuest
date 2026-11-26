@@ -8,6 +8,7 @@ import {
   TextInput,
   StatusBar,
   Modal,
+  Platform,
   ActivityIndicator,
   Alert,
   Animated,
@@ -19,20 +20,17 @@ import {
   EXAM_TARGETS,
   getStreamsForExam,
   resolveStreamForExam,
-  getSubjectsForExamAndStream,
   getChaptersForSubject,
   getCuratedSubjectsForExam,
   getCuratedTopicsForExam,
   getCuratedPlanForExam,
 } from '../config/studyGuideData';
 import { generateAndShareCheatSheetPdf } from '../services/pdfService';
-import MarkingSimulatorModal from '../components/MarkingSimulatorModal';
 import { gsapTabTransition } from '../utils/gsapAnim';
 
 export default function DashboardScreen() {
   const navigation = useNavigation();
   const {
-    userStats,
     targetExam,
     targetStream,
     targetSubject,
@@ -42,23 +40,18 @@ export default function DashboardScreen() {
     studyPlan,
     togglePlanItemCompleted,
     savedGuides,
-    toggleSaveGuide,
   } = useUser();
 
-  // 3 Primary Card Tabs: 'syllabus' | 'plan' | 'tools'
-  const [activeTab, setActiveTab] = useState('syllabus');
-  // Sub-view inside Syllabus tab: 'chapters' | 'guides'
-  const [syllabusSubMode, setSyllabusSubMode] = useState('chapters');
-
-  const tabAnim = useRef(new Animated.Value(1)).current;
+  const [activeTab, setActiveTab] = useState('syllabus'); // 'syllabus' | 'plan' | 'tools'
+  const [syllabusSubMode, setSyllabusSubMode] = useState('chapters'); // 'chapters' | 'guides'
   const [searchQuery, setSearchQuery] = useState('');
-  const selectedSubject = targetSubject || 'All';
   const [expandedChapterId, setExpandedChapterId] = useState(null);
-
   const [quickSwitchVisible, setQuickSwitchVisible] = useState(false);
   const [customExamInput, setCustomExamInput] = useState('');
-  const [simulatorItem, setSimulatorItem] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  const tabAnim = useRef(new Animated.Value(1)).current;
+  const selectedSubject = targetSubject || 'All';
 
   const switchTab = (newTab) => {
     if (newTab === activeTab) return;
@@ -73,11 +66,10 @@ export default function DashboardScreen() {
 
   const streams = useMemo(() => getStreamsForExam(targetExam), [targetExam]);
   const activeStream = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
-  const streamSubjects = useMemo(() => getSubjectsForExamAndStream(targetExam, targetStream), [targetExam, targetStream]);
-
-  const examSubjectNames = useMemo(() => {
-    return ['All', ...getCuratedSubjectsForExam(targetExam, targetStream)];
-  }, [targetExam, targetStream]);
+  const examSubjectNames = useMemo(
+    () => ['All', ...getCuratedSubjectsForExam(targetExam, targetStream)],
+    [targetExam, targetStream]
+  );
 
   useEffect(() => {
     setExpandedChapterId(null);
@@ -103,55 +95,41 @@ export default function DashboardScreen() {
       (t) =>
         t.title.toLowerCase().includes(q) ||
         t.subject.toLowerCase().includes(q) ||
-        t.summary?.toLowerCase().includes(q) ||
-        (t.aiBlindspots && t.aiBlindspots.some((b) => b.point.toLowerCase().includes(q)))
+        t.summary?.toLowerCase().includes(q)
     );
   }, [targetExam, targetStream, selectedSubject, searchQuery]);
 
   const planItems = useMemo(() => {
-    return studyPlan && studyPlan.length > 0 ? studyPlan : getCuratedPlanForExam(targetExam, targetStream, selectedSubject);
+    return studyPlan && studyPlan.length > 0
+      ? studyPlan
+      : getCuratedPlanForExam(targetExam, targetStream, selectedSubject);
   }, [studyPlan, targetExam, targetStream, selectedSubject]);
 
-  const completedPlanCount = useMemo(() => planItems.filter((i) => i.isCompleted).length, [planItems]);
-  const planProgressPercent = useMemo(
-    () => (planItems.length > 0 ? Math.round((completedPlanCount / planItems.length) * 100) : 0),
-    [planItems, completedPlanCount]
+  const completedPlanCount = useMemo(
+    () => planItems.filter((i) => i.isCompleted).length,
+    [planItems]
   );
 
   const handleExportPdf = async () => {
     try {
       setPdfLoading(true);
       const res = await generateAndShareCheatSheetPdf(
-        selectedSubject === 'All' ? `${activeExamLabel} (${activeStream?.label || 'Core'})` : selectedSubject,
+        selectedSubject === 'All' ? activeStream?.label || 'All Subjects' : selectedSubject,
         activeExamLabel,
         displayedTopics.slice(0, 8)
       );
-      if (!res.success) {
-        Alert.alert('PDF Export', res.error || 'Could not generate PDF.');
-      }
-    } catch (e) {
+      if (!res.success) Alert.alert('PDF Export', res.error || 'Could not generate PDF.');
+    } catch {
       Alert.alert('Export Error', 'Failed to generate cheat sheet PDF.');
     } finally {
       setPdfLoading(false);
     }
   };
 
-  const handleOpenGuide = (guide) => {
-    navigation.navigate('StudyGuideDetail', { guide });
-  };
-
-  const handleOpenAuditor = (mode = 'TOPIC', initialTopic = '', initialSubject = '') => {
-    const defaultSub = selectedSubject !== 'All' ? selectedSubject : (examSubjectNames[1] || 'Physics');
-    navigation.navigate('AIGapAuditor', {
-      mode,
-      initialTopic,
-      initialSubject: initialSubject || defaultSub,
-    });
-  };
-
-  const handleQuickSelectExam = async (examLabel) => {
+  const handleSelectExam = async (examLabel) => {
     const firstStream = getStreamsForExam(examLabel)[0]?.id || 'pcm';
     await setTargetExam(examLabel, firstStream);
+    setQuickSwitchVisible(false);
   };
 
   const handleApplyCustomExam = async () => {
@@ -164,85 +142,58 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0C12" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C10" />
 
-      {/* Clean Minimal Obsidian Top Bar */}
+      {/* Minimal Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity
-            style={styles.targetChip}
+            style={styles.examSwitchTouch}
             onPress={() => setQuickSwitchVisible(true)}
-            activeOpacity={0.85}
+            activeOpacity={0.7}
           >
-            <MaterialCommunityIcons name="target" size={14} color="#00E5FF" />
             <View style={{ flexShrink: 1 }}>
-              <Text style={styles.targetChipExam} numberOfLines={1}>
-                {activeExamLabel}
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {activeExamLabel} ▾
               </Text>
-              <Text style={styles.targetChipStream} numberOfLines={1}>
-                {streams.length > 1 && activeStream ? `${activeStream.label} • ` : ''}
-                {selectedSubject === 'All' ? 'All Board Subjects' : selectedSubject}
+              <Text style={styles.headerSub} numberOfLines={1}>
+                {streams.length > 1 && activeStream ? `${activeStream.label} · ` : ''}
+                {selectedSubject === 'All' ? 'All Subjects' : selectedSubject}
               </Text>
             </View>
-            <MaterialCommunityIcons name="chevron-down" size={15} color="#8E8EA8" />
           </TouchableOpacity>
 
-          <View style={styles.rightHeaderRow}>
-            <TouchableOpacity
-              style={styles.xpBtn}
-              onPress={() => navigation.navigate('Analytics')}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons name="lightning-bolt" size={13} color="#FFD32A" />
-              <Text style={styles.xpBtnText}>{userStats?.xp || 0} XP</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Analytics')}>
+            <Text style={styles.headerLink}>Progress</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* 3 Clean Card Tabs */}
-        <View style={styles.cardTabsRow}>
+        {/* Clean Underline Tabs */}
+        <View style={styles.tabsRow}>
           <TouchableOpacity
-            style={[styles.cardTab, activeTab === 'syllabus' && styles.cardTabActive]}
+            style={[styles.tabItem, activeTab === 'syllabus' && styles.tabItemActive]}
             onPress={() => switchTab('syllabus')}
-            activeOpacity={0.85}
           >
-            <MaterialCommunityIcons
-              name="book-open-page-variant"
-              size={14}
-              color={activeTab === 'syllabus' ? '#00E5FF' : '#777799'}
-            />
-            <Text style={[styles.cardTabText, activeTab === 'syllabus' && styles.cardTabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'syllabus' && styles.tabTextActive]}>
               Syllabus
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.cardTab, activeTab === 'plan' && styles.cardTabActive]}
+            style={[styles.tabItem, activeTab === 'plan' && styles.tabItemActive]}
             onPress={() => switchTab('plan')}
-            activeOpacity={0.85}
           >
-            <MaterialCommunityIcons
-              name="calendar-check"
-              size={14}
-              color={activeTab === 'plan' ? '#00E5FF' : '#777799'}
-            />
-            <Text style={[styles.cardTabText, activeTab === 'plan' && styles.cardTabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'plan' && styles.tabTextActive]}>
               Study Plan
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.cardTab, activeTab === 'tools' && styles.cardTabActive]}
+            style={[styles.tabItem, activeTab === 'tools' && styles.tabItemActive]}
             onPress={() => switchTab('tools')}
-            activeOpacity={0.85}
           >
-            <MaterialCommunityIcons
-              name="view-grid-outline"
-              size={14}
-              color={activeTab === 'tools' ? '#00E5FF' : '#777799'}
-            />
-            <Text style={[styles.cardTabText, activeTab === 'tools' && styles.cardTabTextActive]}>
-              Toolkit
+            <Text style={[styles.tabText, activeTab === 'tools' && styles.tabTextActive]}>
+              Tools
             </Text>
           </TouchableOpacity>
         </View>
@@ -251,236 +202,157 @@ export default function DashboardScreen() {
       <Animated.ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        style={{ opacity: tabAnim, transform: [{ scale: tabAnim }] }}
+        style={{ opacity: tabAnim }}
       >
-        {/* ───────────────────────────────────────────────────────────── */}
-        {/* TAB 1: EXAM -> STREAM -> SUBJECT -> CHAPTER -> TOPIC SYLLABUS */}
-        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 1: SYLLABUS */}
         {activeTab === 'syllabus' && (
-          <View style={styles.tabBody}>
-            {/* Stream Quick Cards (only when exam offers multiple streams) */}
-            {streams.length > 1 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-                {streams.map((st) => {
-                  const active = activeStream?.id === st.id;
-                  return (
-                    <TouchableOpacity
-                      key={st.id}
-                      style={[styles.streamChip, active && styles.streamChipActive]}
-                      onPress={() => setTargetStream(st.id)}
-                    >
-                      <Text style={[styles.streamChipText, active && styles.streamChipTextActive]}>
-                        {st.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
+          <View>
+            {/* Simple Horizontal Subject Text Strip */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.subjectStrip}
+            >
+              {examSubjectNames.map((subj) => {
+                const active = selectedSubject === subj;
+                return (
+                  <TouchableOpacity
+                    key={subj}
+                    style={[styles.subjectTab, active && styles.subjectTabActive]}
+                    onPress={() => setTargetSubject(subj)}
+                  >
+                    <Text style={[styles.subjectTabText, active && styles.subjectTabTextActive]}>
+                      {subj === 'All' ? 'All Subjects' : subj}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-            {/* Search Input */}
-            <View style={styles.searchBar}>
-              <MaterialCommunityIcons name="magnify" size={18} color="#777799" />
+            {/* Search & Chapters/Guides Inline Row */}
+            <View style={styles.filterRow}>
               <TextInput
                 style={styles.searchInput}
-                placeholder={`Search chapters, topics, formulas...`}
-                placeholderTextColor="#666688"
+                placeholder="Filter chapters or topics..."
+                placeholderTextColor="#6B7280"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <MaterialCommunityIcons name="close-circle" size={16} color="#8E8EA8" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.modeSwitchTextBtn}
+                onPress={() =>
+                  setSyllabusSubMode(syllabusSubMode === 'chapters' ? 'guides' : 'chapters')
+                }
+              >
+                <Text style={styles.modeSwitchText}>
+                  {syllabusSubMode === 'chapters'
+                    ? `Guides (${displayedTopics.length})`
+                    : `Chapters (${displayedChapters.length})`}
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Subject Cards Selector */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-              {examSubjectNames.map((subj) => {
-                const isSelected = selectedSubject === subj;
-                const subMeta = streamSubjects.find((s) => s.name === subj);
+            {syllabusSubMode === 'chapters' ? (
+              displayedChapters.map((chap) => {
+                const isOpen = expandedChapterId === chap.id;
                 return (
-                  <TouchableOpacity
-                    key={subj}
-                    style={[styles.subjectCard, isSelected && styles.subjectCardActive]}
-                    onPress={() => setTargetSubject(subj)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.subjectCardTitle, isSelected && { color: '#00E5FF' }]}>
-                      {subj === 'All' ? 'All Subjects' : subj}
-                    </Text>
-                    {subMeta && (
-                      <Text style={styles.subjectCardSub} numberOfLines={1}>
-                        {subMeta.code ? `${subMeta.code} • ` : ''}{subMeta.marksSplit.split('(')[0].trim()}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                  <View key={chap.id} style={styles.listRow}>
+                    <TouchableOpacity
+                      style={styles.listRowHead}
+                      onPress={() => setExpandedChapterId(isOpen ? null : chap.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowMeta}>
+                          {chap.subject} · {chap.unit} · {chap.weightage}
+                        </Text>
+                        <Text style={styles.rowTitle}>{chap.title}</Text>
+                      </View>
+                      <MaterialCommunityIcons
+                        name={isOpen ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color="#6B7280"
+                      />
+                    </TouchableOpacity>
 
-            {/* Clean Sub-Mode Toggle: Chapters vs Verified Topic Guides */}
-            <View style={styles.subToggleRow}>
-              <TouchableOpacity
-                style={[styles.subToggleBtn, syllabusSubMode === 'chapters' && styles.subToggleBtnActive]}
-                onPress={() => setSyllabusSubMode('chapters')}
-              >
-                <Text style={[styles.subToggleText, syllabusSubMode === 'chapters' && styles.subToggleTextActive]}>
-                  Chapters ({displayedChapters.length})
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.subToggleBtn, syllabusSubMode === 'guides' && styles.subToggleBtnActive]}
-                onPress={() => setSyllabusSubMode('guides')}
-              >
-                <Text style={[styles.subToggleText, syllabusSubMode === 'guides' && styles.subToggleTextActive]}>
-                  Verified Guides ({displayedTopics.length})
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Chapters Accordion / Drilldown List */}
-            {syllabusSubMode === 'chapters' && (
-              <View style={styles.listStack}>
-                {displayedChapters.map((chap) => {
-                  const isOpen = expandedChapterId === chap.id;
-                  return (
-                    <View key={chap.id} style={styles.chapterCard}>
-                      <TouchableOpacity
-                        style={styles.chapterHeader}
-                        onPress={() => setExpandedChapterId(isOpen ? null : chap.id)}
-                        activeOpacity={0.85}
-                      >
-                        <View style={{ flex: 1, gap: 3 }}>
-                          <View style={styles.chapterMetaRow}>
-                            <Text style={styles.chapterUnitText}>{chap.unit} • {chap.subject}</Text>
-                            <Text style={styles.chapterWeight}>{chap.weightage}</Text>
-                          </View>
-                          <Text style={styles.chapterTitle}>{chap.title}</Text>
-                        </View>
-                        <MaterialCommunityIcons
-                          name={isOpen ? 'chevron-up' : 'chevron-down'}
-                          size={18}
-                          color="#8E8EA8"
-                        />
-                      </TouchableOpacity>
-
-                      {isOpen && (
-                        <View style={styles.chapterSubtopicsBox}>
-                          {(chap.subtopics || []).map((st, idx) => (
-                            <View key={idx} style={styles.subtopicRow}>
-                              <Text style={styles.subtopicTitle}>• {st}</Text>
-                              <View style={styles.subtopicActions}>
-                                <TouchableOpacity
-                                  style={styles.miniActionBtn}
-                                  onPress={() => handleOpenAuditor('TOPIC', st, chap.subject)}
-                                >
-                                  <Text style={styles.miniActionText}>Audit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  style={styles.miniActionBtnFlow}
-                                  onPress={() => navigation.navigate('Flow', { searchQuery: st })}
-                                >
-                                  <Text style={styles.miniActionTextFlow}>Watch</Text>
-                                </TouchableOpacity>
-                              </View>
+                    {isOpen && (
+                      <View style={styles.subtopicsList}>
+                        {(chap.subtopics || []).map((st, idx) => (
+                          <View key={idx} style={styles.subtopicRow}>
+                            <Text style={styles.subtopicText}>{st}</Text>
+                            <View style={styles.subtopicActions}>
+                              <TouchableOpacity
+                                onPress={() =>
+                                  navigation.navigate('AIGapAuditor', {
+                                    mode: 'TOPIC',
+                                    initialTopic: st,
+                                    initialSubject: chap.subject,
+                                  })
+                                }
+                              >
+                                <Text style={styles.linkCyan}>Audit</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() =>
+                                  navigation.navigate('Flow', {
+                                    searchQuery: st,
+                                    initialSubject: chap.subject,
+                                  })
+                                }
+                              >
+                                <Text style={styles.linkMuted}>Watch</Text>
+                              </TouchableOpacity>
                             </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Verified Guides & Marking Keys List */}
-            {syllabusSubMode === 'guides' && (
-              <View style={styles.listStack}>
-                {displayedTopics.map((topic) => {
-                  const isSaved = savedGuides.some(
-                    (g) => (g.id && g.id === topic.id) || g.title === topic.title
-                  );
-
-                  return (
-                    <View key={topic.id} style={styles.topicCard}>
-                      <View style={styles.topicHeadRow}>
-                        <Text style={styles.topicSubjectTag}>{topic.subject}</Text>
-                        <TouchableOpacity
-                          onPress={() => toggleSaveGuide(topic)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <MaterialCommunityIcons
-                            name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                            size={18}
-                            color={isSaved ? '#00E5FF' : '#666688'}
-                          />
-                        </TouchableOpacity>
+                          </View>
+                        ))}
                       </View>
-
-                      <Text style={styles.topicTitle}>{topic.title}</Text>
-
-                      {topic.aiBlindspots && topic.aiBlindspots[0] && (
-                        <View style={styles.blindspotBox}>
-                          <Text style={styles.blindspotHead}>{topic.aiBlindspots[0].point}</Text>
-                          <Text style={styles.blindspotText} numberOfLines={2}>
-                            {topic.aiBlindspots[0].whatAiMisses}
-                          </Text>
-                        </View>
-                      )}
-
-                      <View style={styles.topicActions}>
-                        <TouchableOpacity
-                          style={styles.btnDark}
-                          onPress={() => handleOpenGuide(topic)}
-                        >
-                          <Text style={styles.btnDarkText}>Open Guide</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.btnCyan}
-                          onPress={() =>
-                            setSimulatorItem({
-                              topic: topic.title,
-                              subject: topic.subject,
-                              marks: topic.examQuestions?.[0]?.marks || 5,
-                              keyPoints: topic.examQuestions?.[0]?.keyPoints || topic.coreConcepts || [],
-                            })
-                          }
-                        >
-                          <Text style={styles.btnCyanText}>Rubric</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.btnGreen}
-                          onPress={() => handleOpenAuditor('TOPIC', topic.title, topic.subject)}
-                        >
-                          <Text style={styles.btnGreenText}>Audit</Text>
-                        </TouchableOpacity>
-                      </View>
+                    )}
+                  </View>
+                );
+              })
+            ) : (
+              displayedTopics.map((topic) => (
+                <TouchableOpacity
+                  key={topic.id}
+                  style={styles.listRow}
+                  onPress={() => navigation.navigate('StudyGuideDetail', { guide: topic })}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.listRowHead}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rowMeta}>{topic.subject}</Text>
+                      <Text style={styles.rowTitle}>{topic.title}</Text>
+                      {topic.summary ? (
+                        <Text style={styles.rowSummary} numberOfLines={2}>
+                          {topic.summary}
+                        </Text>
+                      ) : null}
                     </View>
-                  );
-                })}
-              </View>
+                    <MaterialCommunityIcons name="chevron-right" size={18} color="#6B7280" />
+                  </View>
+                </TouchableOpacity>
+              ))
             )}
           </View>
         )}
 
-        {/* ───────────────────────────────────────────────────────────── */}
-        {/* TAB 2: STREAM-CURATED STUDY PLAN                              */}
-        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 2: STUDY PLAN */}
         {activeTab === 'plan' && (
-          <View style={styles.tabBody}>
-            {/* Subject Filter Pills Directly in Plan */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+          <View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.subjectStrip}
+            >
               {examSubjectNames.map((subj) => {
-                const isSel = selectedSubject === subj;
+                const active = selectedSubject === subj;
                 return (
                   <TouchableOpacity
                     key={subj}
-                    style={[styles.streamChip, isSel && styles.streamChipActive]}
+                    style={[styles.subjectTab, active && styles.subjectTabActive]}
                     onPress={() => setTargetSubject(subj)}
                   >
-                    <Text style={[styles.streamChipText, isSel && styles.streamChipTextActive]}>
+                    <Text style={[styles.subjectTabText, active && styles.subjectTabTextActive]}>
                       {subj === 'All' ? 'All Subjects' : subj}
                     </Text>
                   </TouchableOpacity>
@@ -488,211 +360,99 @@ export default function DashboardScreen() {
               })}
             </ScrollView>
 
-            <View style={styles.planSummaryCard}>
-              <View style={styles.planSummaryHead}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.planSummaryTitle} numberOfLines={1}>
-                    {selectedSubject === 'All' ? 'Full Board Roadmap' : `${selectedSubject} Roadmap`}
-                  </Text>
-                  <Text style={styles.planSummarySub}>
-                    {completedPlanCount} / {planItems.length} Done ({planProgressPercent}%)
-                  </Text>
-                </View>
+            <View style={styles.planHeaderRow}>
+              <Text style={styles.planMeta}>
+                {completedPlanCount} of {planItems.length} completed ·{' '}
+                {selectedSubject === 'All' ? 'Full Board Plan' : selectedSubject}
+              </Text>
+            </View>
+
+            {planItems.map((item) => (
+              <View key={item.id} style={styles.planRow}>
                 <TouchableOpacity
-                  style={styles.auditNowBtn}
-                  onPress={() => handleOpenAuditor('TOPIC')}
+                  style={[styles.checkbox, item.isCompleted && styles.checkboxDone]}
+                  onPress={() => togglePlanItemCompleted(item.id)}
                 >
-                  <Text style={styles.auditNowText}>Audit Topic</Text>
+                  {item.isCompleted && (
+                    <MaterialCommunityIcons name="check" size={14} color="#0B0C10" />
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() =>
+                    navigation.navigate('AIGapAuditor', {
+                      mode: 'TOPIC',
+                      initialTopic: item.topic,
+                      initialSubject: item.subject,
+                    })
+                  }
+                >
+                  <Text style={styles.rowMeta}>
+                    {item.day || item.week} · {item.subject}
+                  </Text>
+                  <Text style={[styles.rowTitle, item.isCompleted && styles.rowTitleDone]}>
+                    {item.topic}
+                  </Text>
+                  <Text style={styles.rowSummary} numberOfLines={2}>
+                    {item.focus}
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${planProgressPercent}%` }]} />
-              </View>
-            </View>
-
-            <View style={styles.listStack}>
-              {planItems.map((item) => (
-                <View
-                  key={item.id}
-                  style={[styles.milestoneCard, item.isCompleted && styles.milestoneCardDone]}
-                >
-                  <TouchableOpacity
-                    style={[styles.checkbox, item.isCompleted && styles.checkboxChecked]}
-                    onPress={() => togglePlanItemCompleted(item.id)}
-                  >
-                    {item.isCompleted && (
-                      <MaterialCommunityIcons name="check" size={14} color="#0B0C12" />
-                    )}
-                  </TouchableOpacity>
-
-                  <View style={styles.milestoneContent}>
-                    <View style={styles.milestoneMetaRow}>
-                      <Text style={styles.milestoneDay}>{item.day || item.week}</Text>
-                      <Text style={styles.milestoneSubject}>{item.subject}</Text>
-                    </View>
-
-                    <Text style={[styles.milestoneTitle, item.isCompleted && styles.milestoneDoneText]}>
-                      {item.topic}
-                    </Text>
-                    <Text style={styles.milestoneFocus} numberOfLines={2}>{item.focus}</Text>
-
-                    <View style={styles.milestoneButtons}>
-                      <TouchableOpacity
-                        style={styles.milestoneLinkBtn}
-                        onPress={() => handleOpenAuditor('TOPIC', item.topic, item.subject)}
-                      >
-                        <Text style={styles.milestoneLinkText}>Audit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.milestoneLinkBtn}
-                        onPress={() => navigation.navigate('Flow', { searchQuery: item.topic })}
-                      >
-                        <Text style={[styles.milestoneLinkText, { color: '#FFB800' }]}>Watch in Flow</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
+            ))}
           </View>
         )}
 
-        {/* ───────────────────────────────────────────────────────────── */}
-        {/* TAB 3: STUDY TOOLKIT (CLEAN SCREEN REDIRECT CARDS)            */}
-        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 3: CLEAN TOOL LIST */}
         {activeTab === 'tools' && (
-          <View style={styles.tabBody}>
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => navigation.navigate('Flow')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(0, 229, 255, 0.1)' }]}>
-                <MaterialCommunityIcons name="play-circle" size={22} color="#00E5FF" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>Flow Study Player</Text>
-                <Text style={styles.toolDesc}>Ad-free lectures & live topic search</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
+          <View>
+            {[
+              { title: 'Exam, Stream & Blueprints', sub: 'Switch exam or view official marking splits', screen: 'ExamTargets' },
+              { title: 'Flow Lectures', sub: 'Ad-free in-app lectures & links', screen: 'Flow' },
+              { title: 'Regain Focus Blocker', sub: 'Study timer, Shorts & OS app shield', screen: 'Regain' },
+              { title: 'AI Blindspot Auditor', sub: 'Audit answers or scan handwritten notes', screen: 'AIGapAuditor' },
+              { title: 'Flashcards', sub: 'Rapid 60-second revision cards', screen: 'Flashcards' },
+              { title: 'Question Predictor', sub: 'Past recurrence & rubric practice', screen: 'Predictor' },
+              { title: 'Saved & Progress', sub: `${savedGuides.length} saved guides & reports`, screen: 'Analytics' },
+            ].map((tool) => (
+              <TouchableOpacity
+                key={tool.screen}
+                style={styles.toolRow}
+                onPress={() => navigation.navigate(tool.screen)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowTitle}>{tool.title}</Text>
+                  <Text style={styles.rowMeta}>{tool.sub}</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            ))}
 
             <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => navigation.navigate('Regain')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(255, 71, 87, 0.1)' }]}>
-                <MaterialCommunityIcons name="shield-lock" size={22} color="#FF4757" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>Regain Focus Shield</Text>
-                <Text style={styles.toolDesc}>Deep focus timer & Reels blocker</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => handleOpenAuditor('TOPIC')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(0, 230, 118, 0.1)' }]}>
-                <MaterialCommunityIcons name="shield-search" size={22} color="#00E676" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>AI Blindspot Auditor</Text>
-                <Text style={styles.toolDesc}>Audit topics or scan handwritten answers</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => navigation.navigate('ExamTargets')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(162, 155, 254, 0.1)' }]}>
-                <MaterialCommunityIcons name="school-outline" size={22} color="#A29BFE" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>Exam, Stream & Blueprints</Text>
-                <Text style={styles.toolDesc}>Official marking splits & Trap Vault</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => navigation.navigate('Flashcards')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(255, 211, 42, 0.1)' }]}>
-                <MaterialCommunityIcons name="cards-outline" size={22} color="#FFD32A" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>60s Morning Flashcards</Text>
-                <Text style={styles.toolDesc}>Rapid recall of examiner edge cases</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => navigation.navigate('Predictor')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(0, 210, 255, 0.1)' }]}>
-                <MaterialCommunityIcons name="radar" size={22} color="#00D2FF" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>5-Year Question Radar</Text>
-                <Text style={styles.toolDesc}>High-recurrence probability predictor</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => navigation.navigate('Analytics')}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(255, 159, 67, 0.1)' }]}>
-                <MaterialCommunityIcons name="chart-box-outline" size={22} color="#FF9F43" />
-              </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>My Mastery & Saved Guides</Text>
-                <Text style={styles.toolDesc}>Bookmarks, readiness score & XP</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#777799" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.toolCard}
+              style={styles.toolRow}
               onPress={handleExportPdf}
               disabled={pdfLoading}
-              activeOpacity={0.85}
             >
-              <View style={[styles.toolIconBox, { backgroundColor: 'rgba(255, 107, 129, 0.1)' }]}>
-                {pdfLoading ? (
-                  <ActivityIndicator size="small" color="#FF6B81" />
-                ) : (
-                  <MaterialCommunityIcons name="file-pdf-box" size={22} color="#FF6B81" />
-                )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>
+                  {pdfLoading ? 'Generating Cheat Sheet...' : 'Export Cheat Sheet PDF'}
+                </Text>
+                <Text style={styles.rowMeta}>Download summary for active subject</Text>
               </View>
-              <View style={styles.toolTextBox}>
-                <Text style={styles.toolTitle}>{pdfLoading ? 'Creating PDF...' : 'Export Cheat Sheet PDF'}</Text>
-                <Text style={styles.toolDesc}>Printable 1-page summary</Text>
-              </View>
-              <MaterialCommunityIcons name="download" size={18} color="#777799" />
+              {pdfLoading ? (
+                <ActivityIndicator size="small" color="#38BDF8" />
+              ) : (
+                <MaterialCommunityIcons name="download" size={18} color="#38BDF8" />
+              )}
             </TouchableOpacity>
           </View>
         )}
 
-        <View style={{ height: 105 }} />
+        <View style={{ height: 90 }} />
       </Animated.ScrollView>
 
-      {/* Quick Exam & Stream Switcher Modal */}
+      {/* Clean Exam & Stream Selector Modal */}
       <Modal
         visible={quickSwitchVisible}
         transparent
@@ -706,34 +466,23 @@ export default function DashboardScreen() {
         >
           <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Exam & Stream</Text>
-              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    setQuickSwitchVisible(false);
-                    navigation.navigate('ExamTargets');
-                  }}
-                >
-                  <Text style={styles.fullDirLink}>Full Directory →</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setQuickSwitchVisible(false)}>
-                  <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.modalTitle}>Select Exam</Text>
+              <TouchableOpacity onPress={() => setQuickSwitchVisible(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
 
-            {/* Stream Selector inside Modal (only when exam has branches) */}
             {streams.length > 1 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40, marginBottom: 10 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 36, marginBottom: 12 }}>
                 {streams.map((st) => {
                   const sel = activeStream?.id === st.id;
                   return (
                     <TouchableOpacity
                       key={st.id}
-                      style={[styles.modalStreamPill, sel && styles.modalStreamPillActive]}
+                      style={[styles.subjectTab, { marginRight: 16 }, sel && styles.subjectTabActive]}
                       onPress={() => setTargetStream(st.id)}
                     >
-                      <Text style={[styles.modalStreamText, sel && styles.modalStreamTextActive]}>
+                      <Text style={[styles.subjectTabText, sel && styles.subjectTabTextActive]}>
                         {st.label}
                       </Text>
                     </TouchableOpacity>
@@ -742,29 +491,11 @@ export default function DashboardScreen() {
               </ScrollView>
             )}
 
-            {/* Quick Subject Scope Pills inside Modal */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 38, marginBottom: 10 }}>
-              {examSubjectNames.map((subj) => {
-                const sel = selectedSubject === subj;
-                return (
-                  <TouchableOpacity
-                    key={subj}
-                    style={[styles.modalStreamPill, sel && styles.modalStreamPillActive]}
-                    onPress={() => setTargetSubject(subj)}
-                  >
-                    <Text style={[styles.modalStreamText, sel && styles.modalStreamTextActive]}>
-                      {subj === 'All' ? 'All Subjects' : subj}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
             <View style={styles.customExamRow}>
               <TextInput
                 style={styles.customExamInput}
-                placeholder="Type custom exam..."
-                placeholderTextColor="#666688"
+                placeholder="Or enter custom exam..."
+                placeholderTextColor="#6B7280"
                 value={customExamInput}
                 onChangeText={setCustomExamInput}
               />
@@ -773,24 +504,24 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 330 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
               {EXAM_TARGETS.map((target) => {
                 const isSelected = activeExamLabel === target.label;
                 return (
                   <TouchableOpacity
                     key={target.id}
-                    style={[styles.modalOption, isSelected && styles.modalOptionActive]}
-                    onPress={() => handleQuickSelectExam(target.label)}
+                    style={styles.modalOption}
+                    onPress={() => handleSelectExam(target.label)}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.modalOptionLabel, isSelected && { color: '#00E5FF' }]}>
+                      <Text style={[styles.modalOptionLabel, isSelected && { color: '#38BDF8' }]}>
                         {target.label}
                       </Text>
                       <Text style={styles.modalOptionSub} numberOfLines={1}>
                         {target.weightage}
                       </Text>
                     </View>
-                    {isSelected && <MaterialCommunityIcons name="check-circle" size={18} color="#00E5FF" />}
+                    {isSelected && <MaterialCommunityIcons name="check" size={18} color="#38BDF8" />}
                   </TouchableOpacity>
                 );
               })}
@@ -798,363 +529,173 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {simulatorItem && (
-        <MarkingSimulatorModal
-          visible={!!simulatorItem}
-          onClose={() => setSimulatorItem(null)}
-          topicTitle={simulatorItem.topic}
-          subject={simulatorItem.subject}
-          targetExam={activeExamLabel}
-          questionData={simulatorItem}
-        />
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0C12' },
+  container: { flex: 1, backgroundColor: '#0B0C10' },
   header: {
-    paddingTop: 46,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: '#0E1018',
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#222436',
-    gap: 10,
+    paddingTop: Platform.OS === 'ios' ? 54 : 38,
+    paddingHorizontal: 20,
+    backgroundColor: '#0B0C10',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 12,
+  },
+  examSwitchTouch: { flex: 1 },
+  headerTitle: { color: '#F9FAFB', fontSize: 19, fontWeight: '700', letterSpacing: -0.3 },
+  headerSub: { color: '#9CA3AF', fontSize: 12, marginTop: 2 },
+  headerLink: { color: '#38BDF8', fontSize: 13, fontWeight: '600' },
+
+  tabsRow: { flexDirection: 'row', gap: 24 },
+  tabItem: { paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabItemActive: { borderBottomColor: '#38BDF8' },
+  tabText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
+  tabTextActive: { color: '#F9FAFB' },
+
+  scrollContent: { padding: 20 },
+
+  subjectStrip: {
+    gap: 18,
+    paddingBottom: 10,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
+  },
+  subjectTab: { paddingVertical: 4 },
+  subjectTabActive: { borderBottomWidth: 2, borderBottomColor: '#38BDF8' },
+  subjectTabText: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
+  subjectTabTextActive: { color: '#F9FAFB' },
+
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
+    marginBottom: 12,
   },
-  targetChip: {
+  searchInput: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#161824',
-    borderWidth: 1.5,
-    borderColor: '#2A2D40',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  targetChipExam: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
-  targetChipStream: { fontSize: 10, fontWeight: '700', color: '#00E5FF' },
-  rightHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  xpBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#161824',
-    borderWidth: 1.5,
-    borderColor: '#2A2D40',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-  xpBtnText: { fontSize: 11, fontWeight: '800', color: '#FFD32A' },
-
-  cardTabsRow: { flexDirection: 'row', gap: 8 },
-  cardTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 9,
-    backgroundColor: '#141622',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 10,
-  },
-  cardTabActive: { backgroundColor: '#1A1E2E', borderColor: '#00E5FF' },
-  cardTabText: { fontSize: 12, fontWeight: '700', color: '#8E8EA8' },
-  cardTabTextActive: { color: '#00E5FF', fontWeight: '800' },
-
-  scrollContent: { paddingHorizontal: 16, paddingTop: 14 },
-  tabBody: { gap: 12 },
-  chipsScroll: { gap: 8, paddingVertical: 2 },
-
-  streamChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-  },
-  streamChipActive: { borderColor: '#00E5FF', backgroundColor: '#171C2B' },
-  streamChipText: { fontSize: 11, fontWeight: '700', color: '#8E8EA8' },
-  streamChipTextActive: { color: '#00E5FF', fontWeight: '800' },
-
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 10,
-    paddingHorizontal: 12,
     height: 40,
-    gap: 8,
-  },
-  searchInput: { flex: 1, color: '#FFFFFF', fontSize: 12 },
-
-  subjectCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 10,
+    backgroundColor: '#14161F',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 96,
-    gap: 2,
+    color: '#F9FAFB',
+    fontSize: 13,
   },
-  subjectCardActive: { borderColor: '#00E5FF', backgroundColor: '#171B2B' },
-  subjectCardTitle: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
-  subjectCardSub: { fontSize: 10, color: '#8E8EA8' },
+  modeSwitchTextBtn: { paddingVertical: 8, paddingHorizontal: 4 },
+  modeSwitchText: { color: '#38BDF8', fontSize: 12, fontWeight: '600' },
 
-  subToggleRow: {
+  listRow: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
+  },
+  listRowHead: {
     flexDirection: 'row',
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 10,
-    padding: 3,
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  subToggleBtn: { flex: 1, paddingVertical: 7, borderRadius: 7, alignItems: 'center' },
-  subToggleBtnActive: { backgroundColor: '#1E2336' },
-  subToggleText: { fontSize: 11, fontWeight: '700', color: '#8E8EA8' },
-  subToggleTextActive: { color: '#00E5FF', fontWeight: '800' },
+  rowMeta: { color: '#6B7280', fontSize: 12, marginBottom: 3 },
+  rowTitle: { color: '#F3F4F6', fontSize: 15, fontWeight: '600', lineHeight: 21 },
+  rowTitleDone: { color: '#6B7280', textDecorationLine: 'line-through' },
+  rowSummary: { color: '#9CA3AF', fontSize: 13, lineHeight: 18, marginTop: 4 },
 
-  listStack: { gap: 10 },
-  chapterCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 13,
-  },
-  chapterHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  chapterMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  chapterUnitText: { fontSize: 10, fontWeight: '800', color: '#00E5FF' },
-  chapterWeight: { fontSize: 10, fontWeight: '800', color: '#00E676' },
-  chapterTitle: { fontSize: 13, fontWeight: '800', color: '#FFFFFF', lineHeight: 18 },
-  chapterSubtopicsBox: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#222436',
-    gap: 8,
-  },
+  subtopicsList: { marginTop: 10, paddingLeft: 10, gap: 10 },
   subtopicRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  subtopicTitle: { flex: 1, fontSize: 11, color: '#D0D2E0', lineHeight: 16 },
-  subtopicActions: { flexDirection: 'row', gap: 6 },
-  miniActionBtn: {
-    backgroundColor: '#132820',
-    borderWidth: 1,
-    borderColor: '#1F4B37',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 5,
-  },
-  miniActionText: { fontSize: 10, fontWeight: '800', color: '#00E676' },
-  miniActionBtnFlow: {
-    backgroundColor: '#1A1C2B',
-    borderWidth: 1,
-    borderColor: '#2D324C',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 5,
-  },
-  miniActionTextFlow: { fontSize: 10, fontWeight: '800', color: '#FFB800' },
-
-  // Topics
-  topicCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
-  },
-  topicHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  topicSubjectTag: { fontSize: 10, fontWeight: '800', color: '#00E5FF' },
-  topicTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', lineHeight: 19 },
-  blindspotBox: {
-    backgroundColor: '#181A26',
-    borderLeftWidth: 3,
-    borderLeftColor: '#FF4757',
-    padding: 8,
-    borderRadius: 6,
-    gap: 2,
-  },
-  blindspotHead: { fontSize: 11, fontWeight: '700', color: '#FF6B81' },
-  blindspotText: { fontSize: 11, color: '#8E8EA8', lineHeight: 15 },
-  topicActions: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  btnDark: {
-    flex: 1,
-    backgroundColor: '#1D2133',
-    borderWidth: 1,
-    borderColor: '#2D334C',
-    paddingVertical: 7,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  btnDarkText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
-  btnCyan: {
-    flex: 1,
-    backgroundColor: '#132128',
-    borderWidth: 1,
-    borderColor: '#1D3B47',
-    paddingVertical: 7,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  btnCyanText: { fontSize: 11, fontWeight: '700', color: '#00E5FF' },
-  btnGreen: {
-    flex: 1,
-    backgroundColor: '#12251D',
-    borderWidth: 1,
-    borderColor: '#1D4532',
-    paddingVertical: 7,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  btnGreenText: { fontSize: 11, fontWeight: '700', color: '#00E676' },
-
-  // Plan Tab
-  planSummaryCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 14,
     gap: 10,
   },
-  planSummaryHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  planSummaryTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-  planSummarySub: { fontSize: 11, color: '#8E8EA8', marginTop: 2 },
-  auditNowBtn: { backgroundColor: '#00E5FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 7 },
-  auditNowText: { fontSize: 11, fontWeight: '900', color: '#0B0C12' },
-  progressTrack: { height: 6, backgroundColor: '#1A1C2C', borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#00E5FF' },
-  milestoneCard: {
+  subtopicText: { flex: 1, color: '#D1D5DB', fontSize: 13, lineHeight: 18 },
+  subtopicActions: { flexDirection: 'row', gap: 12 },
+  linkCyan: { color: '#38BDF8', fontSize: 12, fontWeight: '600' },
+  linkMuted: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+
+  planHeaderRow: { paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#1D1F2C' },
+  planMeta: { color: '#9CA3AF', fontSize: 12 },
+  planRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 13,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  milestoneCardDone: { opacity: 0.6 },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#3B3E56',
+    borderWidth: 1.5,
+    borderColor: '#4B5563',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 4,
   },
-  checkboxChecked: { backgroundColor: '#00E5FF', borderColor: '#00E5FF' },
-  milestoneContent: { flex: 1, gap: 5 },
-  milestoneMetaRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  milestoneDay: { fontSize: 10, fontWeight: '800', color: '#00E5FF' },
-  milestoneSubject: { fontSize: 10, fontWeight: '700', color: '#A29BFE' },
-  milestoneTitle: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
-  milestoneDoneText: { textDecorationLine: 'line-through', color: '#777799' },
-  milestoneFocus: { fontSize: 11, color: '#8E8EA8', lineHeight: 15 },
-  milestoneButtons: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  milestoneLinkBtn: {
-    backgroundColor: '#181B28',
-    borderWidth: 1,
-    borderColor: '#2A2E44',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  milestoneLinkText: { fontSize: 10, fontWeight: '800', color: '#00E5FF' },
+  checkboxDone: { backgroundColor: '#38BDF8', borderColor: '#38BDF8' },
 
-  // Toolkit Tab
-  toolCard: {
+  toolRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 13,
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  toolIconBox: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  toolTextBox: { flex: 1, gap: 2 },
-  toolTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-  toolDesc: { fontSize: 11, color: '#8E8EA8' },
 
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.78)', justifyContent: 'center', padding: 18 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
   modalCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#24263A',
-    borderRadius: 14,
-    padding: 16,
-    maxHeight: '85%',
+    backgroundColor: '#14161F',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    maxHeight: '80%',
   },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  modalTitle: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
-  fullDirLink: { fontSize: 11, fontWeight: '800', color: '#00E5FF' },
-  modalStreamPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#161824',
-    borderWidth: 1,
-    borderColor: '#2A2D40',
-    marginRight: 6,
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  modalStreamPillActive: { borderColor: '#00E5FF', backgroundColor: '#1A1E2E' },
-  modalStreamText: { fontSize: 11, fontWeight: '700', color: '#8E8EA8' },
-  modalStreamTextActive: { color: '#00E5FF', fontWeight: '800' },
-  customExamRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  modalTitle: { color: '#F9FAFB', fontSize: 17, fontWeight: '700' },
+  customExamRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   customExamInput: {
     flex: 1,
-    height: 38,
-    backgroundColor: '#0B0C12',
-    borderWidth: 1,
-    borderColor: '#2A2D40',
+    height: 40,
+    backgroundColor: '#0B0C10',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    color: '#FFFFFF',
-    fontSize: 12,
+    paddingHorizontal: 12,
+    color: '#F9FAFB',
+    fontSize: 13,
   },
-  customApplyBtn: { backgroundColor: '#00E5FF', paddingHorizontal: 12, borderRadius: 8, justifyContent: 'center' },
-  customApplyText: { fontSize: 11, fontWeight: '900', color: '#0B0C12' },
+  customApplyBtn: {
+    backgroundColor: '#38BDF8',
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customApplyText: { color: '#0B0C10', fontSize: 13, fontWeight: '700' },
   modalOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#161824',
-    borderWidth: 1,
-    borderColor: '#24263A',
-    borderRadius: 9,
-    padding: 11,
-    marginBottom: 7,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  modalOptionActive: { borderColor: '#00E5FF', backgroundColor: '#1A1E2E' },
-  modalOptionLabel: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
-  modalOptionSub: { fontSize: 10, color: '#8E8EA8', marginTop: 2 },
+  modalOptionLabel: { color: '#F3F4F6', fontSize: 14, fontWeight: '600' },
+  modalOptionSub: { color: '#6B7280', fontSize: 12, marginTop: 2 },
 });

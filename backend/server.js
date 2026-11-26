@@ -98,8 +98,10 @@ app.locals.geminiClients = geminiClients;
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 const healthRoutes = require('./routes/health');
+const flowRoutes = require('./routes/flow');
 
 app.use('/api/health', healthRoutes);
+app.use('/api/flow', flowRoutes);
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────
 app.use((req, res) => {

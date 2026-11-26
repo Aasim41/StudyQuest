@@ -217,6 +217,14 @@ export const UserProvider = ({ children }) => {
   const [syllabusTrendData, setSyllabusTrendData] = useState(null);
   const [isRefreshingSyllabus, setIsRefreshingSyllabus] = useState(false);
 
+  // Regain Global Shield State (enforced in RegainFocus + Flow + AppState)
+  const [focusShieldState, setFocusShieldState] = useState({
+    focusActive: false,
+    strictMode: true,
+    blockShortsReels: true,
+    alwaysGuard: true,
+  });
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -1125,12 +1133,14 @@ export const UserProvider = ({ children }) => {
     syllabusLastUpdated,
     syllabusTrendData,
     isRefreshingSyllabus,
-    refreshSyllabusData
+    refreshSyllabusData,
+    focusShieldState,
+    setFocusShieldState,
   }), [
     onboardingComplete, isGuest, loading, userStats, userBatch, studyPlan,
     timetable, attendanceRecords, targetExam, targetStream, targetSubject, savedGuides,
     auditedHistory, masteredGapsCount, syllabusLastUpdated, syllabusTrendData,
-    isRefreshingSyllabus
+    isRefreshingSyllabus, focusShieldState
   ]);
 
   return (

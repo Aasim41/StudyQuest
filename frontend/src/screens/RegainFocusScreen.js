@@ -6,81 +6,83 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
-  Dimensions,
   Modal,
   Platform,
   Alert,
+  Switch,
+  AppState,
   Animated,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { useUser } from '../context/UserContext';
-import { resolveStreamForExam } from '../config/studyGuideData';
+import {
+  DEFAULT_BLOCKED_PACKAGES,
+  isNativeShieldAvailable,
+  getNativeShieldStatus,
+  syncNativeShield,
+  loadInstalledAppsList,
+  openAndroidAccessibilitySettings,
+  openAndroidOverlaySettings,
+  openSystemDigitalWellbeing,
+} from '../services/focusShieldService';
 import { gsapTabTransition } from '../utils/gsapAnim';
 
-const { width } = Dimensions.get('window');
-
 const TIMER_MODES = [
-  { id: 'POMO_25', label: 'Pomodoro', durationMinutes: 25, breakMinutes: 5, desc: '25m Focus • 5m Rest' },
-  { id: 'DEEP_50', label: 'Deep Sprint', durationMinutes: 50, breakMinutes: 10, desc: '50m Deep Work • 10m Rest' },
-  { id: 'EXAM_180', label: 'Exam Sim', durationMinutes: 180, breakMinutes: 0, desc: '3h Timed Test Sprint' },
-  { id: 'QUICK_15', label: 'Speed Drill', durationMinutes: 15, breakMinutes: 3, desc: '15m Formula Sprint' },
+  { id: 'QUICK_15', label: '15m', durationMinutes: 15, breakMinutes: 3 },
+  { id: 'POMO_25', label: '25m', durationMinutes: 25, breakMinutes: 5 },
+  { id: 'DEEP_50', label: '50m', durationMinutes: 50, breakMinutes: 10 },
+  { id: 'EXAM_180', label: '3h', durationMinutes: 180, breakMinutes: 0 },
 ];
 
-const DEFAULT_BLOCKED_APPS = [
-  { id: 'insta', name: 'Instagram & Reels', icon: 'instagram', blocked: true, isReels: true },
-  { id: 'yt_shorts', name: 'YouTube Shorts Feed', icon: 'youtube', blocked: true, isReels: true },
-  { id: 'reddit', name: 'Reddit Doomscrolling', icon: 'reddit', blocked: true, isReels: false },
-  { id: 'snap', name: 'Snapchat Spotlight', icon: 'snapchat', blocked: true, isReels: true },
-  { id: 'whatsapp', name: 'WhatsApp Non-Essential', icon: 'whatsapp', blocked: false, isReels: false },
-  { id: 'x_twitter', name: 'X / Twitter Feeds', icon: 'twitter', blocked: true, isReels: false },
-  { id: 'games', name: 'Mobile Games', icon: 'gamepad-variant-outline', blocked: true, isReels: false },
-  { id: 'netflix', name: 'Netflix & Streaming', icon: 'netflix', blocked: true, isReels: false },
-];
-
-const AMBIENT_SOUNDS = [
-  { id: 'binaural', label: '40Hz Gamma Binaural', icon: 'brain' },
-  { id: 'rain', label: 'Midnight Rain', icon: 'weather-pouring' },
-  { id: 'library', label: 'Silent Library', icon: 'bookshelf' },
-  { id: 'lofi', label: 'Deep Focus Lo-Fi', icon: 'headphones' },
-];
+const REGAIN_STORAGE_KEY = '@studyquest_regain_v2';
 
 export default function RegainFocusScreen() {
-  const navigation = useNavigation();
-  const { targetExam, targetStream, awardCustomXp, logStudySession } = useUser();
-  const streamObj = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
+  const {
+    targetExam,
+    targetSubject,
+    awardCustomXp,
+    logStudySession,
+    setFocusShieldState,
+  } = useUser();
 
-  // Active Card Tab: 'timer' | 'shields'
-  const [activeTab, setActiveTab] = useState('timer');
+  const [activeTab, setActiveTab] = useState('timer'); // 'timer' | 'blocker'
   const tabAnim = useRef(new Animated.Value(1)).current;
 
-  // Timer States
-  const [selectedMode, setSelectedMode] = useState(TIMER_MODES[0]);
-  const [secondsRemaining, setSecondsRemaining] = useState(TIMER_MODES[0].durationMinutes * 60);
+  // Timer state
+  const [selectedMode, setSelectedMode] = useState(TIMER_MODES[1]);
+  const [secondsRemaining, setSecondsRemaining] = useState(TIMER_MODES[1].durationMinutes * 60);
   const [isActive, setIsActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
+
+  // Shield configuration
   const [strictMode, setStrictMode] = useState(true);
   const [blockShortsReels, setBlockShortsReels] = useState(true);
+  const [alwaysGuard, setAlwaysGuard] = useState(true);
+  const [blockedApps, setBlockedApps] = useState(DEFAULT_BLOCKED_PACKAGES);
 
-  // App Shield Matrix
-  const [blockedApps, setBlockedApps] = useState(DEFAULT_BLOCKED_APPS);
+  // Native OS shield status (Android Accessibility + Overlay + Installed Apps)
+  const [nativeStatus, setNativeStatus] = useState({
+    nativeSupported: isNativeShieldAvailable,
+    accessibilityEnabled: false,
+    overlayEnabled: false,
+    urgesBlockedCount: 0,
+  });
 
-  // Regain Mindful Friction Modal
-  const [frictionModalVisible, setFrictionModalVisible] = useState(false);
-  const [breathCountdown, setBreathCountdown] = useState(5);
-  const [targetAppName, setTargetAppName] = useState('');
-
-  // Ambient Sound
-  const [activeSound, setActiveSound] = useState(null);
-
-  // Regain Willpower & Screen Time Stats (persisted on device)
+  // Stats
   const [screenTimeSavedMinutes, setScreenTimeSavedMinutes] = useState(0);
   const [urgesBlockedCount, setUrgesBlockedCount] = useState(0);
   const [completedSessionsCount, setCompletedSessionsCount] = useState(0);
 
+  // Mindful Pause Modal
+  const [frictionModalVisible, setFrictionModalVisible] = useState(false);
+  const [breathCountdown, setBreathCountdown] = useState(5);
+  const [frictionReason, setFrictionReason] = useState('');
+
   const timerRef = useRef(null);
   const breathTimerRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
+  const leftAtRef = useRef(null);
 
   const switchTab = (tab) => {
     if (tab === activeTab) return;
@@ -88,39 +90,125 @@ export default function RegainFocusScreen() {
     setActiveTab(tab);
   };
 
+  // Load saved Regain config & stats on mount
   useEffect(() => {
+    AsyncStorage.getItem(REGAIN_STORAGE_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.screenTimeSavedMinutes === 'number') setScreenTimeSavedMinutes(parsed.screenTimeSavedMinutes);
+        if (typeof parsed.urgesBlockedCount === 'number') setUrgesBlockedCount(parsed.urgesBlockedCount);
+        if (typeof parsed.completedSessionsCount === 'number') setCompletedSessionsCount(parsed.completedSessionsCount);
+        if (typeof parsed.strictMode === 'boolean') setStrictMode(parsed.strictMode);
+        if (typeof parsed.blockShortsReels === 'boolean') setBlockShortsReels(parsed.blockShortsReels);
+        if (typeof parsed.alwaysGuard === 'boolean') setAlwaysGuard(parsed.alwaysGuard);
+        if (Array.isArray(parsed.blockedApps) && parsed.blockedApps.length > 0) {
+          setBlockedApps(parsed.blockedApps);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       clearInterval(timerRef.current);
       clearInterval(breathTimerRef.current);
     };
   }, []);
 
-  // Load persisted stats on mount
-  useEffect(() => {
-    AsyncStorage.getItem('@regain_stats').then((val) => {
-      if (val) {
-        try {
-          const parsed = JSON.parse(val);
-          if (parsed.screenTimeSavedMinutes) setScreenTimeSavedMinutes(parsed.screenTimeSavedMinutes);
-          if (parsed.urgesBlockedCount) setUrgesBlockedCount(parsed.urgesBlockedCount);
-          if (parsed.completedSessionsCount) setCompletedSessionsCount(parsed.completedSessionsCount);
-        } catch (e) {}
-      }
-    });
-  }, []);
-
-  const persistStats = (savedMins, urges, sessions) => {
-    AsyncStorage.setItem(
-      '@regain_stats',
-      JSON.stringify({
-        screenTimeSavedMinutes: savedMins,
-        urgesBlockedCount: urges,
-        completedSessionsCount: sessions,
-      })
-    ).catch(() => {});
+  const refreshNativeStatus = async () => {
+    const st = await getNativeShieldStatus();
+    setNativeStatus(st);
+    if (st.urgesBlockedCount && st.urgesBlockedCount > urgesBlockedCount) {
+      setUrgesBlockedCount(st.urgesBlockedCount);
+    }
+    const installed = await loadInstalledAppsList();
+    if (installed && installed.length > 0) {
+      setBlockedApps((prev) => {
+        const prevMap = new Map(prev.map((p) => [p.packageName, p.blocked]));
+        const merged = installed.map((item) => ({
+          packageName: item.packageName,
+          label: item.label,
+          blocked: prevMap.has(item.packageName) ? prevMap.get(item.packageName) : item.blocked,
+        }));
+        return merged;
+      });
+    }
   };
 
-  // Timer Tick
+  useEffect(() => {
+    refreshNativeStatus();
+  }, []);
+
+  // Persist locally, update shared UserContext shield, and push to native Android service
+  useEffect(() => {
+    setFocusShieldState({
+      focusActive: isActive,
+      strictMode,
+      blockShortsReels,
+      alwaysGuard,
+    });
+
+    syncNativeShield({
+      focusActive: isActive,
+      strictMode,
+      blockShortsReels,
+      alwaysGuard,
+      blockedPackages: blockedApps,
+    });
+
+    AsyncStorage.setItem(
+      REGAIN_STORAGE_KEY,
+      JSON.stringify({
+        screenTimeSavedMinutes,
+        urgesBlockedCount,
+        completedSessionsCount,
+        strictMode,
+        blockShortsReels,
+        alwaysGuard,
+        blockedApps,
+      })
+    ).catch(() => {});
+  }, [
+    isActive,
+    strictMode,
+    blockShortsReels,
+    alwaysGuard,
+    blockedApps,
+    screenTimeSavedMinutes,
+    urgesBlockedCount,
+    completedSessionsCount,
+  ]);
+
+  // AppState monitor: refreshes native permissions on resume & warns if user leaves mid-focus
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (prevState === 'active' && (nextState === 'background' || nextState === 'inactive')) {
+        if (isActive && !isBreak && strictMode) {
+          leftAtRef.current = Date.now();
+          if (Platform.OS !== 'web') {
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'Focus Shield Active',
+                body: `Stay in StudyQuest to finish your ${selectedMode.label} sprint.`,
+              },
+              trigger: null,
+            }).catch(() => {});
+          }
+        }
+      } else if (nextState === 'active' && (prevState === 'background' || prevState === 'inactive')) {
+        refreshNativeStatus();
+        if (leftAtRef.current && isActive && strictMode && Date.now() - leftAtRef.current > 2500) {
+          leftAtRef.current = null;
+          triggerMindfulFriction('left Focus Shield');
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [isActive, isBreak, strictMode, selectedMode]);
+
+  // Countdown tick
   useEffect(() => {
     if (isActive && secondsRemaining > 0) {
       timerRef.current = setInterval(() => {
@@ -137,18 +225,14 @@ export default function RegainFocusScreen() {
     setIsActive(false);
     if (!isBreak) {
       const gainedMins = selectedMode.durationMinutes;
-      const newSaved = screenTimeSavedMinutes + gainedMins;
-      const newSessions = completedSessionsCount + 1;
-      setScreenTimeSavedMinutes(newSaved);
-      setCompletedSessionsCount(newSessions);
-      persistStats(newSaved, urgesBlockedCount, newSessions);
-
-      awardCustomXp(gainedMins * 2, 'Completed Regain Focus Session');
-      logStudySession('Deep Focus Sprint', gainedMins);
+      setScreenTimeSavedMinutes((m) => m + gainedMins);
+      setCompletedSessionsCount((c) => c + 1);
+      awardCustomXp(gainedMins * 2, 'Completed Focus Session');
+      logStudySession(targetSubject !== 'All' ? targetSubject : 'Deep Focus', gainedMins);
 
       Alert.alert(
-        '🎯 Session Conquered!',
-        `You completed ${gainedMins} minutes of zero-distraction deep work for ${targetExam}! Take a well-earned break.`
+        'Session Complete',
+        `Completed ${gainedMins} minutes for ${targetExam}.`
       );
 
       if (selectedMode.breakMinutes > 0) {
@@ -160,45 +244,12 @@ export default function RegainFocusScreen() {
     } else {
       setIsBreak(false);
       setSecondsRemaining(selectedMode.durationMinutes * 60);
-      Alert.alert('⚡ Break Complete', 'Ready to dive back into your next focus block?');
+      Alert.alert('Break Finished', 'Ready for the next study block.');
     }
   };
 
-  const handleSelectMode = (mode) => {
-    if (isActive) {
-      triggerMindfulFriction('Switch Mode');
-      return;
-    }
-    setSelectedMode(mode);
-    setIsBreak(false);
-    setSecondsRemaining(mode.durationMinutes * 60);
-  };
-
-  const toggleTimer = () => {
-    if (isActive) {
-      if (strictMode) {
-        triggerMindfulFriction('Exit Focus Session');
-        return;
-      }
-      setIsActive(false);
-    } else {
-      setIsActive(true);
-    }
-  };
-
-  const resetTimer = () => {
-    if (isActive && strictMode) {
-      triggerMindfulFriction('Reset Timer');
-      return;
-    }
-    setIsActive(false);
-    setIsBreak(false);
-    setSecondsRemaining(selectedMode.durationMinutes * 60);
-  };
-
-  // Trigger Mindful Friction Interceptor
   const triggerMindfulFriction = (reason) => {
-    setTargetAppName(reason);
+    setFrictionReason(reason);
     setBreathCountdown(5);
     setFrictionModalVisible(true);
 
@@ -214,94 +265,107 @@ export default function RegainFocusScreen() {
     }, 1000);
   };
 
-  const handleCancelFriction = () => {
+  const handleStayFocused = () => {
     clearInterval(breathTimerRef.current);
     setFrictionModalVisible(false);
-    const newUrges = urgesBlockedCount + 1;
-    setUrgesBlockedCount(newUrges);
-    persistStats(screenTimeSavedMinutes, newUrges, completedSessionsCount);
-    awardCustomXp(10, 'Deflected Distraction Urge');
-    Alert.alert('🛡️ Urge Deflected!', '+10 XP! Your willpower score increased. Great job staying on track.');
+    setUrgesBlockedCount((c) => c + 1);
+    awardCustomXp(10, 'Stayed Focused');
   };
 
-  const handleConfirmGiveUp = () => {
+  const handleGiveUp = () => {
     clearInterval(breathTimerRef.current);
     setFrictionModalVisible(false);
     setIsActive(false);
   };
 
-  const toggleAppBlock = (id) => {
-    if (isActive && strictMode) {
-      triggerMindfulFriction('Unblock App');
+  const handleSelectMode = (mode) => {
+    if (isActive) {
+      triggerMindfulFriction('change duration');
       return;
     }
+    setSelectedMode(mode);
+    setIsBreak(false);
+    setSecondsRemaining(mode.durationMinutes * 60);
+  };
+
+  const toggleTimer = () => {
+    if (isActive) {
+      if (strictMode) {
+        triggerMindfulFriction('pause focus session');
+        return;
+      }
+      setIsActive(false);
+    } else {
+      setIsActive(true);
+    }
+  };
+
+  const resetTimer = () => {
+    if (isActive && strictMode) {
+      triggerMindfulFriction('reset focus timer');
+      return;
+    }
+    setIsActive(false);
+    setIsBreak(false);
+    setSecondsRemaining(selectedMode.durationMinutes * 60);
+  };
+
+  const toggleAppBlock = (pkg) => {
+    if (isActive && strictMode) {
+      const targetApp = blockedApps.find((a) => a.packageName === pkg);
+      if (targetApp?.blocked) {
+        triggerMindfulFriction(`unblock ${targetApp.label}`);
+        return;
+      }
+    }
     setBlockedApps((prev) =>
-      prev.map((app) => (app.id === id ? { ...app, blocked: !app.blocked } : app))
+      prev.map((a) => (a.packageName === pkg ? { ...a, blocked: !a.blocked } : a))
     );
   };
 
-  const formatTime = (totalSeconds) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
   const progressPercent = useMemo(() => {
     const total = isBreak ? selectedMode.breakMinutes * 60 : selectedMode.durationMinutes * 60;
-    if (total === 0) return 0;
+    if (total <= 0) return 0;
     return Math.round(((total - secondsRemaining) / total) * 100);
   }, [secondsRemaining, selectedMode, isBreak]);
 
+  const blockedCount = blockedApps.filter((a) => a.blocked).length;
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0C12" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C10" />
 
-      {/* Minimal Header */}
+      {/* Clean Simple Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.brandRow}>
-            <View style={styles.regainIconBox}>
-              <MaterialCommunityIcons name="shield-lock" size={18} color="#FF4757" />
-            </View>
-            <Text style={styles.brandTitle}>Regain Focus Shield</Text>
-          </View>
-
-          <View style={styles.activeExamChip}>
-            <Text style={styles.activeExamChipText} numberOfLines={1}>
-              {streamObj ? `${(targetExam || 'Study').split(' ')[0]} • ${streamObj.label.split(' ')[0]}` : (targetExam ? targetExam.split(' ')[0] : 'Study')}
-            </Text>
-          </View>
+          <Text style={styles.headerTitle}>Regain</Text>
+          <Text style={styles.headerMeta} numberOfLines={1}>
+            {targetExam}{targetSubject && targetSubject !== 'All' ? ` · ${targetSubject}` : ''}
+          </Text>
         </View>
 
-        {/* 2-Card Segmented Tabs Switcher */}
-        <View style={styles.cardTabsRow}>
+        <View style={styles.tabsRow}>
           <TouchableOpacity
-            style={[styles.cardTab, activeTab === 'timer' && styles.cardTabActive]}
+            style={[styles.tabItem, activeTab === 'timer' && styles.tabItemActive]}
             onPress={() => switchTab('timer')}
-            activeOpacity={0.85}
           >
-            <MaterialCommunityIcons
-              name="timer-outline"
-              size={15}
-              color={activeTab === 'timer' ? '#00E5FF' : '#777799'}
-            />
-            <Text style={[styles.cardTabText, activeTab === 'timer' && styles.cardTabTextActive]}>
+            <Text style={[styles.tabText, activeTab === 'timer' && styles.tabTextActive]}>
               Focus Timer
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.cardTab, activeTab === 'shields' && styles.cardTabActive]}
-            onPress={() => switchTab('shields')}
-            activeOpacity={0.85}
+            style={[styles.tabItem, activeTab === 'blocker' && styles.tabItemActive]}
+            onPress={() => switchTab('blocker')}
           >
-            <MaterialCommunityIcons
-              name="shield-sword-outline"
-              size={15}
-              color={activeTab === 'shields' ? '#00E5FF' : '#777799'}
-            />
-            <Text style={[styles.cardTabText, activeTab === 'shields' && styles.cardTabTextActive]}>
-              Shield Matrix
+            <Text style={[styles.tabText, activeTab === 'blocker' && styles.tabTextActive]}>
+              App Blocker ({blockedCount})
             </Text>
           </TouchableOpacity>
         </View>
@@ -310,25 +374,22 @@ export default function RegainFocusScreen() {
       <Animated.ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        style={{ transform: [{ scale: tabAnim }] }}
+        style={{ opacity: tabAnim }}
       >
-        {/* ───────────────────────────────────────────────────────────── */}
-        {/* TAB 1: FOCUS TIMER & REELS BLOCKER                           */}
-        {/* ───────────────────────────────────────────────────────────── */}
+        {/* TAB 1: CLEAN FOCUS TIMER */}
         {activeTab === 'timer' && (
-          <View style={styles.tabContent}>
-            {/* Mode Selector Tabs */}
-            <View style={styles.modeTabsRow}>
+          <View>
+            {/* Duration Text Row */}
+            <View style={styles.durationRow}>
               {TIMER_MODES.map((mode) => {
-                const isSel = selectedMode.id === mode.id;
+                const active = selectedMode.id === mode.id;
                 return (
                   <TouchableOpacity
                     key={mode.id}
-                    style={[styles.modeTab, isSel && styles.modeTabActive]}
+                    style={[styles.durationTab, active && styles.durationTabActive]}
                     onPress={() => handleSelectMode(mode)}
-                    activeOpacity={0.8}
                   >
-                    <Text style={[styles.modeTabText, isSel && styles.modeTabTextActive]}>
+                    <Text style={[styles.durationText, active && styles.durationTextActive]}>
                       {mode.label}
                     </Text>
                   </TouchableOpacity>
@@ -336,245 +397,190 @@ export default function RegainFocusScreen() {
               })}
             </View>
 
-            {/* Central Focus Timer Card */}
-            <View style={[styles.timerCard, isActive && styles.timerCardActive]}>
-              <View style={styles.timerCenter}>
-                <View style={styles.phaseBadge}>
-                  <Text style={styles.phaseBadgeText}>
-                    {isBreak ? 'REST BREAK' : isActive ? 'STRICT FOCUS ACTIVE' : 'READY TO STUDY'}
-                  </Text>
-                </View>
-
-                <Text style={styles.timerDigits}>{formatTime(secondsRemaining)}</Text>
-
-                <Text style={styles.timerTargetSub}>
-                  {isBreak
-                    ? 'Breathe & hydrate'
-                    : `Target: ${targetExam}${streamObj ? ` • ${streamObj.label}` : ''}`}
-                </Text>
+            {/* Minimal Centered Clock */}
+            <View style={styles.clockBlock}>
+              <Text style={styles.phaseLabel}>
+                {isBreak ? 'REST BREAK' : isActive ? 'FOCUS ACTIVE' : 'READY'}
+              </Text>
+              <Text style={styles.clockDigits}>{formatTime(secondsRemaining)}</Text>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
               </View>
 
-              {/* Progress Bar */}
-              <View style={styles.timerProgressTrack}>
-                <View style={[styles.timerProgressFill, { width: `${progressPercent}%` }]} />
-              </View>
-
-              {/* Timer Action Buttons */}
-              <View style={styles.timerActionsRow}>
+              <View style={styles.timerControls}>
                 <TouchableOpacity
-                  style={[styles.mainTimerBtn, isActive ? styles.pauseBtn : styles.startBtn]}
+                  style={[styles.primaryBtn, isActive && styles.pauseBtn]}
                   onPress={toggleTimer}
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                 >
-                  <MaterialCommunityIcons
-                    name={isActive ? 'pause' : 'play'}
-                    size={20}
-                    color="#0B0C12"
-                  />
-                  <Text style={styles.mainTimerBtnText}>
-                    {isActive ? 'Pause (Mindful Check)' : 'Start Deep Work'}
+                  <Text style={styles.primaryBtnText}>
+                    {isActive ? 'Pause' : 'Start Focus'}
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.resetTimerBtn}
-                  onPress={resetTimer}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons name="reload" size={18} color="#8E8EA0" />
+                <TouchableOpacity style={styles.resetBtn} onPress={resetTimer}>
+                  <Text style={styles.resetBtnText}>Reset</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Reels & Shorts Blocker Switch Card */}
-            <View style={styles.settingToggleCard}>
-              <View style={styles.settingToggleLeft}>
-                <View style={styles.settingIconBoxShorts}>
-                  <MaterialCommunityIcons name="filmstrip-off" size={20} color="#FF4757" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingToggleTitle}>Reels & Shorts Blocker</Text>
-                  <Text style={styles.settingToggleDesc}>
-                    Shields against dopamine scroll loops on Instagram, YouTube Shorts, and Snapchat.
-                  </Text>
-                </View>
+            {/* Clean Toggle List */}
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.toggleTitle}>Block Shorts & Reels</Text>
+                <Text style={styles.toggleSub}>
+                  Auto-exits YouTube Shorts & Instagram Reels; blocks distraction URLs in Flow
+                </Text>
               </View>
-              <TouchableOpacity
-                style={[styles.toggleSwitch, blockShortsReels && styles.toggleSwitchOn]}
-                onPress={() => setBlockShortsReels((prev) => !prev)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.toggleThumb, blockShortsReels && styles.toggleThumbOn]} />
-              </TouchableOpacity>
+              <Switch
+                value={blockShortsReels}
+                onValueChange={setBlockShortsReels}
+                trackColor={{ false: '#262938', true: '#38BDF8' }}
+                thumbColor="#FFFFFF"
+              />
             </View>
 
-            {/* Strict Mode Protection Switch Card */}
-            <View style={styles.settingToggleCard}>
-              <View style={styles.settingToggleLeft}>
-                <View style={styles.settingIconBoxStrict}>
-                  <MaterialCommunityIcons
-                    name={strictMode ? 'lock-outline' : 'lock-open-outline'}
-                    size={20}
-                    color="#00E676"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.settingToggleTitle}>Strict Mode Protection</Text>
-                  <Text style={styles.settingToggleDesc}>
-                    Enforces 5-second mindful breathing friction before interrupting your session.
-                  </Text>
-                </View>
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.toggleTitle}>Strict Breathing Lock</Text>
+                <Text style={styles.toggleSub}>
+                  Enforces a 5-second pause when leaving StudyQuest or ending focus early
+                </Text>
               </View>
-              <TouchableOpacity
-                style={[styles.toggleSwitch, strictMode && styles.toggleSwitchOn]}
-                onPress={() => setStrictMode((prev) => !prev)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.toggleThumb, strictMode && styles.toggleThumbOn]} />
-              </TouchableOpacity>
+              <Switch
+                value={strictMode}
+                onValueChange={setStrictMode}
+                trackColor={{ false: '#262938', true: '#38BDF8' }}
+                thumbColor="#FFFFFF"
+              />
             </View>
           </View>
         )}
 
-        {/* ───────────────────────────────────────────────────────────── */}
-        {/* TAB 2: SHIELDS, APPS & AMBIENT NOISE                          */}
-        {/* ───────────────────────────────────────────────────────────── */}
-        {activeTab === 'shields' && (
-          <View style={styles.tabContent}>
-            {/* Willpower Metrics Strip */}
-            <View style={styles.analyticsRow}>
-              <View style={styles.metricCard}>
-                <MaterialCommunityIcons name="clock-check-outline" size={16} color="#00E5FF" />
-                <Text style={styles.metricValue}>
-                  {Math.floor(screenTimeSavedMinutes / 60)}h {screenTimeSavedMinutes % 60}m
-                </Text>
-                <Text style={styles.metricLabel}>Time Saved</Text>
-              </View>
-
-              <View style={styles.metricCard}>
-                <MaterialCommunityIcons name="shield-check" size={16} color="#00E676" />
-                <Text style={styles.metricValue}>{urgesBlockedCount}</Text>
-                <Text style={styles.metricLabel}>Urges Deflected</Text>
-              </View>
-
-              <View style={styles.metricCard}>
-                <MaterialCommunityIcons name="fire" size={16} color="#FFB800" />
-                <Text style={styles.metricValue}>{completedSessionsCount}</Text>
-                <Text style={styles.metricLabel}>Sessions Done</Text>
-              </View>
+        {/* TAB 2: GENUINE APP BLOCKER */}
+        {activeTab === 'blocker' && (
+          <View>
+            {/* Plain Stats Line */}
+            <View style={styles.statsSummary}>
+              <Text style={styles.statsLine}>
+                {Math.floor(screenTimeSavedMinutes / 60)}h {screenTimeSavedMinutes % 60}m saved · {urgesBlockedCount} urges blocked · {completedSessionsCount} sessions
+              </Text>
             </View>
 
-            {/* Ambient Noise Selector */}
-            <View style={styles.ambientCard}>
-              <Text style={styles.ambientCardTitle}>Ambient Study Noise</Text>
-              <View style={styles.ambientChipsRow}>
-                {AMBIENT_SOUNDS.map((snd) => {
-                  const active = activeSound === snd.id;
-                  return (
-                    <TouchableOpacity
-                      key={snd.id}
-                      style={[styles.ambientChip, active && styles.ambientChipActive]}
-                      onPress={() => setActiveSound(active ? null : snd.id)}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialCommunityIcons
-                        name={snd.icon}
-                        size={14}
-                        color={active ? '#0B0C12' : '#8E8EA0'}
-                      />
-                      <Text style={[styles.ambientChipText, active && styles.ambientChipTextActive]}>
-                        {snd.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Distraction App Blocker Matrix */}
-            <View style={styles.appShieldCard}>
-              <View style={styles.appShieldHeader}>
-                <Text style={styles.appShieldTitle}>App Blocker Matrix</Text>
-                <Text style={styles.appShieldCount}>
-                  {blockedApps.filter((a) => a.blocked).length} of {blockedApps.length} Blocked
-                </Text>
-              </View>
-
-              <View style={styles.appsGrid}>
-                {blockedApps.map((app) => (
+            {/* Real OS Shield Status Row */}
+            <View style={styles.osStatusBlock}>
+              {isNativeShieldAvailable ? (
+                <>
                   <TouchableOpacity
-                    key={app.id}
-                    style={[styles.appItem, app.blocked && styles.appItemBlocked]}
-                    onPress={() => toggleAppBlock(app.id)}
-                    activeOpacity={0.8}
+                    style={styles.osRow}
+                    onPress={openAndroidAccessibilitySettings}
                   >
-                    <MaterialCommunityIcons
-                      name={app.icon}
-                      size={20}
-                      color={app.blocked ? '#FF4757' : '#777799'}
-                    />
-                    <Text
-                      style={[styles.appName, app.blocked && styles.appNameBlocked]}
-                      numberOfLines={1}
-                    >
-                      {app.name.split(' ')[0]}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.toggleTitle}>Android App & Shorts Blocker</Text>
+                      <Text
+                        style={[
+                          styles.toggleSub,
+                          nativeStatus.accessibilityEnabled && { color: '#34D399' },
+                        ]}
+                      >
+                        {nativeStatus.accessibilityEnabled
+                          ? 'Active across device — blocked apps redirect back here'
+                          : 'Tap to enable StudyQuest in Android Accessibility Settings'}
+                      </Text>
+                    </View>
+                    <Text style={styles.actionText}>
+                      {nativeStatus.accessibilityEnabled ? 'Enabled' : 'Enable'}
                     </Text>
-                    <View style={[styles.appStatusDot, app.blocked && styles.appStatusDotBlocked]} />
                   </TouchableOpacity>
-                ))}
+
+                  {!nativeStatus.overlayEnabled && (
+                    <TouchableOpacity
+                      style={styles.osRow}
+                      onPress={openAndroidOverlaySettings}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.toggleTitle}>Display Over Other Apps</Text>
+                        <Text style={styles.toggleSub}>Allows lock screen overlay on Android</Text>
+                      </View>
+                      <Text style={styles.actionText}>Allow</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                <TouchableOpacity style={styles.osRow} onPress={openSystemDigitalWellbeing}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.toggleTitle}>Device Focus Mode (Digital Wellbeing)</Text>
+                    <Text style={styles.toggleSub}>
+                      In-app breach notifications active; open Digital Wellbeing or build APK for full OS blocking
+                    </Text>
+                  </View>
+                  <Text style={styles.actionText}>Open</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.toggleTitle}>Always Guard Selected Apps</Text>
+                  <Text style={styles.toggleSub}>
+                    Keep blocked list active even outside timer sessions
+                  </Text>
+                </View>
+                <Switch
+                  value={alwaysGuard}
+                  onValueChange={setAlwaysGuard}
+                  trackColor={{ false: '#262938', true: '#38BDF8' }}
+                  thumbColor="#FFFFFF"
+                />
               </View>
             </View>
+
+            {/* Clean List of Apps to Block */}
+            <Text style={styles.sectionLabel}>Apps ({blockedCount} blocked)</Text>
+            {blockedApps.map((app) => (
+              <View key={app.packageName} style={styles.appRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.appLabel}>{app.label}</Text>
+                  <Text style={styles.appPkg}>{app.packageName}</Text>
+                </View>
+                <Switch
+                  value={!!app.blocked}
+                  onValueChange={() => toggleAppBlock(app.packageName)}
+                  trackColor={{ false: '#262938', true: '#F87171' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            ))}
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 90 }} />
       </Animated.ScrollView>
 
-      {/* Regain Mindful Friction Modal (5-Second Breathing Interceptor) */}
+      {/* Mindful 5-Second Pause Modal */}
       <Modal
         visible={frictionModalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => {}}
       >
-        <View style={styles.frictionOverlay}>
-          <View style={styles.frictionCard}>
-            <View style={styles.frictionIconCircle}>
-              <MaterialCommunityIcons name="weather-windy" size={36} color="#00E5FF" />
-            </View>
-
-            <Text style={styles.frictionTitle}>Mindful Breath Pause</Text>
-            <Text style={styles.frictionDesc}>
-              Before you {targetAppName.toLowerCase()}, take one deep conscious breath. Is this aligned with your {targetExam} goal?
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Mindful Pause</Text>
+            <Text style={styles.modalDesc}>
+              You {frictionReason}. Take {breathCountdown} seconds to breathe before deciding.
             </Text>
 
-            {/* Countdown Circle */}
-            <View style={styles.countdownBox}>
-              <Text style={styles.countdownNumber}>{breathCountdown}</Text>
-              <Text style={styles.countdownSub}>seconds remaining</Text>
-            </View>
+            <Text style={styles.modalCount}>{breathCountdown}</Text>
 
-            {/* Action Buttons */}
-            <View style={styles.frictionActions}>
-              <TouchableOpacity
-                style={styles.stayFocusedBtn}
-                onPress={handleCancelFriction}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="shield-check" size={16} color="#0B0C12" />
-                <Text style={styles.stayFocusedBtnText}>I Will Stay Focused (+10 XP)</Text>
+            <TouchableOpacity style={styles.stayBtn} onPress={handleStayFocused}>
+              <Text style={styles.stayBtnText}>Stay Focused (+10 XP)</Text>
+            </TouchableOpacity>
+
+            {breathCountdown === 0 && (
+              <TouchableOpacity style={styles.leaveBtn} onPress={handleGiveUp}>
+                <Text style={styles.leaveBtnText}>End Focus Anyway</Text>
               </TouchableOpacity>
-
-              {breathCountdown === 0 && (
-                <TouchableOpacity
-                  style={styles.giveUpBtn}
-                  onPress={handleConfirmGiveUp}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.giveUpBtnText}>Proceed Anyway</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -583,479 +589,143 @@ export default function RegainFocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0C12',
-  },
+  container: { flex: 1, backgroundColor: '#0B0C10' },
   header: {
-    paddingTop: 48,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: '#0E1018',
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#222436',
+    paddingTop: Platform.OS === 'ios' ? 54 : 38,
+    paddingHorizontal: 20,
+    backgroundColor: '#0B0C10',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
   headerTop: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  regainIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
-    backgroundColor: 'rgba(255, 71, 87, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  activeExamChip: {
-    backgroundColor: '#161824',
-    borderWidth: 1,
-    borderColor: '#2A2D40',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  activeExamChipText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FF4757',
-  },
-
-  // 2-Card Segmented Tabs Switcher
-  cardTabsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  cardTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    backgroundColor: '#141622',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 10,
-  },
-  cardTabActive: {
-    backgroundColor: '#1A1E2E',
-    borderColor: '#00E5FF',
-  },
-  cardTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8E8EA8',
-  },
-  cardTabTextActive: {
-    color: '#00E5FF',
-    fontWeight: '800',
-  },
-
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  tabContent: {
+    marginBottom: 14,
     gap: 12,
   },
+  headerTitle: { color: '#F9FAFB', fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  headerMeta: { color: '#9CA3AF', fontSize: 12, flexShrink: 1 },
 
-  // Timer Modes
-  modeTabsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    alignItems: 'center',
-  },
-  modeTabActive: {
-    backgroundColor: '#1A1E2E',
-    borderColor: '#00E5FF',
-  },
-  modeTabText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8EA8',
-  },
-  modeTabTextActive: {
-    color: '#00E5FF',
-    fontWeight: '800',
-  },
+  tabsRow: { flexDirection: 'row', gap: 22 },
+  tabItem: { paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabItemActive: { borderBottomColor: '#38BDF8' },
+  tabText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
+  tabTextActive: { color: '#F9FAFB' },
 
-  // Timer Card
-  timerCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 14,
-    padding: 20,
-    alignItems: 'center',
-    gap: 16,
-  },
-  timerCardActive: {
-    borderColor: '#00E5FF',
-  },
-  timerCenter: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  phaseBadge: {
-    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  phaseBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#00E5FF',
-    letterSpacing: 0.5,
-  },
-  timerDigits: {
-    fontSize: 54,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    fontVariant: ['tabular-nums'],
-    letterSpacing: -1,
-  },
-  timerTargetSub: {
-    fontSize: 12,
-    color: '#8E8EA8',
-  },
-  timerProgressTrack: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#1A1C2C',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  timerProgressFill: {
-    height: '100%',
-    backgroundColor: '#00E5FF',
-    borderRadius: 3,
-  },
-  timerActionsRow: {
+  scrollContent: { padding: 20 },
+
+  durationRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
-  },
-  mainTimerBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 24,
+    marginBottom: 24,
+  },
+  durationTab: { paddingVertical: 6, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  durationTabActive: { borderBottomColor: '#38BDF8' },
+  durationText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
+  durationTextActive: { color: '#F9FAFB' },
+
+  clockBlock: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
+    marginBottom: 8,
+  },
+  phaseLabel: { color: '#9CA3AF', fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+  clockDigits: {
+    color: '#F9FAFB',
+    fontSize: 64,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    marginVertical: 12,
+  },
+  progressTrack: {
+    width: '100%',
+    height: 3,
+    backgroundColor: '#1D1F2C',
+    marginBottom: 22,
+  },
+  progressFill: { height: '100%', backgroundColor: '#38BDF8' },
+  timerControls: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  primaryBtn: {
+    backgroundColor: '#38BDF8',
+    paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  startBtn: {
-    backgroundColor: '#00E5FF',
-  },
-  pauseBtn: {
-    backgroundColor: '#FF4757',
-  },
-  mainTimerBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0B0C12',
-  },
-  resetTimerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#161824',
-    borderWidth: 1,
-    borderColor: '#2A2D40',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  pauseBtn: { backgroundColor: '#FBBF24' },
+  primaryBtnText: { color: '#0B0C10', fontSize: 15, fontWeight: '700' },
+  resetBtn: { paddingVertical: 10, paddingHorizontal: 12 },
+  resetBtnText: { color: '#9CA3AF', fontSize: 14, fontWeight: '600' },
 
-  // Toggle Cards
-  settingToggleCard: {
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
+  },
+  toggleTitle: { color: '#F3F4F6', fontSize: 14, fontWeight: '600' },
+  toggleSub: { color: '#6B7280', fontSize: 12, marginTop: 3, lineHeight: 17 },
+
+  statsSummary: { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#1D1F2C' },
+  statsLine: { color: '#9CA3AF', fontSize: 12 },
+
+  osStatusBlock: { marginBottom: 18 },
+  osRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 14,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
     gap: 12,
   },
-  settingToggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  settingIconBoxShorts: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 71, 87, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingIconBoxStrict: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 230, 118, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingToggleTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  settingToggleDesc: {
-    fontSize: 10,
-    color: '#8E8EA8',
-    lineHeight: 14,
-    marginTop: 2,
-  },
-  toggleSwitch: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#2A2D40',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleSwitchOn: {
-    backgroundColor: '#00E5FF',
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  toggleThumbOn: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#0B0C12',
-  },
+  actionText: { color: '#38BDF8', fontSize: 13, fontWeight: '700' },
 
-  // Shields Tab Styles
-  analyticsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  metricValue: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  metricLabel: {
-    fontSize: 10,
-    color: '#8E8EA8',
-  },
-  ambientCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-  },
-  ambientCardTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  ambientChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  ambientChip: {
+  sectionLabel: { color: '#9CA3AF', fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  appRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#161824',
-    borderWidth: 1,
-    borderColor: '#2A2D40',
-  },
-  ambientChipActive: {
-    backgroundColor: '#00E5FF',
-    borderColor: '#00E5FF',
-  },
-  ambientChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8EA8',
-  },
-  ambientChipTextActive: {
-    color: '#0B0C12',
-    fontWeight: '800',
-  },
-  appShieldCard: {
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#222436',
-    borderRadius: 12,
-    padding: 14,
-    gap: 12,
-  },
-  appShieldHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  appShieldTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  appShieldCount: {
-    fontSize: 11,
-    color: '#8E8EA8',
-  },
-  appsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  appItem: {
-    width: (width - 72) / 4,
-    backgroundColor: '#161824',
-    borderWidth: 1.5,
-    borderColor: '#2A2D40',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    gap: 4,
-  },
-  appItemBlocked: {
-    borderColor: '#FF4757',
-    backgroundColor: 'rgba(255, 71, 87, 0.08)',
-  },
-  appName: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#8E8EA8',
-  },
-  appNameBlocked: {
-    color: '#FF4757',
-  },
-  appStatusDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#555577',
-  },
-  appStatusDotBlocked: {
-    backgroundColor: '#FF4757',
-  },
+  appLabel: { color: '#F3F4F6', fontSize: 14, fontWeight: '600' },
+  appPkg: { color: '#6B7280', fontSize: 11, marginTop: 2 },
 
-  // Mindful Friction Modal
-  frictionOverlay: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(5, 6, 10, 0.88)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 24,
   },
-  frictionCard: {
-    width: '100%',
-    backgroundColor: '#12141F',
-    borderWidth: 1.5,
-    borderColor: '#00E5FF',
-    borderRadius: 18,
-    padding: 22,
+  modalBox: {
+    backgroundColor: '#14161F',
+    borderRadius: 12,
+    padding: 24,
     alignItems: 'center',
-    gap: 14,
   },
-  frictionIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  frictionTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  frictionDesc: {
-    fontSize: 12,
-    color: '#8E8EA8',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  countdownBox: {
-    alignItems: 'center',
-    marginVertical: 6,
-  },
-  countdownNumber: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: '#00E5FF',
-  },
-  countdownSub: {
-    fontSize: 11,
-    color: '#777799',
-  },
-  frictionActions: {
-    width: '100%',
-    gap: 10,
-  },
-  stayFocusedBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#00E5FF',
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  stayFocusedBtnText: {
+  modalTitle: { color: '#F9FAFB', fontSize: 18, fontWeight: '700' },
+  modalDesc: {
+    color: '#9CA3AF',
     fontSize: 13,
-    fontWeight: '800',
-    color: '#0B0C12',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 19,
   },
-  giveUpBtn: {
+  modalCount: { color: '#38BDF8', fontSize: 44, fontWeight: '700', marginVertical: 18 },
+  stayBtn: {
+    backgroundColor: '#38BDF8',
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 8,
     alignItems: 'center',
-    paddingVertical: 6,
   },
-  giveUpBtnText: {
-    fontSize: 11,
-    color: '#8E8EA8',
-  },
+  stayBtnText: { color: '#0B0C10', fontSize: 14, fontWeight: '700' },
+  leaveBtn: { marginTop: 12, paddingVertical: 8 },
+  leaveBtnText: { color: '#9CA3AF', fontSize: 13 },
 });

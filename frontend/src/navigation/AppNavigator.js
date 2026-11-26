@@ -70,40 +70,23 @@ const MainTabNavigator = () => (
     screenOptions={({ route }) => ({
       headerShown: false,
       tabBarStyle: {
-        position: 'absolute',
-        bottom: Platform.OS === 'ios' ? 24 : 14,
-        left: 16,
-        right: 16,
-        height: 62,
-        borderRadius: 14,
-        backgroundColor: '#10111A',
-        borderWidth: 1.5,
-        borderColor: '#24263A',
-        elevation: 10,
-        paddingBottom: 6,
-        paddingTop: 6,
+        height: Platform.OS === 'ios' ? 78 : 62,
+        backgroundColor: '#0B0C10',
+        borderTopWidth: 1,
+        borderTopColor: '#1D1F2C',
+        elevation: 0,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+        paddingTop: 8,
       },
-      tabBarBackground: () => (
-        <View 
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              backgroundColor: '#10111A',
-              borderRadius: 14,
-            }
-          ]} 
-        />
-      ),
       tabBarShowLabel: true,
-      tabBarActiveTintColor: '#00E5FF',
-      tabBarInactiveTintColor: '#6E7187',
+      tabBarActiveTintColor: '#38BDF8',
+      tabBarInactiveTintColor: '#6B7280',
       tabBarLabelStyle: {
-        fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 0.2,
+        fontSize: 11,
+        fontWeight: '600',
         marginTop: 2,
       },
-      tabBarIcon: ({ color, size, focused }) => {
+      tabBarIcon: ({ color, focused }) => {
         let iconName = 'book-open-outline';
         if (route.name === 'Dashboard') {
           iconName = focused ? 'book-open-page-variant' : 'book-open-page-variant-outline';
@@ -116,24 +99,11 @@ const MainTabNavigator = () => (
         }
 
         return (
-          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-            {focused && (
-              <View style={{
-                position: 'absolute',
-                width: 38,
-                height: 30,
-                backgroundColor: 'rgba(0, 229, 255, 0.12)',
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: 'rgba(0, 229, 255, 0.3)',
-              }} />
-            )}
-            <MaterialCommunityIcons 
-              name={iconName} 
-              size={22} 
-              color={focused ? '#00E5FF' : color} 
-            />
-          </View>
+          <MaterialCommunityIcons
+            name={iconName}
+            size={21}
+            color={focused ? '#38BDF8' : color}
+          />
         );
       },
     })}

@@ -9,68 +9,48 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
-  Dimensions,
   Modal,
+  Platform,
   Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import { useUser } from '../context/UserContext';
 import {
   EXAM_TARGETS,
   getStreamsForExam,
   getCuratedSubjectsForExam,
   getCuratedTopicsForExam,
-  resolveStreamForExam,
 } from '../config/studyGuideData';
 import { auditTopic, auditUserAnswer } from '../services/aiService';
 import { pickImageForOcr, extractTextFromImage } from '../services/ocrService';
 import MarkingSimulatorModal from '../components/MarkingSimulatorModal';
 import { gsapTabTransition } from '../utils/gsapAnim';
 
-const { width } = Dimensions.get('window');
-
 export default function AIGapAuditorScreen() {
-  const navigation = useNavigation();
   const route = useRoute();
-  const { targetExam, targetStream, targetSubject, setTargetExam, setTargetSubject, saveAuditResult, markGapMastered, awardCustomXp } = useUser();
+  const {
+    targetExam,
+    targetStream,
+    targetSubject,
+    setTargetExam,
+    setTargetSubject,
+    saveAuditResult,
+    markGapMastered,
+    awardCustomXp,
+  } = useUser();
 
-  const streams = useMemo(() => getStreamsForExam(targetExam), [targetExam]);
-  const streamObj = useMemo(() => resolveStreamForExam(targetExam, targetStream), [targetExam, targetStream]);
   const curatedSubjects = useMemo(
-    () => [...getCuratedSubjectsForExam(targetExam, targetStream), 'Other / Custom Subject'],
+    () => [...getCuratedSubjectsForExam(targetExam, targetStream), 'Custom'],
     [targetExam, targetStream]
   );
 
-  const [activeTab, setActiveTab] = useState(route.params?.mode || 'TOPIC'); // 'TOPIC' | 'ANSWER'
+  const [activeTab, setActiveTab] = useState(route.params?.mode || 'TOPIC');
   const [selectedSubject, setSelectedSubject] = useState(
     route.params?.initialSubject ||
       (targetSubject && targetSubject !== 'All' ? targetSubject : curatedSubjects[0]) ||
       'Physics'
   );
-  const tabAnim = useRef(new Animated.Value(1)).current;
-
-  const curatedPresets = useMemo(() => {
-    const scopeSubj = selectedSubject !== 'Other / Custom Subject' ? selectedSubject : 'All';
-    return getCuratedTopicsForExam(targetExam, scopeSubj, targetStream)
-      .slice(0, 6)
-      .map((t) => ({ subject: t.subject, title: t.title }));
-  }, [targetExam, targetStream, selectedSubject]);
-
-  useEffect(() => {
-    if (targetSubject && targetSubject !== 'All' && curatedSubjects.includes(targetSubject)) {
-      setSelectedSubject(targetSubject);
-    } else if (!curatedSubjects.includes(selectedSubject) && selectedSubject !== 'Other / Custom Subject') {
-      setSelectedSubject(curatedSubjects[0] || 'Physics');
-    }
-  }, [targetExam, targetStream, targetSubject, curatedSubjects]);
-
-  const switchTab = (tab) => {
-    if (tab === activeTab) return;
-    gsapTabTransition(tabAnim);
-    setActiveTab(tab);
-    setAuditResult(null);
-  };
   const [customSubjectInput, setCustomSubjectInput] = useState('');
   const [topicInput, setTopicInput] = useState(route.params?.initialTopic || '');
   const [answerInput, setAnswerInput] = useState(route.params?.initialNotes || '');
@@ -82,29 +62,67 @@ export default function AIGapAuditorScreen() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [simulatorVisible, setSimulatorVisible] = useState(false);
 
+  const tabAnim = useRef(new Animated.Value(1)).current;
+
+  const activeExamLabel = useMemo(() => {
+    const match = EXAM_TARGETS.find((e) => e.id === targetExam || e.label === targetExam);
+    return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
+  }, [targetExam]);
+
+  const curatedPresets = useMemo(() => {
+    const scope = selectedSubject !== 'Custom' ? selectedSubject : 'All';
+    return getCuratedTopicsForExam(targetExam, scope, targetStream)
+      .slice(0, 5)
+      .map((t) => ({ subject: t.subject, title: t.title }));
+  }, [targetExam, targetStream, selectedSubject]);
+
+  useEffect(() => {
+    if (targetSubject && targetSubject !== 'All' && curatedSubjects.includes(targetSubject)) {
+      setSelectedSubject(targetSubject);
+    } else if (!curatedSubjects.includes(selectedSubject) && selectedSubject !== 'Custom') {
+      setSelectedSubject(curatedSubjects[0] || 'Physics');
+    }
+  }, [targetExam, targetStream, targetSubject, curatedSubjects]);
+
+  const resolvedSubject = useMemo(() => {
+    if (selectedSubject === 'Custom' && customSubjectInput.trim()) {
+      return customSubjectInput.trim();
+    }
+    return selectedSubject;
+  }, [selectedSubject, customSubjectInput]);
+
+  useEffect(() => {
+    if (route.params?.initialTopic) setTopicInput(route.params.initialTopic);
+    if (route.params?.initialSubject) setSelectedSubject(route.params.initialSubject);
+    if (route.params?.mode) setActiveTab(route.params.mode);
+    if (route.params?.initialNotes) setAnswerInput(route.params.initialNotes);
+    if (route.params?.autoAudit && route.params?.initialTopic) {
+      handleAuditTopic(route.params.initialTopic);
+    }
+  }, [route.params]);
+
+  const switchTab = (tab) => {
+    if (tab === activeTab) return;
+    gsapTabTransition(tabAnim);
+    setActiveTab(tab);
+    setAuditResult(null);
+  };
+
   const handleScanNotes = async (source = 'camera') => {
     try {
       setOcrLoading(true);
       const res = await pickImageForOcr(source);
-      if (res.canceled) {
-        setOcrLoading(false);
-        return;
-      }
+      if (res.canceled) return;
       if (!res.success) {
-        Alert.alert('Permission / Scan Error', res.error || 'Could not access image.');
-        setOcrLoading(false);
+        Alert.alert('Scan Error', res.error || 'Could not read image.');
         return;
       }
       const ocrRes = await extractTextFromImage(res.asset.base64, res.asset.mimeType || 'image/jpeg');
       if (ocrRes.success && ocrRes.text) {
-        if (activeTab === 'ANSWER') {
-          setAnswerInput(ocrRes.text);
-        } else {
-          setTopicInput(ocrRes.text.slice(0, 80));
-        }
-        Alert.alert('Scan Complete! 📷', 'Extracted text inserted into the auditor box.');
+        if (activeTab === 'ANSWER') setAnswerInput(ocrRes.text);
+        else setTopicInput(ocrRes.text.slice(0, 80));
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Scan Error', 'Could not extract text from image.');
     } finally {
       setOcrLoading(false);
@@ -112,92 +130,49 @@ export default function AIGapAuditorScreen() {
   };
 
   const showScanOptions = () => {
-    Alert.alert(
-      'Scan Handwritten Notes / Paper',
-      'Choose image source for AI text extraction:',
-      [
-        { text: '📷 Take Photo', onPress: () => handleScanNotes('camera') },
-        { text: '🖼️ Choose from Gallery', onPress: () => handleScanNotes('gallery') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    Alert.alert('Scan Handwritten Notes', 'Choose image source:', [
+      { text: 'Camera', onPress: () => handleScanNotes('camera') },
+      { text: 'Gallery', onPress: () => handleScanNotes('gallery') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
-
-  // Active exam label
-  const activeExamLabel = useMemo(() => {
-    const match = EXAM_TARGETS.find((e) => e.id === targetExam || e.label === targetExam);
-    return match ? match.label : (targetExam || 'CBSE Class 12 Boards');
-  }, [targetExam]);
-
-  useEffect(() => {
-    if (route.params?.initialTopic) {
-      setTopicInput(route.params.initialTopic);
-    }
-    if (route.params?.initialSubject) {
-      setSelectedSubject(route.params.initialSubject);
-    }
-    if (route.params?.mode) {
-      setActiveTab(route.params.mode);
-    }
-    if (route.params?.initialNotes) {
-      setAnswerInput(route.params.initialNotes);
-    }
-    if (route.params?.autoAudit && route.params?.initialTopic) {
-      handleAuditTopic(route.params.initialTopic);
-    }
-  }, [route.params]);
-
-  const resolvedSubject = useMemo(() => {
-    if (selectedSubject === 'Other / Custom Subject' && customSubjectInput.trim()) {
-      return customSubjectInput.trim();
-    }
-    return selectedSubject;
-  }, [selectedSubject, customSubjectInput]);
 
   const handleAuditTopic = async (customTitle) => {
     const titleToAudit = (customTitle || topicInput).trim();
     if (!titleToAudit) {
-      Alert.alert('Topic Required', 'Please enter or select a topic to audit for exam blindspots.');
+      Alert.alert('Topic Required', 'Enter a topic to audit.');
       return;
     }
-
     setLoading(true);
     setAuditResult(null);
     try {
       const result = await auditTopic(resolvedSubject, titleToAudit, activeExamLabel);
       if (result.success) {
         setAuditResult({ type: 'TOPIC', data: result });
-        saveAuditResult({
-          type: 'TOPIC',
-          topic: titleToAudit,
-          subject: resolvedSubject,
-          examTarget: activeExamLabel,
-          blindspotCount: result.blindspotCount || 3,
-        });
+        saveAuditResult({ type: 'TOPIC', topic: titleToAudit, subject: resolvedSubject });
       } else {
-        Alert.alert('Audit Error', 'Could not complete audit. Please try again.');
+        Alert.alert('Audit Error', result.error || 'Failed to audit topic.');
       }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'An error occurred during audit.');
+    } catch {
+      Alert.alert('Error', 'Could not connect to AI service.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAuditAnswer = async () => {
-    if (!answerInput.trim() || answerInput.trim().length < 15) {
-      Alert.alert('Notes Required', 'Please paste your answer, lecture notes, or AI text to audit.');
+    const trimmed = answerInput.trim();
+    if (!trimmed) {
+      Alert.alert('Answer Required', 'Paste notes or a draft answer first.');
       return;
     }
-
-    const titleToAudit = topicInput.trim() || 'General Concept';
+    const titleToAudit = topicInput.trim() || `${resolvedSubject} Draft`;
     setLoading(true);
     setAuditResult(null);
     try {
-      const result = await auditUserAnswer(resolvedSubject, titleToAudit, activeExamLabel, answerInput);
+      const result = await auditUserAnswer(resolvedSubject, titleToAudit, trimmed, activeExamLabel);
       if (result.success) {
-        setAuditResult({ type: 'ANSWER', data: result, topic: titleToAudit });
+        setAuditResult({ type: 'ANSWER', data: result });
         saveAuditResult({
           type: 'ANSWER',
           topic: titleToAudit,
@@ -206,25 +181,13 @@ export default function AIGapAuditorScreen() {
           grade: result.grade,
         });
       } else {
-        Alert.alert('Audit Error', result.error || 'Failed to audit text.');
+        Alert.alert('Audit Error', result.error || 'Failed to check answer.');
       }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not audit answer.');
+    } catch {
+      Alert.alert('Error', 'Could not evaluate answer.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleMastered = (idx) => {
-    setMasteredMap((prev) => {
-      const current = !!prev[idx];
-      if (!current) {
-        markGapMastered(idx);
-        awardCustomXp(25, 'Mastered AI Exam Blindspot');
-      }
-      return { ...prev, [idx]: !current };
-    });
   };
 
   const handleSelectExam = (label) => {
@@ -233,53 +196,36 @@ export default function AIGapAuditorScreen() {
     setExamModalVisible(false);
   };
 
-  const handleApplyCustomExam = () => {
-    if (customExamInput.trim()) {
-      setTargetExam(customExamInput.trim());
-      setCustomExamInput('');
-      setExamModalVisible(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0C12" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B0C10" />
 
-      {/* Clean Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>AI Blindspot Auditor</Text>
-          <TouchableOpacity
-            style={styles.examBadge}
-            onPress={() => setExamModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <MaterialCommunityIcons name="target" size={14} color="#00E5FF" />
-            <Text style={styles.examBadgeText} numberOfLines={1}>
-              {streams.length > 1 && streamObj ? `${activeExamLabel.split(' ')[0]} • ${streamObj.label}` : activeExamLabel}
+          <Text style={styles.headerTitle}>Auditor</Text>
+          <TouchableOpacity onPress={() => setExamModalVisible(true)}>
+            <Text style={styles.headerLink} numberOfLines={1}>
+              {activeExamLabel} ▾
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Clean Card Mode Switcher Tabs */}
-        <View style={styles.modeTabs}>
+        <View style={styles.tabsRow}>
           <TouchableOpacity
-            style={[styles.modeTab, activeTab === 'TOPIC' && styles.modeTabActive]}
-            activeOpacity={0.85}
+            style={[styles.tabItem, activeTab === 'TOPIC' && styles.tabItemActive]}
             onPress={() => switchTab('TOPIC')}
           >
-            <Text style={[styles.modeTabText, activeTab === 'TOPIC' && styles.modeTabTextActive]}>
-              Audit a Topic
+            <Text style={[styles.tabText, activeTab === 'TOPIC' && styles.tabTextActive]}>
+              Topic Audit
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.modeTab, activeTab === 'ANSWER' && styles.modeTabActive]}
-            activeOpacity={0.85}
+            style={[styles.tabItem, activeTab === 'ANSWER' && styles.tabItemActive]}
             onPress={() => switchTab('ANSWER')}
           >
-            <Text style={[styles.modeTabText, activeTab === 'ANSWER' && styles.modeTabTextActive]}>
-              Check Answer / Notes
+            <Text style={[styles.tabText, activeTab === 'ANSWER' && styles.tabTextActive]}>
+              Check Answer
             </Text>
           </TouchableOpacity>
         </View>
@@ -290,141 +236,104 @@ export default function AIGapAuditorScreen() {
         contentContainerStyle={styles.scrollContent}
         style={{ opacity: tabAnim }}
       >
-        {/* Subject Selection */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputSectionLabel}>SUBJECT</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectScroll}>
-            {curatedSubjects.map((subj) => {
-              const isSel = selectedSubject === subj;
-              return (
-                <TouchableOpacity
-                  key={subj}
-                  style={[styles.subjectChip, isSel && styles.subjectChipActive]}
-                  onPress={() => {
-                    setSelectedSubject(subj);
-                    if (subj !== 'Other / Custom Subject') {
-                      setTargetSubject(subj);
-                    }
-                  }}
-                >
-                  <Text style={[styles.subjectChipText, isSel && styles.subjectChipTextActive]}>
-                    {subj}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {selectedSubject === 'Other / Custom Subject' && (
-            <TextInput
-              style={styles.customSubjectInput}
-              placeholder="Enter custom subject (e.g. Accountancy, History, Law)..."
-              placeholderTextColor="#777799"
-              value={customSubjectInput}
-              onChangeText={setCustomSubjectInput}
-            />
-          )}
-        </View>
-
-        {/* ─── MODE A: TOPIC AUDIT ────────────────────────────────────────── */}
-        {activeTab === 'TOPIC' && (
-          <View style={styles.card}>
-            <View style={styles.inputHeaderRow}>
-              <Text style={styles.inputSectionLabel}>TOPIC TO AUDIT</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subjectStrip}>
+          {curatedSubjects.map((subj) => {
+            const active = selectedSubject === subj;
+            return (
               <TouchableOpacity
-                style={styles.scanBtn}
-                onPress={showScanOptions}
-                disabled={ocrLoading}
+                key={subj}
+                style={[styles.subjectTab, active && styles.subjectTabActive]}
+                onPress={() => {
+                  setSelectedSubject(subj);
+                  if (subj !== 'Custom') setTargetSubject(subj);
+                }}
               >
-                {ocrLoading ? (
-                  <ActivityIndicator size="small" color="#00D2FF" />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons name="camera-outline" size={14} color="#00D2FF" />
-                    <Text style={styles.scanBtnText}>Scan Paper</Text>
-                  </>
-                )}
+                <Text style={[styles.subjectTabText, active && styles.subjectTabTextActive]}>
+                  {subj}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {selectedSubject === 'Custom' && (
+          <TextInput
+            style={styles.input}
+            placeholder="Custom subject name..."
+            placeholderTextColor="#6B7280"
+            value={customSubjectInput}
+            onChangeText={setCustomSubjectInput}
+          />
+        )}
+
+        {activeTab === 'TOPIC' && (
+          <View style={styles.formSection}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Topic</Text>
+              <TouchableOpacity onPress={showScanOptions} disabled={ocrLoading}>
+                <Text style={styles.scanLink}>{ocrLoading ? 'Scanning...' : 'Scan Image'}</Text>
               </TouchableOpacity>
             </View>
             <TextInput
-              style={styles.topicTextInput}
-              placeholder="e.g. Photoelectric Effect, BCNF, Bayes' Theorem..."
-              placeholderTextColor="#666688"
+              style={styles.input}
+              placeholder="e.g. Photoelectric Effect, Newton's Laws..."
+              placeholderTextColor="#6B7280"
               value={topicInput}
               onChangeText={setTopicInput}
             />
 
-            {/* Quick Presets */}
-            <View style={styles.presetsBox}>
-              <Text style={styles.presetsLabel}>Quick Presets:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
+            {curatedPresets.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsRow}>
                 {curatedPresets.map((p) => (
                   <TouchableOpacity
                     key={p.title}
-                    style={styles.presetChip}
                     onPress={() => {
                       setSelectedSubject(p.subject);
                       setTopicInput(p.title);
                       handleAuditTopic(p.title);
                     }}
                   >
-                    <Text style={styles.presetChipText}>{p.title}</Text>
+                    <Text style={styles.presetText}>{p.title}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+            )}
 
             <TouchableOpacity
-              style={styles.submitBtn}
+              style={styles.primaryBtn}
               onPress={() => handleAuditTopic()}
               disabled={loading}
-              activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color="#0B0C12" size="small" />
+                <ActivityIndicator color="#0B0C10" size="small" />
               ) : (
-                <>
-                  <MaterialCommunityIcons name="lightning-bolt" size={18} color="#0B0C12" />
-                  <Text style={styles.submitBtnText}>Audit for Exam Blindspots</Text>
-                </>
+                <Text style={styles.primaryBtnText}>Find Exam Blindspots</Text>
               )}
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ─── MODE B: ANSWER CHECKER ────────────────────────────────────────── */}
         {activeTab === 'ANSWER' && (
-          <View style={styles.card}>
-            <Text style={styles.inputSectionLabel}>TOPIC (OPTIONAL)</Text>
+          <View style={styles.formSection}>
+            <Text style={styles.fieldLabel}>Topic (Optional)</Text>
             <TextInput
-              style={[styles.topicTextInput, { marginBottom: 12 }]}
-              placeholder="e.g. Aldol vs Cannizzaro, Rolling friction..."
-              placeholderTextColor="#666688"
+              style={styles.input}
+              placeholder="Topic title"
+              placeholderTextColor="#6B7280"
               value={topicInput}
               onChangeText={setTopicInput}
             />
 
-            <View style={styles.inputHeaderRow}>
-              <Text style={styles.inputSectionLabel}>PASTE DRAFT ANSWER OR AI NOTES</Text>
-              <TouchableOpacity
-                style={styles.scanBtn}
-                onPress={showScanOptions}
-                disabled={ocrLoading}
-              >
-                {ocrLoading ? (
-                  <ActivityIndicator size="small" color="#00D2FF" />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons name="camera-outline" size={14} color="#00D2FF" />
-                    <Text style={styles.scanBtnText}>Scan Notes / Paper</Text>
-                  </>
-                )}
+            <View style={[styles.labelRow, { marginTop: 12 }]}>
+              <Text style={styles.fieldLabel}>Draft Answer or Notes</Text>
+              <TouchableOpacity onPress={showScanOptions} disabled={ocrLoading}>
+                <Text style={styles.scanLink}>{ocrLoading ? 'Scanning...' : 'Scan Paper'}</Text>
               </TouchableOpacity>
             </View>
             <TextInput
-              style={styles.answerTextArea}
-              placeholder="Paste your revision notes, AI summary, or draft answer to find what crucial points or formulas were omitted..."
-              placeholderTextColor="#666688"
+              style={[styles.input, styles.textArea]}
+              placeholder="Paste answer text or notes to evaluate..."
+              placeholderTextColor="#6B7280"
               multiline
               numberOfLines={6}
               textAlignVertical="top"
@@ -432,199 +341,124 @@ export default function AIGapAuditorScreen() {
               onChangeText={setAnswerInput}
             />
 
-            <TouchableOpacity
-              style={styles.submitBtn}
-              onPress={handleAuditAnswer}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleAuditAnswer} disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color="#0B0C10" size="small" />
               ) : (
-                <>
-                  <MaterialCommunityIcons name="shield-check" size={18} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>Audit My Text</Text>
-                </>
+                <Text style={styles.primaryBtnText}>Evaluate Answer</Text>
               )}
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ─── AUDIT RESULTS VIEW ────────────────────────────────────────── */}
+        {/* Topic Audit Results */}
         {auditResult && auditResult.type === 'TOPIC' && (
-          <View style={styles.resultsContainer}>
-            <View style={styles.resultBanner}>
-              <MaterialCommunityIcons name="alert-decagram" size={20} color="#FF6B81" />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.resultBannerTitle}>
-                  {auditResult.data.blindspotCount || 3} Exam Blindspots Identified
-                </Text>
-                <Text style={styles.resultBannerSub}>
-                  Generic AI explanations omit these critical points for {activeExamLabel}
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.simulateScoreBtn}
-              onPress={() => setSimulatorVisible(true)}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="calculator-variant-outline" size={16} color="#00D2FF" />
-              <Text style={styles.simulateScoreBtnText}>Simulate Score with Examiner Rubric</Text>
-            </TouchableOpacity>
-
-            {auditResult.data.aiBlindspots?.map((blindspot, idx) => {
-              const isMastered = !!masteredMap[idx];
-              return (
-                <View key={idx} style={[styles.blindspotCard, isMastered && styles.blindspotCardMastered]}>
-                  <View style={styles.blindspotHeader}>
-                    <Text style={styles.blindspotIndex}>#{idx + 1}</Text>
-                    <Text style={styles.blindspotTitle}>{blindspot.point}</Text>
-                    <TouchableOpacity
-                      onPress={() => toggleMastered(idx)}
-                      style={[styles.masterCheckBtn, isMastered && styles.masterCheckBtnActive]}
-                    >
-                      <MaterialCommunityIcons
-                        name={isMastered ? 'check-circle' : 'circle-outline'}
-                        size={20}
-                        color={isMastered ? '#2ED573' : '#8888AA'}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* What Generic AI Says */}
-                  <View style={styles.comparisonBoxSurface}>
-                    <Text style={styles.compLabelSurface}>What Generic AI Summarizes:</Text>
-                    <Text style={styles.compTextSurface}>{blindspot.whatAiSays}</Text>
-                  </View>
-
-                  {/* What Generic AI Leaves Out */}
-                  <View style={styles.comparisonBoxMissing}>
-                    <Text style={styles.compLabelMissing}>What Generic AI Leaves Out:</Text>
-                    <Text style={styles.compTextMissing}>{blindspot.whatAiMisses}</Text>
-                  </View>
-
-                  {/* Examiner Deduction */}
-                  <View style={styles.rubricCallout}>
-                    <Text style={styles.rubricCalloutHeading}>Examiner Deduction:</Text>
-                    <Text style={styles.rubricCalloutBody}>{blindspot.examinerRubric}</Text>
-                  </View>
-                </View>
-              );
-            })}
-
-            {/* Full Marks Rubric */}
-            {auditResult.data.examQuestions?.[0] && (
-              <View style={styles.modelQuestionCard}>
-                <Text style={styles.modelQuestionHeading}>
-                  Examiner Question ({auditResult.data.examQuestions[0].marks} Marks)
-                </Text>
-                <Text style={styles.modelQuestionText}>
-                  {auditResult.data.examQuestions[0].question}
-                </Text>
-                <Text style={styles.modelKeysLabel}>Full-Marks Criteria Checklist:</Text>
-                {auditResult.data.examQuestions[0].keyPoints?.map((kp, kIdx) => (
-                  <View key={kIdx} style={styles.keyPointRow}>
-                    <MaterialCommunityIcons name="check" size={14} color="#2ED573" style={{ marginTop: 2, marginRight: 6 }} />
-                    <Text style={styles.keyPointText}>{kp}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ─── ANSWER AUDIT RESULTS ────────────────────────────────────────── */}
-        {auditResult && auditResult.type === 'ANSWER' && (
-          <View style={styles.resultsContainer}>
-            <View style={styles.scoreCard}>
-              <View>
-                <Text style={styles.scoreVal}>{auditResult.data.score}/100</Text>
-                <Text style={styles.gradeVal}>{auditResult.data.grade}</Text>
-              </View>
-              <Text style={styles.verdictText}>{auditResult.data.overallVerdict}</Text>
-            </View>
-
-            {auditResult.data.blindspotsFound?.map((gap, gIdx) => (
-              <View key={gIdx} style={styles.gapCard}>
-                <View style={styles.gapHeader}>
-                  <Text style={styles.gapTitle}>{gap.title}</Text>
-                  <Text style={styles.gapSeverity}>{gap.severity}</Text>
-                </View>
-                <Text style={styles.gapExplanation}>{gap.explanation}</Text>
-                <View style={styles.gapFixBox}>
-                  <Text style={styles.gapFixLabel}>What To Add:</Text>
-                  <Text style={styles.gapFixText}>"{gap.fix}"</Text>
-                </View>
-              </View>
-            ))}
-
-            {auditResult.data.fullMarksAdditions && (
-              <View style={styles.modelAdditionBox}>
-                <Text style={styles.modelAdditionHeading}>Examiner Full-Marks Summary:</Text>
-                <Text style={styles.modelAdditionText}>{auditResult.data.fullMarksAdditions}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        <View style={{ height: 110 }} />
-      </Animated.ScrollView>
-
-      {/* Target Exam Selection Modal */}
-      <Modal
-        visible={examModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setExamModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setExamModalVisible(false)}
-        >
-          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Target Exam</Text>
-              <TouchableOpacity onPress={() => setExamModalVisible(false)}>
-                <MaterialCommunityIcons name="close" size={20} color="#FFFFFF" />
+          <View>
+            <View style={styles.resultHeader}>
+              <Text style={styles.resultSummary}>
+                {auditResult.data.blindspotCount || 3} blindspots found for {activeExamLabel}
+              </Text>
+              <TouchableOpacity onPress={() => setSimulatorVisible(true)}>
+                <Text style={styles.scanLink}>Simulate Score</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Custom Exam Input */}
-            <View style={styles.customExamRow}>
+            {auditResult.data.aiBlindspots?.map((b, idx) => {
+              const done = !!masteredMap[idx];
+              return (
+                <View key={idx} style={styles.resultRow}>
+                  <View style={styles.resultTop}>
+                    <Text style={[styles.resultTitle, done && { color: '#34D399' }]}>
+                      {idx + 1}. {b.point}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setMasteredMap((prev) => ({ ...prev, [idx]: !done }));
+                        if (!done) {
+                          markGapMastered(idx);
+                          awardCustomXp(25, 'Mastered Blindspot');
+                        }
+                      }}
+                    >
+                      <Text style={styles.linkMuted}>{done ? 'Done' : 'Mark'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.warnLabel}>OMISSION</Text>
+                  <Text style={styles.bodyText}>{b.whatAiMisses}</Text>
+                  <Text style={[styles.warnLabel, { color: '#38BDF8', marginTop: 8 }]}>MARKING KEY</Text>
+                  <Text style={styles.bodyText}>{b.examinerRubric}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Answer Audit Results */}
+        {auditResult && auditResult.type === 'ANSWER' && (
+          <View>
+            <View style={styles.resultRow}>
+              <Text style={styles.scoreNum}>{auditResult.data.score}/100 · {auditResult.data.grade}</Text>
+              <Text style={styles.bodyText}>{auditResult.data.overallVerdict}</Text>
+            </View>
+
+            {auditResult.data.blindspotsFound?.map((gap, idx) => (
+              <View key={idx} style={styles.resultRow}>
+                <Text style={styles.resultTitle}>{gap.title}</Text>
+                <Text style={styles.bodyText}>{gap.explanation}</Text>
+                <Text style={[styles.bodyText, { color: '#38BDF8', marginTop: 6 }]}>Fix: {gap.fix}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{ height: 96 }} />
+      </Animated.ScrollView>
+
+      <Modal visible={examModalVisible} transparent animationType="fade" onRequestClose={() => setExamModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setExamModalVisible(false)}>
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Exam</Text>
+              <TouchableOpacity onPress={() => setExamModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.customRow}>
               <TextInput
-                style={styles.customExamInput}
-                placeholder="Or type custom exam (e.g. CUET, GRE)..."
-                placeholderTextColor="#777799"
+                style={styles.customInput}
+                placeholder="Custom exam..."
+                placeholderTextColor="#6B7280"
                 value={customExamInput}
                 onChangeText={setCustomExamInput}
               />
               <TouchableOpacity
-                style={styles.customExamApplyBtn}
-                onPress={handleApplyCustomExam}
+                style={styles.applyBtn}
+                onPress={() => {
+                  if (customExamInput.trim()) {
+                    setTargetExam(customExamInput.trim());
+                    setCustomExamInput('');
+                    setExamModalVisible(false);
+                  }
+                }}
               >
-                <Text style={styles.customExamApplyText}>Set</Text>
+                <Text style={styles.applyText}>Set</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={{ maxHeight: 340 }}>
               {EXAM_TARGETS.map((target) => {
-                const isSelected = activeExamLabel === target.label;
+                const isSel = activeExamLabel === target.label;
                 return (
                   <TouchableOpacity
                     key={target.id}
-                    style={[styles.modalOption, isSelected && styles.modalOptionActive]}
+                    style={styles.modalOption}
                     onPress={() => handleSelectExam(target.label)}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.modalOptionLabel, isSelected && styles.modalOptionLabelActive]}>
-                        {target.label}
-                      </Text>
-                      <Text style={styles.modalOptionDesc} numberOfLines={1}>{target.desc}</Text>
-                    </View>
-                    {isSelected && <MaterialCommunityIcons name="check" size={18} color="#00D2FF" />}
+                    <Text style={[styles.modalOptText, isSel && { color: '#38BDF8' }]}>
+                      {target.label}
+                    </Text>
+                    {isSel && <MaterialCommunityIcons name="check" size={18} color="#38BDF8" />}
                   </TouchableOpacity>
                 );
               })}
@@ -633,7 +467,6 @@ export default function AIGapAuditorScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Interactive Marking Simulator Modal */}
       <MarkingSimulatorModal
         visible={simulatorVisible}
         onClose={() => setSimulatorVisible(false)}
@@ -647,541 +480,111 @@ export default function AIGapAuditorScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0C12',
-  },
+  container: { flex: 1, backgroundColor: '#0B0C10' },
   header: {
-    paddingTop: 48,
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-    backgroundColor: '#12141F',
+    paddingTop: Platform.OS === 'ios' ? 54 : 38,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#222436',
+    borderBottomColor: '#1D1F2C',
   },
   headerTop: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  examBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00E5FF14',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#00E5FF44',
-    gap: 4,
-    maxWidth: 185,
-  },
-  examBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#00E5FF',
-  },
-  modeTabs: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-    backgroundColor: '#0B0C12',
-    borderWidth: 1,
-    borderColor: '#222436',
-  },
-  modeTabActive: {
-    backgroundColor: '#181B29',
-    borderColor: '#00E5FF',
-  },
-  modeTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#777799',
-  },
-  modeTabTextActive: {
-    color: '#00E5FF',
-    fontWeight: '800',
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-  },
-  inputSection: {
     marginBottom: 14,
-  },
-  inputHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  scanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
-    gap: 4,
-  },
-  scanBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#00D2FF',
-  },
-  simulateScoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 210, 255, 0.12)',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.3)',
-    marginBottom: 12,
-    gap: 6,
-  },
-  simulateScoreBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#00D2FF',
-  },
-  inputSectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8EA8',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  subjectScroll: {
-    gap: 8,
-  },
-  subjectChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#12141F',
-    borderWidth: 1,
-    borderColor: '#222436',
-  },
-  subjectChipActive: {
-    backgroundColor: '#00E5FF',
-    borderColor: '#00E5FF',
-  },
-  subjectChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8E8EA8',
-  },
-  subjectChipTextActive: {
-    color: '#0B0C12',
-    fontWeight: '800',
-  },
-  customSubjectInput: {
-    backgroundColor: '#12141F',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#FFFFFF',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#222436',
-  },
-  card: {
-    backgroundColor: '#12141F',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#222436',
-    marginBottom: 16,
-  },
-  topicTextInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 12,
-  },
-  presetsBox: {
-    marginBottom: 14,
-  },
-  presetsLabel: {
-    fontSize: 11,
-    color: '#8E8EA8',
-    marginBottom: 6,
-  },
-  presetScroll: {
-    gap: 8,
-  },
-  presetChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  presetChipText: {
-    fontSize: 11,
-    color: '#A29BFE',
-  },
-  answerTextArea: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 13,
-    color: '#FFFFFF',
-    lineHeight: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    minHeight: 120,
-    marginBottom: 14,
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#00E5FF',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 6,
-  },
-  submitBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0B0C12',
-  },
-  resultsContainer: {
     gap: 12,
-    marginBottom: 20,
   },
-  resultBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 71, 87, 0.08)',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 71, 87, 0.25)',
+  headerTitle: { color: '#F9FAFB', fontSize: 22, fontWeight: '700' },
+  headerLink: { color: '#38BDF8', fontSize: 12, fontWeight: '600', maxWidth: 200 },
+
+  tabsRow: { flexDirection: 'row', gap: 24 },
+  tabItem: { paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabItemActive: { borderBottomColor: '#38BDF8' },
+  tabText: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
+  tabTextActive: { color: '#F9FAFB' },
+
+  scrollContent: { padding: 20 },
+  subjectStrip: {
+    gap: 18,
+    paddingBottom: 10,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  resultBannerTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FF6B81',
-  },
-  resultBannerSub: {
-    fontSize: 12,
-    color: '#CCD0E0',
-    marginTop: 2,
-  },
-  blindspotCard: {
-    backgroundColor: '#121228',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  blindspotCardMastered: {
-    borderColor: 'rgba(46, 213, 115, 0.35)',
-  },
-  blindspotHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  blindspotIndex: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#00D2FF',
-    marginRight: 6,
-  },
-  blindspotTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  masterCheckBtn: {
-    padding: 2,
-  },
-  masterCheckBtnActive: {},
-  comparisonBoxSurface: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
-  },
-  compLabelSurface: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8EA8',
-    marginBottom: 3,
-  },
-  compTextSurface: {
-    fontSize: 12,
-    color: '#A0A0C0',
-    lineHeight: 16,
-  },
-  comparisonBoxMissing: {
-    backgroundColor: 'rgba(255, 165, 2, 0.08)',
-    borderRadius: 10,
-    padding: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FFA502',
-    marginBottom: 8,
-  },
-  compLabelMissing: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFA502',
-    marginBottom: 3,
-  },
-  compTextMissing: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    lineHeight: 18,
-    fontWeight: '600',
-  },
-  rubricCallout: {
-    backgroundColor: 'rgba(46, 213, 115, 0.08)',
-    borderRadius: 10,
-    padding: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2ED573',
-  },
-  rubricCalloutHeading: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2ED573',
-    marginBottom: 2,
-  },
-  rubricCalloutBody: {
-    fontSize: 12,
-    color: '#CCD0E0',
-    lineHeight: 16,
-  },
-  modelQuestionCard: {
-    backgroundColor: '#121228',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  modelQuestionHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#00D2FF',
-    marginBottom: 4,
-  },
-  modelQuestionText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 10,
-    lineHeight: 19,
-  },
-  modelKeysLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8EA8',
-    marginBottom: 6,
-  },
-  keyPointRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  keyPointText: {
-    fontSize: 12,
-    color: '#DDDDEE',
-    flex: 1,
-    lineHeight: 16,
-  },
-  scoreCard: {
-    backgroundColor: '#121228',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 255, 0.25)',
-  },
-  scoreVal: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#00D2FF',
-  },
-  gradeVal: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 2,
-  },
-  verdictText: {
-    fontSize: 12,
-    color: '#CCD0E0',
-    marginTop: 6,
-    lineHeight: 16,
-  },
-  gapCard: {
-    backgroundColor: '#121228',
-    borderRadius: 14,
-    padding: 14,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FF4757',
-  },
-  gapHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  gapTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  gapSeverity: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FF6B81',
-  },
-  gapExplanation: {
-    fontSize: 12,
-    color: '#CCD0E0',
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  gapFixBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  subjectTab: { paddingVertical: 4 },
+  subjectTabActive: { borderBottomWidth: 2, borderBottomColor: '#38BDF8' },
+  subjectTabText: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
+  subjectTabTextActive: { color: '#F9FAFB' },
+
+  formSection: { paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: '#1D1F2C' },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  fieldLabel: { color: '#9CA3AF', fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  scanLink: { color: '#38BDF8', fontSize: 12, fontWeight: '600' },
+
+  input: {
+    backgroundColor: '#14161F',
     borderRadius: 8,
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    color: '#F9FAFB',
+    fontSize: 14,
+    marginBottom: 12,
   },
-  gapFixLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#2ED573',
-    marginBottom: 2,
-  },
-  gapFixText: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    fontStyle: 'italic',
-    lineHeight: 15,
-  },
-  modelAdditionBox: {
-    backgroundColor: '#121228',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
-  },
-  modelAdditionHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#00D2FF',
-    marginBottom: 4,
-  },
-  modelAdditionText: {
-    fontSize: 12,
-    color: '#CCD0E0',
-    lineHeight: 17,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
+  textArea: { minHeight: 110 },
+  presetsRow: { gap: 14, marginBottom: 14 },
+  presetText: { color: '#9CA3AF', fontSize: 12, textDecorationLine: 'underline' },
+
+  primaryBtn: {
+    backgroundColor: '#38BDF8',
+    paddingVertical: 13,
+    borderRadius: 8,
     alignItems: 'center',
-    padding: 20,
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#121228',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  modalHeader: {
+  primaryBtnText: { color: '#0B0C10', fontSize: 14, fontWeight: '700' },
+
+  resultHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  customExamRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  customExamInput: {
+  resultSummary: { color: '#F3F4F6', fontSize: 13, fontWeight: '600' },
+  resultRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1D1F2C', gap: 5 },
+  resultTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  resultTitle: { flex: 1, color: '#F9FAFB', fontSize: 15, fontWeight: '700' },
+  linkMuted: { color: '#9CA3AF', fontSize: 12, fontWeight: '600' },
+  warnLabel: { color: '#F87171', fontSize: 10, fontWeight: '700', marginTop: 4 },
+  bodyText: { color: '#D1D5DB', fontSize: 13, lineHeight: 20 },
+  scoreNum: { color: '#38BDF8', fontSize: 24, fontWeight: '700', marginBottom: 4 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#14161F', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  modalTitle: { color: '#F9FAFB', fontSize: 16, fontWeight: '700' },
+  customRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  customInput: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 10,
+    height: 40,
+    backgroundColor: '#0B0C10',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    color: '#F9FAFB',
     fontSize: 13,
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  customExamApplyBtn: {
-    backgroundColor: '#00D2FF',
-    paddingHorizontal: 14,
+  applyBtn: {
+    backgroundColor: '#38BDF8',
+    paddingHorizontal: 16,
+    borderRadius: 8,
     justifyContent: 'center',
-    borderRadius: 10,
   },
-  customExamApplyText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0A0A1A',
-  },
+  applyText: { color: '#0B0C10', fontSize: 13, fontWeight: '700' },
   modalOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1D1F2C',
   },
-  modalOptionActive: {
-    backgroundColor: 'rgba(0, 210, 255, 0.1)',
-  },
-  modalOptionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#DDDDEE',
-  },
-  modalOptionLabelActive: {
-    color: '#00D2FF',
-  },
-  modalOptionDesc: {
-    fontSize: 11,
-    color: '#8888AA',
-    marginTop: 2,
-  },
+  modalOptText: { color: '#F3F4F6', fontSize: 14 },
 });
